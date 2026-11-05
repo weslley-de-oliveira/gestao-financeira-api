@@ -1,10 +1,13 @@
 import { z } from 'zod';
-import type { Goal } from '../../db/schema/index.ts';
+import type { Goal, GoalContribution } from '../../db/schema/index.ts';
 import { APPEARANCE_COLORS } from '../../shared/models/appearance.ts';
 import { MAX_MONEY_CENTS } from '../../shared/utils/money.ts';
 import { collapseWhitespace } from '../../shared/utils/text.ts';
+import { positiveCentsSchema } from '../../shared/validation/money.ts';
 import { booleanQueryParam } from '../../shared/validation/query.ts';
 import {
+  CONTRIBUTION_NOTE_MAX_LENGTH,
+  CONTRIBUTION_TYPES,
   GOAL_DESCRIPTION_MAX_LENGTH,
   GOAL_ICONS,
   GOAL_NAME_MAX_LENGTH,
@@ -14,6 +17,21 @@ const colorSchema = z.enum(APPEARANCE_COLORS, 'Selecione uma cor válida.');
 const iconSchema = z
   .enum(GOAL_ICONS, 'Selecione um ícone válido.')
   .meta({ description: 'Ícone do Material Symbols.' });
+
+export const contributionSchema = z
+  .object({
+    id: z.uuid(),
+    type: z
+      .enum(CONTRIBUTION_TYPES)
+      .meta({ description: '`deposit` (aporte) ou `withdrawal` (retirada).' }),
+    amount: z
+      .int()
+      .meta({ description: 'Centavos, sempre positivo: o tipo define se soma ou subtrai.' }),
+    date: z.iso.date(),
+    note: z.string().nullable(),
+    createdAt: z.iso.datetime(),
+  })
+  .meta({ id: 'GoalContribution' });
 
 /** Meta como a API devolve. */
 export const goalSchema = z
@@ -31,6 +49,9 @@ export const goalSchema = z
     isPaused: z.boolean().meta({ description: 'Pausada: não fica atrasada enquanto pausada.' }),
     isArchived: z.boolean(),
     createdAt: z.iso.datetime(),
+    contributions: z
+      .array(contributionSchema)
+      .meta({ description: 'Aportes e retiradas, dos mais recentes para os mais antigos.' }),
   })
   .meta({ id: 'Goal' });
 
@@ -109,7 +130,33 @@ export const updateGoalBodySchema = z
 
 export type UpdateGoalInput = z.infer<typeof updateGoalBodySchema>;
 
-export function toGoalDto(goal: Goal): GoalDto {
+export const contributionParamsSchema = goalParamsSchema.extend({
+  contributionId: z.uuid('Identificador de movimentação inválido.'),
+});
+
+// `strictObject`: campos desconhecidos (ex.: `goalId`) são rejeitados com 422.
+export const createContributionBodySchema = z.strictObject({
+  type: z.enum(CONTRIBUTION_TYPES, 'Selecione aporte ou retirada.'),
+  amount: positiveCentsSchema,
+  date: z.iso
+    .date('Informe uma data válida no formato aaaa-mm-dd.')
+    .meta({ description: 'Data da movimentação: hoje ou antes.' }),
+  /** Vazia ou só espaços vira `null`. */
+  note: z
+    .string('Informe a observação como texto.')
+    .trim()
+    .max(
+      CONTRIBUTION_NOTE_MAX_LENGTH,
+      `A observação deve ter no máximo ${CONTRIBUTION_NOTE_MAX_LENGTH} caracteres.`,
+    )
+    .nullable()
+    .optional()
+    .transform((value) => (value === '' ? null : (value ?? null))),
+});
+
+export type CreateContributionInput = z.infer<typeof createContributionBodySchema>;
+
+export function toGoalDto(goal: Goal & { contributions: GoalContribution[] }): GoalDto {
   return {
     id: goal.id,
     name: goal.name,
@@ -123,5 +170,13 @@ export function toGoalDto(goal: Goal): GoalDto {
     isPaused: goal.isPaused,
     isArchived: goal.isArchived,
     createdAt: goal.createdAt.toISOString(),
+    contributions: goal.contributions.map((contribution) => ({
+      id: contribution.id,
+      type: contribution.type,
+      amount: contribution.amount,
+      date: contribution.date,
+      note: contribution.note,
+      createdAt: contribution.createdAt.toISOString(),
+    })),
   };
 }

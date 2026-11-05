@@ -65,6 +65,7 @@ describe('rotas /v1/goals', () => {
         isPaused: false,
         isArchived: false,
         createdAt: expect.any(String) as unknown,
+        contributions: [],
       });
     });
 

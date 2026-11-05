@@ -3,6 +3,8 @@ import { currentAuth, requireSession } from '../../plugins/auth.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
 import { createGoalsRepository } from './goals.repository.ts';
 import {
+  contributionParamsSchema,
+  createContributionBodySchema,
   createGoalBodySchema,
   goalListSchema,
   goalParamsSchema,
@@ -103,6 +105,64 @@ export const goalsRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
         currentAuth(request).user.id,
         request.params.id,
         request.body,
+      );
+      return toGoalDto(goal);
+    },
+  );
+
+  app.post(
+    '/:id/contributions',
+    {
+      schema: {
+        tags: [GOALS_TAG],
+        summary: 'Registra um aporte ou uma retirada',
+        description:
+          'Movimentação manual da meta, com data de hoje ou anterior. Uma retirada maior que o valor acumulado responde 409. Devolve a meta atualizada.',
+        params: goalParamsSchema,
+        body: createContributionBodySchema,
+        response: {
+          201: goalSchema,
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          409: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const goal = await service.addContribution(
+        currentAuth(request).user.id,
+        request.params.id,
+        request.body,
+      );
+      return reply.status(201).send(toGoalDto(goal));
+    },
+  );
+
+  app.delete(
+    '/:id/contributions/:contributionId',
+    {
+      schema: {
+        tags: [GOALS_TAG],
+        summary: 'Exclui um aporte ou uma retirada',
+        description:
+          'O acumulado é recalculado. Excluir um aporte que deixaria o acumulado negativo responde 409. Devolve a meta atualizada.',
+        params: contributionParamsSchema,
+        response: {
+          200: goalSchema,
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          409: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request) => {
+      const { id, contributionId } = request.params;
+      const goal = await service.removeContribution(
+        currentAuth(request).user.id,
+        id,
+        contributionId,
       );
       return toGoalDto(goal);
     },
