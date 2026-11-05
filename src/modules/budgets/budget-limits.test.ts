@@ -91,11 +91,14 @@ describe('vigências do limite do orçamento', () => {
     });
   });
 
-  it('com corpo vazio, devolve o orçamento sem alterar', async () => {
+  it('com corpo vazio, devolve o orçamento sem alterar, com o consumo do mês atual', async () => {
     const response = await patch(december, {});
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual(budget);
+    expect(response.json()).toEqual({
+      ...budget,
+      progress: { ...budget.progress, month: '2026-12' },
+    });
   });
 
   it('responde 422 para trocar a categoria', async () => {

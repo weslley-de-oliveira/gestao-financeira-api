@@ -4,6 +4,8 @@ import { problemDetailsSchema } from '../../shared/http/problem.ts';
 import { createCategoriesRepository } from '../categories/categories.repository.ts';
 import { createBudgetsRepository } from './budgets.repository.ts';
 import {
+  budgetListSchema,
+  budgetMonthQuerySchema,
   budgetParamsSchema,
   budgetSchema,
   createBudgetBodySchema,
@@ -24,13 +26,33 @@ export const budgetsRoutes: FastifyPluginCallbackZod = (app, _options, done) => 
   });
 
   app.get(
+    '',
+    {
+      schema: {
+        tags: [BUDGETS_TAG],
+        summary: 'Lista os orçamentos com o consumo do mês',
+        description:
+          'Orçamentos que valem no mês (padrão: o atual), em ordem alfabética da categoria, com o consumo: só despesas realizadas contam (compras no cartão incluídas, pela data da compra); as pendentes aparecem à parte.',
+        querystring: budgetMonthQuerySchema,
+        response: { 200: budgetListSchema, 401: problemDetailsSchema, 422: problemDetailsSchema },
+      },
+    },
+    async (request) => {
+      const budgets = await service.list(currentAuth(request).user.id, request.query.month);
+      return budgets.map(toBudgetDto);
+    },
+  );
+
+  app.get(
     '/:id',
     {
       schema: {
         tags: [BUDGETS_TAG],
         summary: 'Detalha um orçamento',
-        description: 'Orçamento inexistente ou de outro usuário responde 404.',
+        description:
+          'Com o consumo do mês (padrão: o atual; `progress` nulo se o orçamento ainda não valia nele). Orçamento inexistente ou de outro usuário responde 404.',
         params: budgetParamsSchema,
+        querystring: budgetMonthQuerySchema,
         response: {
           200: budgetSchema,
           401: problemDetailsSchema,
@@ -40,7 +62,11 @@ export const budgetsRoutes: FastifyPluginCallbackZod = (app, _options, done) => 
       },
     },
     async (request) => {
-      const budget = await service.get(currentAuth(request).user.id, request.params.id);
+      const budget = await service.get(
+        currentAuth(request).user.id,
+        request.params.id,
+        request.query.month,
+      );
       return toBudgetDto(budget);
     },
   );

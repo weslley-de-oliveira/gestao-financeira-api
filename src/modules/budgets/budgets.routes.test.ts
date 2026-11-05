@@ -49,6 +49,16 @@ describe('rotas /v1/budgets', () => {
         alertThreshold: 80,
         limitAmount: 80_000,
         limits: [{ month: '2026-11', amount: 80_000 }],
+        // Consumo do mês atual, ainda sem gastos.
+        progress: {
+          month: '2026-11',
+          limit: 80_000,
+          spent: 0,
+          pending: 0,
+          available: 80_000,
+          percent: 0,
+          state: 'ok',
+        },
         createdAt: expect.any(String) as unknown,
       });
     });

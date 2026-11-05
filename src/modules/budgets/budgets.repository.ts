@@ -1,13 +1,32 @@
-import { and, asc, eq, gte } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import type { Database } from '../../db/client.ts';
 import { isUniqueViolation } from '../../db/errors.ts';
-import { budgetLimits, budgets, type Budget, type NewBudget } from '../../db/schema/index.ts';
+import { alphabetical } from '../../db/order.ts';
+import {
+  budgetLimits,
+  budgets,
+  categories,
+  transactions,
+  type Budget,
+  type NewBudget,
+} from '../../db/schema/index.ts';
 import type { BudgetLimitPeriod } from './budget-rules.ts';
 
 /** Orçamento com as vigências do limite, em ordem crescente de mês (nunca vazia). */
 export type BudgetWithLimits = Budget & { limits: BudgetLimitPeriod[] };
 
 export interface BudgetsRepository {
+  /** Orçamentos do usuário, com as vigências, em ordem alfabética do nome da categoria. */
+  listBudgets(userId: string): Promise<BudgetWithLimits[]>;
+  /**
+   * Despesas do usuário no período, somadas por categoria: realizadas (`spent`) e pendentes
+   * (`pending`). Compras no cartão entram pela data da compra. Mesma regra de `budgetProgress`.
+   */
+  spendingByCategory(
+    userId: string,
+    categoryIds: readonly string[],
+    range: { start: string; end: string },
+  ): Promise<Map<string, { spent: number; pending: number }>>;
   /** Orçamento pelo id, só se for do usuário: o de outro usuário é tratado como inexistente. */
   findBudget(userId: string, budgetId: string): Promise<BudgetWithLimits | null>;
   /**
@@ -39,6 +58,64 @@ export function createBudgetsRepository(db: Database): BudgetsRepository {
   }
 
   return {
+    async listBudgets(userId) {
+      const rows = await db
+        .select({ budget: budgets })
+        .from(budgets)
+        .innerJoin(categories, eq(categories.id, budgets.categoryId))
+        .where(eq(budgets.userId, userId))
+        .orderBy(alphabetical(categories.name), asc(budgets.id));
+      if (rows.length === 0) {
+        return [];
+      }
+      const limits = await db
+        .select()
+        .from(budgetLimits)
+        .where(
+          inArray(
+            budgetLimits.budgetId,
+            rows.map(({ budget }) => budget.id),
+          ),
+        )
+        .orderBy(asc(budgetLimits.month));
+      return rows.map(({ budget }) => ({
+        ...budget,
+        limits: limits
+          .filter((limit) => limit.budgetId === budget.id)
+          .map(({ month, amount }) => ({ month, amount })),
+      }));
+    },
+
+    async spendingByCategory(userId, categoryIds, { start, end }) {
+      if (categoryIds.length === 0) {
+        return new Map();
+      }
+      const rows = await db
+        .select({
+          categoryId: transactions.categoryId,
+          spent: sql<string>`coalesce(sum(${transactions.amount}) filter (where ${transactions.status} = 'completed'), 0)`,
+          pending: sql<string>`coalesce(sum(${transactions.amount}) filter (where ${transactions.status} = 'pending'), 0)`,
+        })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            eq(transactions.type, 'expense'),
+            inArray(transactions.categoryId, [...categoryIds]),
+            gte(transactions.date, start),
+            lte(transactions.date, end),
+          ),
+        )
+        .groupBy(transactions.categoryId);
+      // `sum` de bigint vem como texto (numeric); os valores cabem com folga em um `number`.
+      return new Map(
+        rows.map((row) => [
+          row.categoryId ?? '',
+          { spent: Number(row.spent), pending: Number(row.pending) },
+        ]),
+      );
+    },
+
     async findBudget(userId, budgetId) {
       const [budget] = await db
         .select()

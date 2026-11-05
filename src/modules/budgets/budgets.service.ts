@@ -1,7 +1,7 @@
 import { DomainError, InvalidInputError } from '../../shared/errors/domain-error.ts';
-import type { IsoDate } from '../../shared/utils/date.ts';
+import { monthRange, type IsoDate, type IsoMonth } from '../../shared/utils/date.ts';
 import type { CategoriesRepository } from '../categories/categories.repository.ts';
-import { withLimitFrom } from './budget-rules.ts';
+import { limitForMonth, progressFrom, withLimitFrom, type BudgetProgress } from './budget-rules.ts';
 import type { BudgetsRepository, BudgetWithLimits } from './budgets.repository.ts';
 import type { CreateBudgetInput, UpdateBudgetInput } from './budgets.schemas.ts';
 
@@ -39,20 +39,28 @@ export interface BudgetsServiceDependencies {
   today: () => IsoDate;
 }
 
+/** Orçamento com o consumo do mês consultado; `null` se o orçamento ainda não valia nele. */
+export type BudgetWithProgress = BudgetWithLimits & { progress: BudgetProgress | null };
+
 export interface BudgetsService {
-  /** Orçamento do usuário; inexistente ou de outro usuário → `BudgetNotFoundError`. */
-  get(userId: string, budgetId: string): Promise<BudgetWithLimits>;
+  /** Orçamentos que valem no mês (padrão: o atual), com o consumo do mês. */
+  list(userId: string, month?: IsoMonth): Promise<BudgetWithProgress[]>;
+  /**
+   * Orçamento do usuário com o consumo do mês (padrão: o atual); inexistente ou de outro usuário
+   * → `BudgetNotFoundError`.
+   */
+  get(userId: string, budgetId: string, month?: IsoMonth): Promise<BudgetWithProgress>;
   /**
    * Cria o orçamento de uma categoria de despesa do usuário, com o limite valendo do mês atual em
    * diante. Categoria inexistente ou de receita → `InvalidInputError`; arquivada →
    * `ArchivedBudgetCategoryError`; com orçamento → `DuplicateBudgetError`.
    */
-  create(userId: string, input: CreateBudgetInput): Promise<BudgetWithLimits>;
+  create(userId: string, input: CreateBudgetInput): Promise<BudgetWithProgress>;
   /**
    * Altera o alerta e o limite. O novo limite vale do mês atual em diante (vigência nova); os
    * meses anteriores mantêm o limite que tinham.
    */
-  update(userId: string, budgetId: string, changes: UpdateBudgetInput): Promise<BudgetWithLimits>;
+  update(userId: string, budgetId: string, changes: UpdateBudgetInput): Promise<BudgetWithProgress>;
 }
 
 export function createBudgetsService({
@@ -62,7 +70,38 @@ export function createBudgetsService({
 }: BudgetsServiceDependencies): BudgetsService {
   const currentMonth = () => today().slice(0, 7);
 
-  async function get(userId: string, budgetId: string): Promise<BudgetWithLimits> {
+  /** Consumo do mês de cada orçamento, com os gastos somados no banco numa consulta só. */
+  async function withProgress(
+    userId: string,
+    list: BudgetWithLimits[],
+    month: IsoMonth,
+  ): Promise<BudgetWithProgress[]> {
+    const spending = await budgets.spendingByCategory(
+      userId,
+      list.map((budget) => budget.categoryId),
+      monthRange(month),
+    );
+    return list.map((budget) => {
+      const limit = limitForMonth(budget.limits, month);
+      const totals = spending.get(budget.categoryId) ?? { spent: 0, pending: 0 };
+      return {
+        ...budget,
+        progress: limit === null ? null : progressFrom(month, limit, totals, budget.alertThreshold),
+      };
+    });
+  }
+
+  async function withOneProgress(
+    userId: string,
+    budget: BudgetWithLimits,
+    month: IsoMonth = currentMonth(),
+  ): Promise<BudgetWithProgress> {
+    const [result] = await withProgress(userId, [budget], month);
+    if (!result) throw new Error('Consumo do orçamento não calculado.');
+    return result;
+  }
+
+  async function find(userId: string, budgetId: string): Promise<BudgetWithLimits> {
     const budget = await budgets.findBudget(userId, budgetId);
     if (!budget) {
       throw new BudgetNotFoundError();
@@ -71,10 +110,18 @@ export function createBudgetsService({
   }
 
   return {
-    get,
+    async list(userId, month = currentMonth()) {
+      const all = await withProgress(userId, await budgets.listBudgets(userId), month);
+      // Só os que já valiam no mês consultado.
+      return all.filter((budget) => budget.progress !== null);
+    },
+
+    async get(userId, budgetId, month) {
+      return withOneProgress(userId, await find(userId, budgetId), month);
+    },
 
     async update(userId, budgetId, { limitAmount, alertThreshold }) {
-      const current = await get(userId, budgetId);
+      const current = await find(userId, budgetId);
       const month = currentMonth();
       const updated = await budgets.updateBudget(userId, budgetId, {
         alertThreshold,
@@ -86,7 +133,7 @@ export function createBudgetsService({
       if (!updated) {
         throw new BudgetNotFoundError();
       }
-      return updated;
+      return withOneProgress(userId, updated);
     },
 
     async create(userId, { categoryId, limitAmount, alertThreshold }) {
@@ -113,7 +160,7 @@ export function createBudgetsService({
       if (!created) {
         throw new DuplicateBudgetError(category.name);
       }
-      return created;
+      return withOneProgress(userId, created);
     },
   };
 }

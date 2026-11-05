@@ -138,6 +138,46 @@
         },
         "required": ["id", "name", "email", "createdAt"]
       },
+      "BudgetProgressInput": {
+        "type": "object",
+        "properties": {
+          "month": { "type": "string", "description": "Mês consultado (`yyyy-MM`)." },
+          "limit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite em vigor no mês, em centavos."
+          },
+          "spent": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Despesas realizadas da categoria no mês, incluindo compras no cartão."
+          },
+          "pending": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Despesas pendentes da categoria no mês, à parte (previstas)."
+          },
+          "available": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite − gasto; negativo quando excedido."
+          },
+          "percent": {
+            "type": "number",
+            "description": "Percentual gasto, sem arredondamento nem teto."
+          },
+          "state": {
+            "type": "string",
+            "enum": ["ok", "warning", "exceeded"],
+            "description": "`ok` (dentro do limite), `warning` (a partir do percentual de alerta) ou `exceeded` (acima de 100%)."
+          }
+        },
+        "required": ["month", "limit", "spent", "pending", "available", "percent", "state"]
+      },
       "BudgetInput": {
         "type": "object",
         "properties": {
@@ -182,13 +222,25 @@
             },
             "description": "Vigências do limite, em ordem crescente de mês: o histórico dos limites."
           },
+          "progress": {
+            "anyOf": [{ "$ref": "#/components/schemas/BudgetProgressInput" }, { "type": "null" }],
+            "description": "Consumo do mês consultado; `null` se o orçamento ainda não valia nele."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
           }
         },
-        "required": ["id", "categoryId", "alertThreshold", "limitAmount", "limits", "createdAt"]
+        "required": [
+          "id",
+          "categoryId",
+          "alertThreshold",
+          "limitAmount",
+          "limits",
+          "progress",
+          "createdAt"
+        ]
       },
       "CategoryInput": {
         "type": "object",
@@ -867,6 +919,47 @@
         "required": ["id", "name", "email", "createdAt"],
         "additionalProperties": false
       },
+      "BudgetProgress": {
+        "type": "object",
+        "properties": {
+          "month": { "type": "string", "description": "Mês consultado (`yyyy-MM`)." },
+          "limit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite em vigor no mês, em centavos."
+          },
+          "spent": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Despesas realizadas da categoria no mês, incluindo compras no cartão."
+          },
+          "pending": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Despesas pendentes da categoria no mês, à parte (previstas)."
+          },
+          "available": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite − gasto; negativo quando excedido."
+          },
+          "percent": {
+            "type": "number",
+            "description": "Percentual gasto, sem arredondamento nem teto."
+          },
+          "state": {
+            "type": "string",
+            "enum": ["ok", "warning", "exceeded"],
+            "description": "`ok` (dentro do limite), `warning` (a partir do percentual de alerta) ou `exceeded` (acima de 100%)."
+          }
+        },
+        "required": ["month", "limit", "spent", "pending", "available", "percent", "state"],
+        "additionalProperties": false
+      },
       "Budget": {
         "type": "object",
         "properties": {
@@ -912,13 +1005,25 @@
             },
             "description": "Vigências do limite, em ordem crescente de mês: o histórico dos limites."
           },
+          "progress": {
+            "anyOf": [{ "$ref": "#/components/schemas/BudgetProgress" }, { "type": "null" }],
+            "description": "Consumo do mês consultado; `null` se o orçamento ainda não valia nele."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
           }
         },
-        "required": ["id", "categoryId", "alertThreshold", "limitAmount", "limits", "createdAt"],
+        "required": [
+          "id",
+          "categoryId",
+          "alertThreshold",
+          "limitAmount",
+          "limits",
+          "progress",
+          "createdAt"
+        ],
         "additionalProperties": false
       },
       "Category": {
@@ -3143,12 +3248,137 @@
         }
       }
     },
+    "/v1/budgets": {
+      "get": {
+        "summary": "Lista os orçamentos com o consumo do mês",
+        "tags": ["Orçamentos"],
+        "description": "Orçamentos que valem no mês (padrão: o atual), em ordem alfabética da categoria, com o consumo: só despesas realizadas contam (compras no cartão incluídas, pela data da compra); as pendentes aparecem à parte.",
+        "parameters": [
+          {
+            "schema": {
+              "example": "2026-11",
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            },
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "description": "Mês do consumo (`yyyy-MM`); padrão: o mês atual."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Budget" } }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Cadastra o orçamento de uma categoria",
+        "tags": ["Orçamentos"],
+        "description": "Limite mensal recorrente de gastos de uma categoria de despesa, valendo do mês atual em diante. Um orçamento por categoria (repetido responde 409). Categoria de receita responde 422; arquivada, 409. Sem `alertThreshold`, o alerta é em 80%.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "categoryId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "limitAmount": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000000000,
+                    "description": "Limite mensal em centavos.",
+                    "example": 80000
+                  },
+                  "alertThreshold": {
+                    "default": 80,
+                    "anyOf": [
+                      { "type": "number", "enum": [50] },
+                      { "type": "number", "enum": [60] },
+                      { "type": "number", "enum": [70] },
+                      { "type": "number", "enum": [75] },
+                      { "type": "number", "enum": [80] },
+                      { "type": "number", "enum": [85] },
+                      { "type": "number", "enum": [90] },
+                      { "type": "number", "enum": [95] },
+                      { "type": "number", "enum": [100] }
+                    ],
+                    "description": "Percentual do limite a partir do qual o orçamento fica em alerta: 50, 60, 70, 75, 80, 85, 90, 95, 100."
+                  }
+                },
+                "required": ["categoryId", "limitAmount"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Budget" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
     "/v1/budgets/{id}": {
       "get": {
         "summary": "Detalha um orçamento",
         "tags": ["Orçamentos"],
-        "description": "Orçamento inexistente ou de outro usuário responde 404.",
+        "description": "Com o consumo do mês (padrão: o atual; `progress` nulo se o orçamento ainda não valia nele). Orçamento inexistente ou de outro usuário responde 404.",
         "parameters": [
+          {
+            "schema": {
+              "example": "2026-11",
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            },
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "description": "Mês do consumo (`yyyy-MM`); padrão: o mês atual."
+          },
           {
             "schema": {
               "type": "string",
@@ -3255,80 +3485,6 @@
             }
           },
           "404": {
-            "description": "Default Response",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
-            }
-          },
-          "422": {
-            "description": "Default Response",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
-            }
-          }
-        }
-      }
-    },
-    "/v1/budgets": {
-      "post": {
-        "summary": "Cadastra o orçamento de uma categoria",
-        "tags": ["Orçamentos"],
-        "description": "Limite mensal recorrente de gastos de uma categoria de despesa, valendo do mês atual em diante. Um orçamento por categoria (repetido responde 409). Categoria de receita responde 422; arquivada, 409. Sem `alertThreshold`, o alerta é em 80%.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "categoryId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "limitAmount": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 100000000000,
-                    "description": "Limite mensal em centavos.",
-                    "example": 80000
-                  },
-                  "alertThreshold": {
-                    "default": 80,
-                    "anyOf": [
-                      { "type": "number", "enum": [50] },
-                      { "type": "number", "enum": [60] },
-                      { "type": "number", "enum": [70] },
-                      { "type": "number", "enum": [75] },
-                      { "type": "number", "enum": [80] },
-                      { "type": "number", "enum": [85] },
-                      { "type": "number", "enum": [90] },
-                      { "type": "number", "enum": [95] },
-                      { "type": "number", "enum": [100] }
-                    ],
-                    "description": "Percentual do limite a partir do qual o orçamento fica em alerta: 50, 60, 70, 75, 80, 85, 90, 95, 100."
-                  }
-                },
-                "required": ["categoryId", "limitAmount"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Default Response",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/Budget" } }
-            }
-          },
-          "401": {
-            "description": "Default Response",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
-            }
-          },
-          "409": {
             "description": "Default Response",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }

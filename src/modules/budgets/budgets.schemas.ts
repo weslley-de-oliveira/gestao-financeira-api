@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { MAX_MONEY_CENTS } from '../../shared/utils/money.ts';
-import { currentLimit } from './budget-rules.ts';
+import { BUDGET_STATES, currentLimit, type BudgetProgress } from './budget-rules.ts';
 import type { BudgetWithLimits } from './budgets.repository.ts';
 import { ALERT_THRESHOLD_OPTIONS, DEFAULT_ALERT_THRESHOLD } from './budgets.constants.ts';
 
@@ -24,6 +24,25 @@ export const budgetLimitSchema = z.object({
   amount: z.int(),
 });
 
+export const budgetProgressSchema = z
+  .object({
+    month: z.string().meta({ description: 'Mês consultado (`yyyy-MM`).' }),
+    limit: z.int().meta({ description: 'Limite em vigor no mês, em centavos.' }),
+    spent: z.int().meta({
+      description: 'Despesas realizadas da categoria no mês, incluindo compras no cartão.',
+    }),
+    pending: z
+      .int()
+      .meta({ description: 'Despesas pendentes da categoria no mês, à parte (previstas).' }),
+    available: z.int().meta({ description: 'Limite − gasto; negativo quando excedido.' }),
+    percent: z.number().meta({ description: 'Percentual gasto, sem arredondamento nem teto.' }),
+    state: z.enum(BUDGET_STATES).meta({
+      description:
+        '`ok` (dentro do limite), `warning` (a partir do percentual de alerta) ou `exceeded` (acima de 100%).',
+    }),
+  })
+  .meta({ id: 'BudgetProgress' });
+
 /** Orçamento como a API devolve. */
 export const budgetSchema = z
   .object({
@@ -34,11 +53,24 @@ export const budgetSchema = z
     limits: z.array(budgetLimitSchema).meta({
       description: 'Vigências do limite, em ordem crescente de mês: o histórico dos limites.',
     }),
+    progress: budgetProgressSchema.nullable().meta({
+      description: 'Consumo do mês consultado; `null` se o orçamento ainda não valia nele.',
+    }),
     createdAt: z.iso.datetime(),
   })
   .meta({ id: 'Budget' });
 
 export type BudgetDto = z.infer<typeof budgetSchema>;
+
+export const budgetListSchema = z.array(budgetSchema);
+
+const monthQueryParam = z
+  .string()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Informe o mês no formato aaaa-mm.')
+  .optional()
+  .meta({ description: 'Mês do consumo (`yyyy-MM`); padrão: o mês atual.', example: '2026-11' });
+
+export const budgetMonthQuerySchema = z.object({ month: monthQueryParam });
 
 export const budgetParamsSchema = z.object({
   id: z.uuid('Identificador de orçamento inválido.'),
@@ -68,13 +100,16 @@ export const updateBudgetBodySchema = z.strictObject({
 
 export type UpdateBudgetInput = z.infer<typeof updateBudgetBodySchema>;
 
-export function toBudgetDto(budget: BudgetWithLimits): BudgetDto {
+export function toBudgetDto(
+  budget: BudgetWithLimits & { progress: BudgetProgress | null },
+): BudgetDto {
   return {
     id: budget.id,
     categoryId: budget.categoryId,
     alertThreshold: budget.alertThreshold,
     limitAmount: currentLimit(budget.limits),
     limits: budget.limits,
+    progress: budget.progress,
     createdAt: budget.createdAt.toISOString(),
   };
 }
