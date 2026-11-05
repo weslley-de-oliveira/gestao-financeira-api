@@ -61,7 +61,15 @@ export const createAccountBodySchema = z.strictObject({
 
 export type CreateAccountInput = z.infer<typeof createAccountBodySchema>;
 
-export const updateAccountBodySchema = z.strictObject(accountFields).partial();
+/** Na edição, `isArchived` arquiva ou reativa a conta: contas não são excluídas. */
+export const updateAccountBodySchema = z
+  .strictObject({
+    ...accountFields,
+    isArchived: z.boolean('Informe true ou false.').meta({
+      description: 'true arquiva a conta (some da lista padrão); false a reativa.',
+    }),
+  })
+  .partial();
 
 export type UpdateAccountInput = z.infer<typeof updateAccountBodySchema>;
 

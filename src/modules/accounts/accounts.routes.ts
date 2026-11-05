@@ -82,9 +82,9 @@ export const accountsRoutes: FastifyPluginCallbackZod = (app, _options, done) =>
     {
       schema: {
         tags: [ACCOUNTS_TAG],
-        summary: 'Edita uma conta',
+        summary: 'Edita, arquiva ou reativa uma conta',
         description:
-          'Altera só os campos enviados; `institution: null` remove a instituição. Conta inexistente ou de outro usuário responde 404.',
+          'Altera só os campos enviados; `institution: null` remove a instituição. Arquivar é `{ "isArchived": true }` e reativar, `false`: contas não são excluídas, para preservar o histórico das transações. Conta inexistente ou de outro usuário responde 404.',
         params: accountParamsSchema,
         body: updateAccountBodySchema,
         response: {

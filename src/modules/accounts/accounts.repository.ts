@@ -4,7 +4,10 @@ import { accounts, type Account, type NewAccount } from '../../db/schema/index.t
 
 /** Campos que o usuário pode alterar: nunca o dono, o id ou as datas. */
 export type AccountChanges = Partial<
-  Pick<NewAccount, 'name' | 'type' | 'institution' | 'initialBalance' | 'color' | 'icon'>
+  Pick<
+    NewAccount,
+    'name' | 'type' | 'institution' | 'initialBalance' | 'color' | 'icon' | 'isArchived'
+  >
 >;
 
 export interface AccountsRepository {

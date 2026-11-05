@@ -453,4 +453,102 @@ describe('rotas /v1/accounts', () => {
       expect(response.statusCode).toBe(401);
     });
   });
+
+  describe('arquivar e reativar', () => {
+    async function createdAccount(token: string, name = 'Conta corrente'): Promise<AccountDto> {
+      const response = await send('POST', '/v1/accounts', { ...validAccount, name }, token);
+      return response.json<AccountDto>();
+    }
+
+    const setArchived = (id: string, isArchived: unknown, token?: string) =>
+      send('PATCH', `/v1/accounts/${id}`, { isArchived }, token);
+
+    it('arquivada, a conta sai da lista padrão mas continua no detalhe e na lista completa', async () => {
+      const { token } = await signUp();
+      const account = await createdAccount(token, 'Antiga');
+      await createdAccount(token, 'Atual');
+
+      const response = await setArchived(account.id, true, token);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ ...account, isArchived: true });
+      expect(names(await get('/v1/accounts', token))).toEqual(['Atual']);
+      expect(names(await get('/v1/accounts?includeArchived=true', token))).toEqual([
+        'Antiga',
+        'Atual',
+      ]);
+      expect((await get(`/v1/accounts/${account.id}`, token)).statusCode).toBe(200);
+    });
+
+    it('reativada, a conta volta para a lista padrão com os mesmos dados', async () => {
+      const { token } = await signUp();
+      const account = await createdAccount(token);
+      await setArchived(account.id, true, token);
+
+      const response = await setArchived(account.id, false, token);
+
+      expect(response.json()).toEqual(account);
+      expect(names(await get('/v1/accounts', token))).toEqual(['Conta corrente']);
+    });
+
+    it('arquivar de novo uma conta já arquivada não é erro', async () => {
+      const { token } = await signUp();
+      const account = await createdAccount(token);
+      await setArchived(account.id, true, token);
+
+      const response = await setArchived(account.id, true, token);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json<AccountDto>().isArchived).toBe(true);
+    });
+
+    it('permite editar e arquivar na mesma requisição', async () => {
+      const { token } = await signUp();
+      const account = await createdAccount(token);
+
+      const response = await send(
+        'PATCH',
+        `/v1/accounts/${account.id}`,
+        { name: 'Encerrada', isArchived: true },
+        token,
+      );
+
+      expect(response.json()).toMatchObject({ name: 'Encerrada', isArchived: true });
+    });
+
+    it.each([['sim'], [1], [null]])('responde 422 para isArchived = %s', async (value) => {
+      const { token } = await signUp();
+      const account = await createdAccount(token);
+
+      const response = await setArchived(account.id, value, token);
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json()).toMatchObject({
+        errors: [{ field: 'body.isArchived', message: 'Informe true ou false.' }],
+      });
+    });
+
+    it('não arquiva conta de outro usuário', async () => {
+      const owner = await signUp();
+      const account = await createdAccount(owner.token);
+      const { token } = await signUp();
+
+      expect((await setArchived(account.id, true, token)).statusCode).toBe(404);
+      expect((await storedAccount(account.id))?.isArchived).toBe(false);
+    });
+
+    it('não tem rota de exclusão: DELETE não apaga a conta', async () => {
+      const { token } = await signUp();
+      const account = await createdAccount(token);
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/v1/accounts/${account.id}`,
+        cookies: { [SESSION_COOKIE]: token },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(await storedAccount(account.id)).toBeDefined();
+    });
+  });
 });
