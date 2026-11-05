@@ -36,7 +36,9 @@ export const categories = pgTable(
   (table) => [
     // Também atende às consultas por usuário (e por usuário e tipo): começa por `user_id`.
     unique('categories_user_type_name_unique').on(table.userId, table.type, table.nameNormalized),
-    // Alvo das chaves estrangeiras compostas (categoria + dono + tipo) de outras tabelas.
+    // Alvos das chaves estrangeiras compostas de outras tabelas: categoria + dono (+ tipo, quando a
+    // referência também exige o tipo, como nas transações).
+    unique('categories_id_user_id_unique').on(table.id, table.userId),
     unique('categories_id_user_id_type_unique').on(table.id, table.userId, table.type),
     check(
       'categories_name_length',

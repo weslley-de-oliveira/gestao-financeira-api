@@ -50,6 +50,13 @@
       "when": 1793904645510,
       "tag": "0006_cria-credit-cards",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793907433651,
+      "tag": "0007_cria-budgets",
+      "breakpoints": true
     }
   ]
 }
