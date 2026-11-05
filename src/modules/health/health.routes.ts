@@ -10,13 +10,14 @@ const READY_TIMEOUT_MS = 2_000;
  * Rotas de operação, fora do prefixo `/v1`:
  * - `/health` (liveness): o processo está de pé; não toca dependências.
  * - `/ready` (readiness): a API consegue atender, ou seja, o banco responde.
- * Ficam fora dos logs de requisição (são chamadas a cada poucos segundos).
+ * Ficam fora dos logs automáticos de requisição (são chamadas a cada poucos segundos); uma falha do
+ * banco no `/ready` continua sendo registrada.
  */
 export const healthRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
   app.get(
     '/health',
     {
-      logLevel: 'warn',
+      config: { requestLogging: false },
       schema: {
         tags: ['Operação'],
         summary: 'O processo está de pé',
@@ -29,7 +30,7 @@ export const healthRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
   app.get(
     '/ready',
     {
-      logLevel: 'warn',
+      config: { requestLogging: false },
       schema: {
         tags: ['Operação'],
         summary: 'A API consegue atender (banco respondendo)',

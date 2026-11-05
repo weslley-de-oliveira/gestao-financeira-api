@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
-import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
+import Fastify, {
+  LogController,
+  type FastifyInstance,
+  type FastifyRequest,
+  type FastifyServerOptions,
+} from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import type { Env } from './config/env.ts';
 import { healthRoutes } from './modules/health/health.routes.ts';
@@ -10,6 +15,16 @@ import { errorsPlugin } from './plugins/errors.ts';
 import { securityPlugin } from './plugins/security.ts';
 import { REQUEST_ID_HEADER } from './shared/http/headers.ts';
 import './shared/validation/zod.ts';
+
+declare module 'fastify' {
+  interface FastifyContextConfig {
+    /**
+     * `false` omite os logs automáticos de requisição da rota ("incoming request" e "request
+     * completed"). Os logs escritos pela própria rota continuam seguindo o `LOG_LEVEL`.
+     */
+    requestLogging?: boolean;
+  }
+}
 
 /** Tamanho máximo do corpo: os payloads da API são pequenos (formulários); acima disso, 413. */
 const BODY_LIMIT_BYTES = 100 * 1024;
@@ -35,6 +50,7 @@ const REDACTED_PATHS = [
 export async function buildApp(env: Env): Promise<FastifyInstance> {
   const app = Fastify({
     logger: loggerOptions(env),
+    logController: new LogController({ disableRequestLogging: isRequestLoggingDisabled }),
     bodyLimit: BODY_LIMIT_BYTES,
     requestIdHeader: false,
     genReqId: (request: IncomingMessage) => {
@@ -65,6 +81,10 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(healthRoutes);
 
   return app;
+}
+
+function isRequestLoggingDisabled(request: FastifyRequest): boolean {
+  return request.routeOptions.config.requestLogging === false;
 }
 
 function loggerOptions(env: Env): FastifyServerOptions['logger'] {
