@@ -8,6 +8,7 @@ import {
   budgetSchema,
   createBudgetBodySchema,
   toBudgetDto,
+  updateBudgetBodySchema,
 } from './budgets.schemas.ts';
 import { createBudgetsService } from './budgets.service.ts';
 
@@ -64,6 +65,34 @@ export const budgetsRoutes: FastifyPluginCallbackZod = (app, _options, done) => 
     async (request, reply) => {
       const budget = await service.create(currentAuth(request).user.id, request.body);
       return reply.status(201).send(toBudgetDto(budget));
+    },
+  );
+
+  app.patch(
+    '/:id',
+    {
+      schema: {
+        tags: [BUDGETS_TAG],
+        summary: 'Altera o limite ou o alerta de um orçamento',
+        description:
+          'O novo limite vale do mês atual em diante: os meses anteriores mantêm o limite que tinham (vigências). A categoria não muda (enviá-la responde 422). Orçamento inexistente ou de outro usuário responde 404.',
+        params: budgetParamsSchema,
+        body: updateBudgetBodySchema,
+        response: {
+          200: budgetSchema,
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request) => {
+      const budget = await service.update(
+        currentAuth(request).user.id,
+        request.params.id,
+        request.body,
+      );
+      return toBudgetDto(budget);
     },
   );
 

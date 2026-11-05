@@ -3186,6 +3186,87 @@
             }
           }
         }
+      },
+      "patch": {
+        "summary": "Altera o limite ou o alerta de um orçamento",
+        "tags": ["Orçamentos"],
+        "description": "O novo limite vale do mês atual em diante: os meses anteriores mantêm o limite que tinham (vigências). A categoria não muda (enviá-la responde 422). Orçamento inexistente ou de outro usuário responde 404.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "limitAmount": {
+                    "description": "Novo limite mensal: vale do mês atual em diante; os meses anteriores mantêm o limite que tinham.",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000000000,
+                    "example": 80000
+                  },
+                  "alertThreshold": {
+                    "anyOf": [
+                      { "type": "number", "enum": [50] },
+                      { "type": "number", "enum": [60] },
+                      { "type": "number", "enum": [70] },
+                      { "type": "number", "enum": [75] },
+                      { "type": "number", "enum": [80] },
+                      { "type": "number", "enum": [85] },
+                      { "type": "number", "enum": [90] },
+                      { "type": "number", "enum": [95] },
+                      { "type": "number", "enum": [100] }
+                    ],
+                    "description": "Percentual do limite a partir do qual o orçamento fica em alerta: 50, 60, 70, 75, 80, 85, 90, 95, 100."
+                  },
+                  "categoryId": {
+                    "description": "Não aceito: a categoria é definida na criação e não muda.",
+                    "not": {}
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Budget" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
       }
     },
     "/v1/budgets": {

@@ -1,8 +1,9 @@
 import { DomainError, InvalidInputError } from '../../shared/errors/domain-error.ts';
 import type { IsoDate } from '../../shared/utils/date.ts';
 import type { CategoriesRepository } from '../categories/categories.repository.ts';
+import { withLimitFrom } from './budget-rules.ts';
 import type { BudgetsRepository, BudgetWithLimits } from './budgets.repository.ts';
-import type { CreateBudgetInput } from './budgets.schemas.ts';
+import type { CreateBudgetInput, UpdateBudgetInput } from './budgets.schemas.ts';
 
 /** Orçamento inexistente ou de outro usuário: a mesma resposta, para não revelar o que existe. */
 export class BudgetNotFoundError extends DomainError {
@@ -47,6 +48,11 @@ export interface BudgetsService {
    * `ArchivedBudgetCategoryError`; com orçamento → `DuplicateBudgetError`.
    */
   create(userId: string, input: CreateBudgetInput): Promise<BudgetWithLimits>;
+  /**
+   * Altera o alerta e o limite. O novo limite vale do mês atual em diante (vigência nova); os
+   * meses anteriores mantêm o limite que tinham.
+   */
+  update(userId: string, budgetId: string, changes: UpdateBudgetInput): Promise<BudgetWithLimits>;
 }
 
 export function createBudgetsService({
@@ -56,13 +62,31 @@ export function createBudgetsService({
 }: BudgetsServiceDependencies): BudgetsService {
   const currentMonth = () => today().slice(0, 7);
 
+  async function get(userId: string, budgetId: string): Promise<BudgetWithLimits> {
+    const budget = await budgets.findBudget(userId, budgetId);
+    if (!budget) {
+      throw new BudgetNotFoundError();
+    }
+    return budget;
+  }
+
   return {
-    async get(userId, budgetId) {
-      const budget = await budgets.findBudget(userId, budgetId);
-      if (!budget) {
+    get,
+
+    async update(userId, budgetId, { limitAmount, alertThreshold }) {
+      const current = await get(userId, budgetId);
+      const month = currentMonth();
+      const updated = await budgets.updateBudget(userId, budgetId, {
+        alertThreshold,
+        limitsFrom:
+          limitAmount === undefined
+            ? undefined
+            : { month, limits: withLimitFrom(current.limits, month, limitAmount) },
+      });
+      if (!updated) {
         throw new BudgetNotFoundError();
       }
-      return budget;
+      return updated;
     },
 
     async create(userId, { categoryId, limitAmount, alertThreshold }) {

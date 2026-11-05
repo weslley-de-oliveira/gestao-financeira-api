@@ -53,6 +53,21 @@ export const createBudgetBodySchema = z.strictObject({
 
 export type CreateBudgetInput = z.infer<typeof createBudgetBodySchema>;
 
+export const updateBudgetBodySchema = z.strictObject({
+  limitAmount: limitAmountSchema.optional().meta({
+    description:
+      'Novo limite mensal: vale do mês atual em diante; os meses anteriores mantêm o limite que tinham.',
+  }),
+  alertThreshold: alertThresholdSchema.optional(),
+  // A categoria é fixa. Enviá-la é erro, com mensagem clara.
+  categoryId: z
+    .never('A categoria do orçamento não pode ser alterada.')
+    .optional()
+    .meta({ description: 'Não aceito: a categoria é definida na criação e não muda.' }),
+});
+
+export type UpdateBudgetInput = z.infer<typeof updateBudgetBodySchema>;
+
 export function toBudgetDto(budget: BudgetWithLimits): BudgetDto {
   return {
     id: budget.id,
