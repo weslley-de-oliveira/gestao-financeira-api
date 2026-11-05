@@ -438,124 +438,6 @@
           "nextInvoice"
         ]
       },
-      "DashboardInput": {
-        "type": "object",
-        "properties": {
-          "from": {
-            "type": "string",
-            "format": "date",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
-            "description": "Início do período considerado."
-          },
-          "to": {
-            "type": "string",
-            "format": "date",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
-            "description": "Fim do período considerado."
-          },
-          "summary": {
-            "type": "object",
-            "properties": {
-              "income": {
-                "type": "integer",
-                "minimum": -9007199254740991,
-                "maximum": 9007199254740991,
-                "description": "Receitas realizadas do período, em centavos."
-              },
-              "expense": {
-                "type": "integer",
-                "minimum": -9007199254740991,
-                "maximum": 9007199254740991,
-                "description": "Despesas realizadas do período (com compras no cartão), em centavos."
-              },
-              "net": {
-                "type": "integer",
-                "minimum": -9007199254740991,
-                "maximum": 9007199254740991,
-                "description": "Receitas − despesas."
-              },
-              "pendingCount": {
-                "type": "integer",
-                "minimum": -9007199254740991,
-                "maximum": 9007199254740991,
-                "description": "Transações pendentes do período, contadas à parte."
-              }
-            },
-            "required": ["income", "expense", "net", "pendingCount"],
-            "description": "Só realizadas entram nos totais; transferências e pagamentos de fatura não são receita nem despesa."
-          },
-          "balance": {
-            "type": "object",
-            "properties": {
-              "total": {
-                "type": "integer",
-                "minimum": -9007199254740991,
-                "maximum": 9007199254740991,
-                "description": "Saldo atual somado das contas ativas, em centavos."
-              },
-              "activeAccounts": {
-                "type": "integer",
-                "minimum": -9007199254740991,
-                "maximum": 9007199254740991,
-                "description": "Quantidade de contas ativas."
-              }
-            },
-            "required": ["total", "activeAccounts"]
-          },
-          "incomeVsExpense": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "label": { "type": "string", "example": "set/26" },
-                "start": {
-                  "type": "string",
-                  "format": "date",
-                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                },
-                "end": {
-                  "type": "string",
-                  "format": "date",
-                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                },
-                "income": {
-                  "type": "integer",
-                  "minimum": -9007199254740991,
-                  "maximum": 9007199254740991
-                },
-                "expense": {
-                  "type": "integer",
-                  "minimum": -9007199254740991,
-                  "maximum": 9007199254740991
-                }
-              },
-              "required": ["label", "start", "end", "income", "expense"]
-            },
-            "description": "Gráfico de receitas × despesas: blocos de 7 dias quando o período é de um só mês (`01–07`), senão um por mês (`set/26`). Mesma regra dos totais."
-          },
-          "balanceEvolution": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "date": {
-                  "type": "string",
-                  "format": "date",
-                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                },
-                "balance": {
-                  "type": "integer",
-                  "minimum": -9007199254740991,
-                  "maximum": 9007199254740991
-                }
-              },
-              "required": ["date", "balance"]
-            },
-            "description": "Saldo somado das contas ativas ao fim de cada dia do período (pendentes não contam)."
-          }
-        },
-        "required": ["from", "to", "summary", "balance", "incomeVsExpense", "balanceEvolution"]
-      },
       "GoalContributionInput": {
         "type": "object",
         "properties": {
@@ -933,6 +815,149 @@
           }
         },
         "required": ["items", "nextCursor"]
+      },
+      "DashboardInput": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Início do período considerado."
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fim do período considerado."
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "income": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Receitas realizadas do período, em centavos."
+              },
+              "expense": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Despesas realizadas do período (com compras no cartão), em centavos."
+              },
+              "net": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Receitas − despesas."
+              },
+              "pendingCount": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Transações pendentes do período, contadas à parte."
+              }
+            },
+            "required": ["income", "expense", "net", "pendingCount"],
+            "description": "Só realizadas entram nos totais; transferências e pagamentos de fatura não são receita nem despesa."
+          },
+          "balance": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Saldo atual somado das contas ativas, em centavos."
+              },
+              "activeAccounts": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Quantidade de contas ativas."
+              }
+            },
+            "required": ["total", "activeAccounts"]
+          },
+          "incomeVsExpense": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": { "type": "string", "example": "set/26" },
+                "start": {
+                  "type": "string",
+                  "format": "date",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                },
+                "end": {
+                  "type": "string",
+                  "format": "date",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                },
+                "income": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "expense": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["label", "start", "end", "income", "expense"]
+            },
+            "description": "Gráfico de receitas × despesas: blocos de 7 dias quando o período é de um só mês (`01–07`), senão um por mês (`set/26`). Mesma regra dos totais."
+          },
+          "balanceEvolution": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                },
+                "balance": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["date", "balance"]
+            },
+            "description": "Saldo somado das contas ativas ao fim de cada dia do período (pendentes não contam)."
+          },
+          "recentTransactions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TransactionInput" },
+            "description": "As 5 transações mais recentes do período."
+          },
+          "budgetHighlights": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/BudgetInput" },
+            "description": "Os 3 orçamentos mais consumidos no mês atual (não segue o período), com o consumo."
+          },
+          "goalHighlights": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/GoalInput" },
+            "description": "Até 3 metas ativas ainda não concluídas: atrasadas primeiro, depois o prazo mais próximo."
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "summary",
+          "balance",
+          "incomeVsExpense",
+          "balanceEvolution",
+          "recentTransactions",
+          "budgetHighlights",
+          "goalHighlights"
+        ]
       },
       "InvoiceSummaryInput": {
         "type": "object",
@@ -1512,129 +1537,6 @@
         ],
         "additionalProperties": false
       },
-      "Dashboard": {
-        "type": "object",
-        "properties": {
-          "from": {
-            "type": "string",
-            "format": "date",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
-            "description": "Início do período considerado."
-          },
-          "to": {
-            "type": "string",
-            "format": "date",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
-            "description": "Fim do período considerado."
-          },
-          "summary": {
-            "type": "object",
-            "properties": {
-              "income": {
-                "type": "integer",
-                "minimum": -9007199254740991,
-                "maximum": 9007199254740991,
-                "description": "Receitas realizadas do período, em centavos."
-              },
-              "expense": {
-                "type": "integer",
-                "minimum": -9007199254740991,
-                "maximum": 9007199254740991,
-                "description": "Despesas realizadas do período (com compras no cartão), em centavos."
-              },
-              "net": {
-                "type": "integer",
-                "minimum": -9007199254740991,
-                "maximum": 9007199254740991,
-                "description": "Receitas − despesas."
-              },
-              "pendingCount": {
-                "type": "integer",
-                "minimum": -9007199254740991,
-                "maximum": 9007199254740991,
-                "description": "Transações pendentes do período, contadas à parte."
-              }
-            },
-            "required": ["income", "expense", "net", "pendingCount"],
-            "additionalProperties": false,
-            "description": "Só realizadas entram nos totais; transferências e pagamentos de fatura não são receita nem despesa."
-          },
-          "balance": {
-            "type": "object",
-            "properties": {
-              "total": {
-                "type": "integer",
-                "minimum": -9007199254740991,
-                "maximum": 9007199254740991,
-                "description": "Saldo atual somado das contas ativas, em centavos."
-              },
-              "activeAccounts": {
-                "type": "integer",
-                "minimum": -9007199254740991,
-                "maximum": 9007199254740991,
-                "description": "Quantidade de contas ativas."
-              }
-            },
-            "required": ["total", "activeAccounts"],
-            "additionalProperties": false
-          },
-          "incomeVsExpense": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "label": { "type": "string", "example": "set/26" },
-                "start": {
-                  "type": "string",
-                  "format": "date",
-                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                },
-                "end": {
-                  "type": "string",
-                  "format": "date",
-                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                },
-                "income": {
-                  "type": "integer",
-                  "minimum": -9007199254740991,
-                  "maximum": 9007199254740991
-                },
-                "expense": {
-                  "type": "integer",
-                  "minimum": -9007199254740991,
-                  "maximum": 9007199254740991
-                }
-              },
-              "required": ["label", "start", "end", "income", "expense"],
-              "additionalProperties": false
-            },
-            "description": "Gráfico de receitas × despesas: blocos de 7 dias quando o período é de um só mês (`01–07`), senão um por mês (`set/26`). Mesma regra dos totais."
-          },
-          "balanceEvolution": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "date": {
-                  "type": "string",
-                  "format": "date",
-                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-                },
-                "balance": {
-                  "type": "integer",
-                  "minimum": -9007199254740991,
-                  "maximum": 9007199254740991
-                }
-              },
-              "required": ["date", "balance"],
-              "additionalProperties": false
-            },
-            "description": "Saldo somado das contas ativas ao fim de cada dia do período (pendentes não contam)."
-          }
-        },
-        "required": ["from", "to", "summary", "balance", "incomeVsExpense", "balanceEvolution"],
-        "additionalProperties": false
-      },
       "GoalContribution": {
         "type": "object",
         "properties": {
@@ -2021,6 +1923,154 @@
           }
         },
         "required": ["items", "nextCursor"],
+        "additionalProperties": false
+      },
+      "Dashboard": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Início do período considerado."
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fim do período considerado."
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "income": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Receitas realizadas do período, em centavos."
+              },
+              "expense": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Despesas realizadas do período (com compras no cartão), em centavos."
+              },
+              "net": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Receitas − despesas."
+              },
+              "pendingCount": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Transações pendentes do período, contadas à parte."
+              }
+            },
+            "required": ["income", "expense", "net", "pendingCount"],
+            "additionalProperties": false,
+            "description": "Só realizadas entram nos totais; transferências e pagamentos de fatura não são receita nem despesa."
+          },
+          "balance": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Saldo atual somado das contas ativas, em centavos."
+              },
+              "activeAccounts": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Quantidade de contas ativas."
+              }
+            },
+            "required": ["total", "activeAccounts"],
+            "additionalProperties": false
+          },
+          "incomeVsExpense": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": { "type": "string", "example": "set/26" },
+                "start": {
+                  "type": "string",
+                  "format": "date",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                },
+                "end": {
+                  "type": "string",
+                  "format": "date",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                },
+                "income": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "expense": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["label", "start", "end", "income", "expense"],
+              "additionalProperties": false
+            },
+            "description": "Gráfico de receitas × despesas: blocos de 7 dias quando o período é de um só mês (`01–07`), senão um por mês (`set/26`). Mesma regra dos totais."
+          },
+          "balanceEvolution": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                },
+                "balance": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["date", "balance"],
+              "additionalProperties": false
+            },
+            "description": "Saldo somado das contas ativas ao fim de cada dia do período (pendentes não contam)."
+          },
+          "recentTransactions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Transaction" },
+            "description": "As 5 transações mais recentes do período."
+          },
+          "budgetHighlights": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Budget" },
+            "description": "Os 3 orçamentos mais consumidos no mês atual (não segue o período), com o consumo."
+          },
+          "goalHighlights": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Goal" },
+            "description": "Até 3 metas ativas ainda não concluídas: atrasadas primeiro, depois o prazo mais próximo."
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "summary",
+          "balance",
+          "incomeVsExpense",
+          "balanceEvolution",
+          "recentTransactions",
+          "budgetHighlights",
+          "goalHighlights"
+        ],
         "additionalProperties": false
       },
       "InvoiceSummary": {
@@ -4560,7 +4610,7 @@
       "get": {
         "summary": "Dados do dashboard",
         "tags": ["Dashboard"],
-        "description": "Tudo o que o dashboard mostra, numa chamada só, para o período `from`–`to` (inclusivo; até um ano). Sem período, usa o mês atual.",
+        "description": "Tudo o que o dashboard mostra, numa chamada só, para o período `from`–`to` (inclusivo; até um ano): totais, gráficos, transações recentes e destaques de orçamentos (do mês atual) e metas. Sem período, usa o mês atual.",
         "parameters": [
           {
             "schema": {

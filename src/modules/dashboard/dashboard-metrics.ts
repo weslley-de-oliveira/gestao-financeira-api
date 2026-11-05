@@ -161,3 +161,18 @@ export function balanceEvolution(
   }
   return points;
 }
+
+/** Transações mais recentes do período (por data e, no mesmo dia, pela ordem de registro). */
+export function recentTransactions<T extends Pick<Transaction, 'date' | 'id'>>(
+  transactions: readonly T[],
+  range: { start: IsoDate; end: IsoDate },
+  limit: number,
+): T[] {
+  return (
+    transactions
+      .filter((transaction) => transaction.date >= range.start && transaction.date <= range.end)
+      // O id é UUID v7: no mesmo dia, a registrada por último vem primeiro.
+      .toSorted((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
+      .slice(0, limit)
+  );
+}

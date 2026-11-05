@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import type { Transaction } from '../../db/schema/index.ts';
+import { budgetSchema, toBudgetDto } from '../budgets/budgets.schemas.ts';
+import type { BudgetWithProgress } from '../budgets/budgets.service.ts';
+import { goalSchema, toGoalDto } from '../goals/goals.schemas.ts';
+import type { GoalWithContributions } from '../goals/goals.service.ts';
+import { toTransactionDto, transactionSchema } from '../transactions/transactions.schemas.ts';
 
 /** Maior período aceito: um ano (o gráfico de saldo tem um ponto por dia). */
 export const MAX_DASHBOARD_DAYS = 366;
@@ -85,7 +91,37 @@ export const dashboardSchema = z
       description:
         'Saldo somado das contas ativas ao fim de cada dia do período (pendentes não contam).',
     }),
+    recentTransactions: z
+      .array(transactionSchema)
+      .meta({ description: 'As 5 transações mais recentes do período.' }),
+    budgetHighlights: z.array(budgetSchema).meta({
+      description:
+        'Os 3 orçamentos mais consumidos no mês atual (não segue o período), com o consumo.',
+    }),
+    goalHighlights: z.array(goalSchema).meta({
+      description:
+        'Até 3 metas ativas ainda não concluídas: atrasadas primeiro, depois o prazo mais próximo.',
+    }),
   })
   .meta({ id: 'Dashboard' });
 
 export type DashboardDto = z.infer<typeof dashboardSchema>;
+
+/** Dados do dashboard com os objetos de domínio; `toDashboardDto` monta a resposta. */
+export type DashboardData = Omit<
+  DashboardDto,
+  'recentTransactions' | 'budgetHighlights' | 'goalHighlights'
+> & {
+  recentTransactions: Transaction[];
+  budgetHighlights: BudgetWithProgress[];
+  goalHighlights: GoalWithContributions[];
+};
+
+export function toDashboardDto(data: DashboardData): DashboardDto {
+  return {
+    ...data,
+    recentTransactions: data.recentTransactions.map(toTransactionDto),
+    budgetHighlights: data.budgetHighlights.map(toBudgetDto),
+    goalHighlights: data.goalHighlights.map(toGoalDto),
+  };
+}
