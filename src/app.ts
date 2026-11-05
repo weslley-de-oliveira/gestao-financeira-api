@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { Env } from './config/env.ts';
+import { errorsPlugin } from './plugins/errors.ts';
 
 /** Cabeçalho que correlaciona a requisição nos logs do front, do proxy e da API. */
 export const REQUEST_ID_HEADER = 'x-request-id';
@@ -21,7 +22,8 @@ const REDACTED_PATHS = [
 
 /**
  * Cria a aplicação Fastify sem abrir porta: `server.ts` a inicia e os testes usam `app.inject()`.
- * Plugins e módulos são registrados aqui conforme a API cresce.
+ * Plugins e módulos são registrados aqui conforme a API cresce; a aplicação fica pronta no primeiro
+ * `inject()` ou no `listen()`.
  */
 export async function buildApp(env: Env): Promise<FastifyInstance> {
   const app = Fastify({
@@ -39,7 +41,8 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
     reply.header(REQUEST_ID_HEADER, request.id);
   });
 
-  await app.ready();
+  await app.register(errorsPlugin);
+
   return app;
 }
 

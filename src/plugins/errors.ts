@@ -1,0 +1,120 @@
+import sensible from '@fastify/sensible';
+import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
+import fp from 'fastify-plugin';
+
+/** Corpo de erro no formato Problem Details (RFC 9457). */
+export interface ProblemDetails {
+  /** URI que identifica o tipo do problema; `about:blank` quando o status já basta. */
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  /** Caminho da requisição que falhou. */
+  instance: string;
+  /** Mesmo valor do cabeçalho `x-request-id`, para localizar o erro nos logs. */
+  requestId: string;
+  /** Só em erros de validação: um item por campo inválido. */
+  errors?: FieldError[];
+}
+
+export interface FieldError {
+  /** Caminho do campo no corpo, na query ou nos parâmetros (ex.: `body.amount`). */
+  field: string;
+  message: string;
+}
+
+export const PROBLEM_CONTENT_TYPE = 'application/problem+json';
+export const VALIDATION_PROBLEM_TYPE = '/problems/validation-error';
+
+const TITLES: Readonly<Record<number, string>> = {
+  400: 'Requisição inválida',
+  401: 'Não autenticado',
+  403: 'Acesso negado',
+  404: 'Recurso não encontrado',
+  405: 'Método não permitido',
+  409: 'Conflito',
+  412: 'Pré-condição falhou',
+  413: 'Corpo da requisição muito grande',
+  415: 'Tipo de conteúdo não suportado',
+  422: 'Dados inválidos',
+  429: 'Muitas requisições',
+  500: 'Erro interno',
+  503: 'Serviço indisponível',
+};
+
+/**
+ * Padroniza todas as respostas de erro em Problem Details: validação → 422 com `errors[]`,
+ * erros HTTP conhecidos mantêm o status e a mensagem, e erros inesperados viram 500 sem detalhes
+ * internos (o erro completo vai só para o log). Também registra o `@fastify/sensible`, cujos
+ * `httpErrors` (ex.: `app.httpErrors.conflict('...')`) os serviços usam para erros de regra.
+ */
+export const errorsPlugin = fp(
+  async (app) => {
+    await app.register(sensible);
+
+    app.setErrorHandler((error: FastifyError, request, reply) => {
+      if (error.validation) {
+        return sendProblem(request, reply, {
+          status: 422,
+          type: VALIDATION_PROBLEM_TYPE,
+          detail: 'Um ou mais campos são inválidos.',
+          errors: error.validation.map((issue) => ({
+            field: fieldPath(error.validationContext, issue.instancePath, issue.params),
+            message: issue.message ?? 'Valor inválido.',
+          })),
+        });
+      }
+
+      const status = error.statusCode ?? 500;
+      if (status >= 400 && status < 500) {
+        return sendProblem(request, reply, { status, detail: error.message });
+      }
+
+      request.log.error({ err: error }, 'erro inesperado');
+      return sendProblem(request, reply, {
+        status: 500,
+        detail: 'Ocorreu um erro inesperado. Tente novamente em instantes.',
+      });
+    });
+
+    app.setNotFoundHandler((request, reply) =>
+      sendProblem(request, reply, {
+        status: 404,
+        detail: `Rota ${request.method} ${request.url.split('?')[0]} não existe.`,
+      }),
+    );
+  },
+  { name: 'errors' },
+);
+
+function sendProblem(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  problem: Pick<ProblemDetails, 'status' | 'detail'> & Partial<ProblemDetails>,
+): FastifyReply {
+  const body: ProblemDetails = {
+    type: problem.type ?? 'about:blank',
+    title: problem.title ?? TITLES[problem.status] ?? 'Erro',
+    status: problem.status,
+    detail: problem.detail,
+    instance: request.url.split('?')[0] ?? request.url,
+    requestId: request.id,
+    ...(problem.errors && { errors: problem.errors }),
+  };
+  return reply.status(problem.status).type(PROBLEM_CONTENT_TYPE).send(body);
+}
+
+/** Monta `body.campo.sub` a partir do caminho JSON Pointer (`/campo/sub`) do validador. */
+function fieldPath(
+  context: string | undefined,
+  instancePath: string,
+  params: Record<string, unknown>,
+): string {
+  const segments = instancePath.split('/').filter(Boolean);
+  // Campo obrigatório ausente: o validador aponta o objeto pai e informa o nome em `params`.
+  const missing = params['missingProperty'];
+  if (typeof missing === 'string') {
+    segments.push(missing);
+  }
+  return [context ?? 'body', ...segments].join('.');
+}
