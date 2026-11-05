@@ -7,7 +7,7 @@ import type { CategoryType } from './categories.constants.ts';
 
 /** Campos que o usuário pode alterar: nunca o dono, o tipo, o id ou as datas. */
 export type CategoryChanges = Partial<
-  Pick<NewCategory, 'name' | 'nameNormalized' | 'icon' | 'color'>
+  Pick<NewCategory, 'name' | 'nameNormalized' | 'icon' | 'color' | 'isArchived'>
 >;
 
 /** Resultado de uma gravação: a categoria, ou o aviso de que o nome já existe no tipo. */

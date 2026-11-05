@@ -1063,9 +1063,9 @@
         }
       },
       "patch": {
-        "summary": "Edita uma categoria",
+        "summary": "Edita, arquiva ou reativa uma categoria",
         "tags": ["Categorias"],
-        "description": "Altera só os campos enviados. O tipo não muda (enviá-lo responde 422). Nome já usado por outra categoria do mesmo tipo responde 409; categoria inexistente ou de outro usuário, 404.",
+        "description": "Altera só os campos enviados. O tipo não muda (enviá-lo responde 422). Arquivar é `{ \"isArchived\": true }` e reativar, `false`: categorias não são excluídas, inclusive as padrão. Nome já usado por outra categoria do mesmo tipo responde 409; categoria inexistente ou de outro usuário, 404.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1119,6 +1119,10 @@
                       "#ad1457",
                       "#546e7a"
                     ]
+                  },
+                  "isArchived": {
+                    "description": "true arquiva a categoria (some da lista padrão); false a reativa.",
+                    "type": "boolean"
                   },
                   "type": {
                     "description": "Não aceito: o tipo é definido na criação e não muda.",

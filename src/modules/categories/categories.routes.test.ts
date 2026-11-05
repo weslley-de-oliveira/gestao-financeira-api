@@ -467,6 +467,123 @@ describe('rotas /v1/categories', () => {
     });
   });
 
+  describe('arquivar e reativar', () => {
+    async function createdCategory(token: string, name = 'Alimentação'): Promise<CategoryDto> {
+      return (await create(token, { name })).json<CategoryDto>();
+    }
+
+    const setArchived = (id: string, isArchived: unknown, token?: string) =>
+      send('PATCH', `/v1/categories/${id}`, { isArchived }, token);
+
+    it('arquivada, sai da lista padrão mas continua no detalhe e na lista completa', async () => {
+      const { token } = await signUp();
+      const category = await createdCategory(token, 'Antiga');
+      await createdCategory(token, 'Atual');
+
+      const response = await setArchived(category.id, true, token);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ ...category, isArchived: true });
+      expect(names(await get('/v1/categories', token))).toEqual(['Atual']);
+      expect(names(await get('/v1/categories?includeArchived=true', token))).toEqual([
+        'Antiga',
+        'Atual',
+      ]);
+      expect((await get(`/v1/categories/${category.id}`, token)).statusCode).toBe(200);
+    });
+
+    it('reativada, volta para a lista padrão com os mesmos dados', async () => {
+      const { token } = await signUp();
+      const category = await createdCategory(token);
+      await setArchived(category.id, true, token);
+
+      const response = await setArchived(category.id, false, token);
+
+      expect(response.json()).toEqual(category);
+      expect(names(await get('/v1/categories', token))).toEqual(['Alimentação']);
+    });
+
+    it('arquivar de novo uma categoria já arquivada não é erro', async () => {
+      const { token } = await signUp();
+      const category = await createdCategory(token);
+      await setArchived(category.id, true, token);
+
+      const response = await setArchived(category.id, true, token);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json<CategoryDto>().isArchived).toBe(true);
+    });
+
+    it('arquiva também as categorias padrão, que continuam marcadas como padrão', async () => {
+      const { token } = await signUp({ keepDefaults: true });
+      const incomes = (await get('/v1/categories?type=income', token)).json<CategoryDto[]>();
+      const salary = incomes.find((category) => category.name === 'Salário');
+
+      const response = await setArchived(salary!.id, true, token);
+
+      expect(response.json()).toMatchObject({ isArchived: true, isDefault: true });
+      expect(names(await get('/v1/categories?type=income', token))).not.toContain('Salário');
+    });
+
+    it('permite renomear e arquivar na mesma requisição', async () => {
+      const { token } = await signUp();
+      const category = await createdCategory(token);
+
+      const response = await send(
+        'PATCH',
+        `/v1/categories/${category.id}`,
+        { name: 'Restaurantes', isArchived: true },
+        token,
+      );
+
+      expect(response.json()).toMatchObject({ name: 'Restaurantes', isArchived: true });
+    });
+
+    it('o nome de uma arquivada continua reservado, e ela pode ser reativada', async () => {
+      const { token } = await signUp();
+      const category = await createdCategory(token);
+      await setArchived(category.id, true, token);
+
+      expect((await create(token, { name: 'alimentacao' })).statusCode).toBe(409);
+      expect((await setArchived(category.id, false, token)).statusCode).toBe(200);
+    });
+
+    it.each([['sim'], [1], [null]])('responde 422 para isArchived = %s', async (value) => {
+      const { token } = await signUp();
+      const category = await createdCategory(token);
+
+      const response = await setArchived(category.id, value, token);
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json()).toMatchObject({
+        errors: [{ field: 'body.isArchived', message: 'Informe true ou false.' }],
+      });
+    });
+
+    it('não arquiva categoria de outro usuário', async () => {
+      const owner = await signUp();
+      const category = await createdCategory(owner.token);
+      const { token } = await signUp();
+
+      expect((await setArchived(category.id, true, token)).statusCode).toBe(404);
+      expect((await storedCategory(category.id))?.isArchived).toBe(false);
+    });
+
+    it('não tem rota de exclusão: DELETE não apaga a categoria', async () => {
+      const { token } = await signUp();
+      const category = await createdCategory(token);
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/v1/categories/${category.id}`,
+        cookies: { [SESSION_COOKIE]: token },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(await storedCategory(category.id)).toBeDefined();
+    });
+  });
+
   describe('conjunto padrão criado no cadastro', () => {
     it('o usuário novo já tem as 14 categorias padrão, ativas e marcadas como padrão', async () => {
       const { token } = await signUp({ keepDefaults: true });

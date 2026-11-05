@@ -78,6 +78,9 @@ export const updateCategoryBodySchema = z.strictObject({
   name: categoryNameSchema.optional(),
   icon: categoryIconSchema.optional(),
   color: categoryColorSchema.optional(),
+  isArchived: z.boolean('Informe true ou false.').optional().meta({
+    description: 'true arquiva a categoria (some da lista padrão); false a reativa.',
+  }),
   // O tipo é fixo: as transações da categoria dependem dele. Enviá-lo é erro, com mensagem clara.
   type: z
     .never('O tipo da categoria não pode ser alterado.')

@@ -88,9 +88,9 @@ export const categoriesRoutes: FastifyPluginCallbackZod = (app, _options, done) 
     {
       schema: {
         tags: [CATEGORIES_TAG],
-        summary: 'Edita uma categoria',
+        summary: 'Edita, arquiva ou reativa uma categoria',
         description:
-          'Altera só os campos enviados. O tipo não muda (enviá-lo responde 422). Nome já usado por outra categoria do mesmo tipo responde 409; categoria inexistente ou de outro usuário, 404.',
+          'Altera só os campos enviados. O tipo não muda (enviá-lo responde 422). Arquivar é `{ "isArchived": true }` e reativar, `false`: categorias não são excluídas, inclusive as padrão. Nome já usado por outra categoria do mesmo tipo responde 409; categoria inexistente ou de outro usuário, 404.',
         params: categoryParamsSchema,
         body: updateCategoryBodySchema,
         response: {

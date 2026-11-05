@@ -80,12 +80,14 @@ export function createCategoriesService(repository: CategoriesRepository): Categ
       return result.category;
     },
 
-    async update(userId, categoryId, { name, icon, color }) {
+    async update(userId, categoryId, { name, icon, color, isArchived }) {
       const nameNormalized = name === undefined ? undefined : categoryNameKey(name);
       const changes: CategoryChanges = {
         ...(name !== undefined && { name, nameNormalized }),
         ...(icon !== undefined && { icon }),
         ...(color !== undefined && { color }),
+        // Reativar nunca colide: a unicidade do nome já conta as arquivadas.
+        ...(isArchived !== undefined && { isArchived }),
       };
       // Corpo vazio: nada a alterar, mas a categoria ainda precisa existir e ser do usuário.
       if (Object.keys(changes).length === 0) {
