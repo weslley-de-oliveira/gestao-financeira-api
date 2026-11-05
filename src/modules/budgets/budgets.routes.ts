@@ -1,4 +1,5 @@
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
 import { createCategoriesRepository } from '../categories/categories.repository.ts';
@@ -119,6 +120,29 @@ export const budgetsRoutes: FastifyPluginCallbackZod = (app, _options, done) => 
         request.body,
       );
       return toBudgetDto(budget);
+    },
+  );
+
+  app.delete(
+    '/:id',
+    {
+      schema: {
+        tags: [BUDGETS_TAG],
+        summary: 'Exclui um orçamento',
+        description:
+          'Remove o orçamento e o histórico de limites; as transações da categoria não mudam. A categoria fica livre para um orçamento novo. Orçamento inexistente ou de outro usuário responde 404.',
+        params: budgetParamsSchema,
+        response: {
+          204: z.null(),
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      await service.remove(currentAuth(request).user.id, request.params.id);
+      return reply.status(204).send(null);
     },
   );
 

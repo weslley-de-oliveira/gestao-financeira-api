@@ -113,6 +113,18 @@ const RESOURCES: Resource[] = [
     archivable: true,
     deletable: false,
   },
+  {
+    name: 'orçamentos',
+    path: '/v1/budgets',
+    listQueries: [''],
+    async create(api) {
+      const categories = await api('GET', '/v1/categories?type=expense');
+      return { categoryId: categories.json<{ id: string }[]>()[0]?.id, limitAmount: 80_000 };
+    },
+    edit: { limitAmount: 1, alertThreshold: 50 },
+    archivable: false,
+    deletable: true,
+  },
 ];
 
 describe.each(RESOURCES)('isolamento entre usuários: $name', (resource) => {

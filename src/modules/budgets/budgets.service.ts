@@ -61,6 +61,8 @@ export interface BudgetsService {
    * meses anteriores mantêm o limite que tinham.
    */
   update(userId: string, budgetId: string, changes: UpdateBudgetInput): Promise<BudgetWithProgress>;
+  /** Exclui o orçamento e o histórico de limites; as transações não mudam. */
+  remove(userId: string, budgetId: string): Promise<void>;
 }
 
 export function createBudgetsService({
@@ -161,6 +163,12 @@ export function createBudgetsService({
         throw new DuplicateBudgetError(category.name);
       }
       return withOneProgress(userId, created);
+    },
+
+    async remove(userId, budgetId) {
+      if (!(await budgets.deleteBudget(userId, budgetId))) {
+        throw new BudgetNotFoundError();
+      }
     },
   };
 }

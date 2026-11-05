@@ -46,6 +46,8 @@ export interface BudgetsRepository {
       limitsFrom?: { month: string; limits: BudgetLimitPeriod[] } | undefined;
     },
   ): Promise<BudgetWithLimits | null>;
+  /** Apaga o orçamento do usuário e as vigências dele; devolve se apagou. */
+  deleteBudget(userId: string, budgetId: string): Promise<boolean>;
 }
 
 export function createBudgetsRepository(db: Database): BudgetsRepository {
@@ -162,6 +164,15 @@ export function createBudgetsRepository(db: Database): BudgetsRepository {
         return budget;
       });
       return updated ? { ...updated, limits: await limitsOf(updated.id) } : null;
+    },
+
+    async deleteBudget(userId, budgetId) {
+      // As vigências saem junto (`on delete cascade`).
+      const deleted = await db
+        .delete(budgets)
+        .where(and(eq(budgets.id, budgetId), eq(budgets.userId, userId)))
+        .returning({ id: budgets.id });
+      return deleted.length > 0;
     },
   };
 }

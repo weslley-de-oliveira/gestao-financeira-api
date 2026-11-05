@@ -180,4 +180,52 @@ describe('rotas /v1/budgets', () => {
       }
     });
   });
+
+  describe('DELETE /v1/budgets/:id', () => {
+    it('exclui o orçamento e libera a categoria para um novo', async () => {
+      const created = (await create(valid())).json<BudgetDto>();
+
+      const response = await user.api('DELETE', `/v1/budgets/${created.id}`);
+
+      expect(response.statusCode).toBe(204);
+      expect(response.body).toBe('');
+      expect((await user.api('GET', `/v1/budgets/${created.id}`)).statusCode).toBe(404);
+      expect((await create(valid())).statusCode).toBe(201);
+    });
+
+    it('não mexe nas transações da categoria', async () => {
+      const account = (
+        await user.api('POST', '/v1/accounts', {
+          name: 'Conta',
+          type: 'checking',
+          color: '#1565c0',
+          icon: 'home',
+        })
+      ).json<{ id: string }>();
+      const expense = await user.api('POST', '/v1/transactions', {
+        type: 'expense',
+        description: 'Mercado',
+        amount: 1_000,
+        date: '2026-11-10',
+        accountId: account.id,
+        categoryId: food.id,
+      });
+      const created = (await create(valid())).json<BudgetDto>();
+
+      await user.api('DELETE', `/v1/budgets/${created.id}`);
+
+      const id = expense.json<{ id: string }>().id;
+      expect((await user.api('GET', `/v1/transactions/${id}`)).statusCode).toBe(200);
+    });
+
+    it('responde 404 ao excluir de novo e para orçamento de outro usuário', async () => {
+      const created = (await create(valid())).json<BudgetDto>();
+      const other = await signUp(app);
+
+      expect((await other.api('DELETE', `/v1/budgets/${created.id}`)).statusCode).toBe(404);
+      expect((await user.api('GET', `/v1/budgets/${created.id}`)).statusCode).toBe(200);
+      await user.api('DELETE', `/v1/budgets/${created.id}`);
+      expect((await user.api('DELETE', `/v1/budgets/${created.id}`)).statusCode).toBe(404);
+    });
+  });
 });
