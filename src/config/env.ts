@@ -9,6 +9,18 @@ const envSchema = z.object({
   HOST: z.string().min(1).default('127.0.0.1'),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3333),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  // Origens com CORS liberado, separadas por vírgula (ex.: o front no ng serve). Vazio = sem CORS:
+  // em produção o front chama a API pela mesma origem (proxy da Vercel).
+  CORS_ORIGINS: z
+    .string()
+    .default('')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.url({ protocol: /^https?$/ }))),
 });
 
 export type Env = z.infer<typeof envSchema>;

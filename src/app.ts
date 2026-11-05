@@ -3,9 +3,11 @@ import type { IncomingMessage } from 'node:http';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { Env } from './config/env.ts';
 import { errorsPlugin } from './plugins/errors.ts';
+import { securityPlugin } from './plugins/security.ts';
+import { REQUEST_ID_HEADER } from './shared/http/headers.ts';
 
-/** Cabeçalho que correlaciona a requisição nos logs do front, do proxy e da API. */
-export const REQUEST_ID_HEADER = 'x-request-id';
+/** Tamanho máximo do corpo: os payloads da API são pequenos (formulários); acima disso, 413. */
+const BODY_LIMIT_BYTES = 100 * 1024;
 
 /** Aceita o id vindo do proxy só se for curto e seguro para logs; senão, gera um novo. */
 const SAFE_REQUEST_ID = /^[A-Za-z0-9._-]{8,64}$/;
@@ -28,6 +30,7 @@ const REDACTED_PATHS = [
 export async function buildApp(env: Env): Promise<FastifyInstance> {
   const app = Fastify({
     logger: loggerOptions(env),
+    bodyLimit: BODY_LIMIT_BYTES,
     requestIdHeader: false,
     genReqId: (request: IncomingMessage) => {
       const incoming = request.headers[REQUEST_ID_HEADER];
@@ -42,6 +45,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   });
 
   await app.register(errorsPlugin);
+  await app.register(securityPlugin, { corsOrigins: env.CORS_ORIGINS });
 
   return app;
 }
