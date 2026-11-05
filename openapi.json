@@ -438,6 +438,91 @@
           "nextInvoice"
         ]
       },
+      "GoalInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "targetAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Valor-alvo em centavos."
+          },
+          "initialAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Valor já guardado quando a meta foi criada, em centavos."
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              { "type": "null" }
+            ],
+            "description": "Data-limite, se houver."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "#1565c0",
+              "#2e7d32",
+              "#6a1b9a",
+              "#c62828",
+              "#ef6c00",
+              "#00838f",
+              "#ad1457",
+              "#546e7a"
+            ]
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "savings",
+              "flight",
+              "home",
+              "directions_car",
+              "school",
+              "health_and_safety",
+              "devices",
+              "celebration"
+            ],
+            "description": "Ícone do Material Symbols."
+          },
+          "isPaused": {
+            "type": "boolean",
+            "description": "Pausada: não fica atrasada enquanto pausada."
+          },
+          "isArchived": { "type": "boolean" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "targetAmount",
+          "initialAmount",
+          "deadline",
+          "color",
+          "icon",
+          "isPaused",
+          "isArchived",
+          "createdAt"
+        ]
+      },
       "TransactionInput": {
         "type": "object",
         "properties": {
@@ -1222,6 +1307,92 @@
           "usedLimit",
           "availableLimit",
           "nextInvoice"
+        ],
+        "additionalProperties": false
+      },
+      "Goal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "targetAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Valor-alvo em centavos."
+          },
+          "initialAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Valor já guardado quando a meta foi criada, em centavos."
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              { "type": "null" }
+            ],
+            "description": "Data-limite, se houver."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "#1565c0",
+              "#2e7d32",
+              "#6a1b9a",
+              "#c62828",
+              "#ef6c00",
+              "#00838f",
+              "#ad1457",
+              "#546e7a"
+            ]
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "savings",
+              "flight",
+              "home",
+              "directions_car",
+              "school",
+              "health_and_safety",
+              "devices",
+              "celebration"
+            ],
+            "description": "Ícone do Material Symbols."
+          },
+          "isPaused": {
+            "type": "boolean",
+            "description": "Pausada: não fica atrasada enquanto pausada."
+          },
+          "isArchived": { "type": "boolean" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "targetAmount",
+          "initialAmount",
+          "deadline",
+          "color",
+          "icon",
+          "isPaused",
+          "isArchived",
+          "createdAt"
         ],
         "additionalProperties": false
       },
@@ -3536,6 +3707,307 @@
           }
         }
       }
+    },
+    "/v1/goals": {
+      "get": {
+        "summary": "Lista as metas",
+        "tags": ["Metas"],
+        "description": "Metas do usuário. Por padrão, só as ativas (não arquivadas).",
+        "parameters": [
+          {
+            "schema": { "default": "false", "type": "string", "enum": ["true", "false"] },
+            "in": "query",
+            "name": "includeArchived",
+            "required": false,
+            "description": "Inclui as metas arquivadas na lista (padrão: só as ativas)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Goal" } }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Cadastra uma meta",
+        "tags": ["Metas"],
+        "description": "Sem `initialAmount`, a meta começa do zero. A data-limite é opcional, mas não pode estar no passado (422).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "example": "Viagem ao Japão"
+                  },
+                  "description": {
+                    "anyOf": [{ "type": "string", "maxLength": 300 }, { "type": "null" }]
+                  },
+                  "targetAmount": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000000000,
+                    "description": "Valor-alvo em centavos.",
+                    "example": 1000000
+                  },
+                  "initialAmount": {
+                    "default": 0,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000000000,
+                    "description": "Valor já guardado, em centavos (pode ser zero)."
+                  },
+                  "deadline": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                      },
+                      { "type": "null" }
+                    ],
+                    "description": "Data-limite: hoje ou uma data futura."
+                  },
+                  "color": {
+                    "type": "string",
+                    "enum": [
+                      "#1565c0",
+                      "#2e7d32",
+                      "#6a1b9a",
+                      "#c62828",
+                      "#ef6c00",
+                      "#00838f",
+                      "#ad1457",
+                      "#546e7a"
+                    ]
+                  },
+                  "icon": {
+                    "type": "string",
+                    "enum": [
+                      "savings",
+                      "flight",
+                      "home",
+                      "directions_car",
+                      "school",
+                      "health_and_safety",
+                      "devices",
+                      "celebration"
+                    ],
+                    "description": "Ícone do Material Symbols."
+                  }
+                },
+                "required": ["name", "targetAmount", "color", "icon"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Goal" } } }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/goals/{id}": {
+      "get": {
+        "summary": "Detalha uma meta",
+        "tags": ["Metas"],
+        "description": "Meta inexistente ou de outro usuário responde 404.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Goal" } } }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edita, pausa, arquiva ou reativa uma meta",
+        "tags": ["Metas"],
+        "description": "Altera só os campos enviados; `description: null` e `deadline: null` removem os valores. Uma data-limite já vencida pode ser mantida, mas não definida de novo. `isPaused` pausa ou retoma e `isArchived` arquiva ou reativa: metas não são excluídas. Meta inexistente ou de outro usuário responde 404.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "example": "Viagem ao Japão"
+                  },
+                  "description": {
+                    "anyOf": [{ "type": "string", "maxLength": 300 }, { "type": "null" }]
+                  },
+                  "targetAmount": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000000000,
+                    "description": "Valor-alvo em centavos.",
+                    "example": 1000000
+                  },
+                  "initialAmount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000000000,
+                    "description": "Valor já guardado, em centavos (pode ser zero)."
+                  },
+                  "deadline": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                      },
+                      { "type": "null" }
+                    ],
+                    "description": "Data-limite: hoje ou uma data futura."
+                  },
+                  "color": {
+                    "type": "string",
+                    "enum": [
+                      "#1565c0",
+                      "#2e7d32",
+                      "#6a1b9a",
+                      "#c62828",
+                      "#ef6c00",
+                      "#00838f",
+                      "#ad1457",
+                      "#546e7a"
+                    ]
+                  },
+                  "icon": {
+                    "type": "string",
+                    "enum": [
+                      "savings",
+                      "flight",
+                      "home",
+                      "directions_car",
+                      "school",
+                      "health_and_safety",
+                      "devices",
+                      "celebration"
+                    ],
+                    "description": "Ícone do Material Symbols."
+                  },
+                  "isPaused": {
+                    "type": "boolean",
+                    "description": "true pausa a meta (não fica atrasada enquanto pausada); false a retoma."
+                  },
+                  "isArchived": {
+                    "type": "boolean",
+                    "description": "true arquiva a meta (some da lista padrão); false a reativa."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Goal" } } }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
     }
   },
   "tags": [
@@ -3546,6 +4018,7 @@
     { "name": "Transações", "description": "Receitas, despesas e transferências." },
     { "name": "Cartões", "description": "Cartões de crédito, limite e próxima fatura." },
     { "name": "Faturas", "description": "Faturas calculadas dos cartões e o pagamento." },
-    { "name": "Orçamentos", "description": "Limites mensais de gastos por categoria." }
+    { "name": "Orçamentos", "description": "Limites mensais de gastos por categoria." },
+    { "name": "Metas", "description": "Metas de economia, aportes e retiradas." }
   ]
 }

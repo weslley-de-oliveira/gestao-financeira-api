@@ -14,6 +14,7 @@ import { authRoutes } from './modules/auth/auth.routes.ts';
 import { budgetsRoutes } from './modules/budgets/budgets.routes.ts';
 import { categoriesRoutes } from './modules/categories/categories.routes.ts';
 import { creditCardsRoutes } from './modules/credit-cards/credit-cards.routes.ts';
+import { goalsRoutes } from './modules/goals/goals.routes.ts';
 import { invoicesRoutes } from './modules/invoices/invoices.routes.ts';
 import { transactionsRoutes } from './modules/transactions/transactions.routes.ts';
 import { healthRoutes } from './modules/health/health.routes.ts';
@@ -110,6 +111,7 @@ export async function buildApp(env: Env, { now }: BuildAppOptions = {}): Promise
   await app.register(creditCardsRoutes, { prefix: '/v1/credit-cards' });
   await app.register(invoicesRoutes, { prefix: '/v1/credit-cards' });
   await app.register(budgetsRoutes, { prefix: '/v1/budgets' });
+  await app.register(goalsRoutes, { prefix: '/v1/goals' });
 
   return app;
 }

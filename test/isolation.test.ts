@@ -125,6 +125,22 @@ const RESOURCES: Resource[] = [
     archivable: false,
     deletable: true,
   },
+  {
+    name: 'metas',
+    path: '/v1/goals',
+    listQueries: ['', '?includeArchived=true'],
+    create: () =>
+      Promise.resolve({
+        name: 'Meta da dona',
+        targetAmount: 1_000_000,
+        initialAmount: 50_000,
+        color: '#2e7d32',
+        icon: 'flight',
+      }),
+    edit: { name: 'Invadida', isPaused: true },
+    archivable: true,
+    deletable: false,
+  },
 ];
 
 describe.each(RESOURCES)('isolamento entre usuários: $name', (resource) => {
