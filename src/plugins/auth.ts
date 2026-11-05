@@ -1,4 +1,4 @@
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest, onRequestHookHandler } from 'fastify';
 import fp from 'fastify-plugin';
 import type { User } from '../db/schema/index.ts';
 import { createAuthRepository } from '../modules/auth/auth.repository.ts';
@@ -19,10 +19,7 @@ export interface AuthContext {
 
 declare module 'fastify' {
   interface FastifyInstance {
-    /**
-     * Hook que exige sessão válida. Os módulos privados o registram no seu escopo:
-     * `app.addHook('onRequest', app.authenticate)`.
-     */
+    /** Hook que exige sessão válida. Os módulos o aplicam com `requireSession(scope)`. */
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
 
@@ -79,6 +76,18 @@ export const authPlugin = fp(
   },
   { name: 'auth', dependencies: ['database', '@fastify/cookie'] },
 );
+
+/**
+ * Exige sessão em todas as rotas registradas depois, neste escopo. O hook entra no nível da rota
+ * (e não com `scope.addHook`) para rodar depois do limite de requisições, que o
+ * `@fastify/rate-limit` também põe na rota: assim, requisições sem sessão também são contadas.
+ */
+export function requireSession(scope: FastifyInstance): void {
+  scope.addHook('onRoute', (route) => {
+    const existing: onRequestHookHandler[] = [route.onRequest ?? []].flat();
+    route.onRequest = [...existing, scope.authenticate];
+  });
+}
 
 /** Sessão da requisição numa rota privada. Erro de programação se a rota não exigir sessão. */
 export function currentAuth(request: FastifyRequest): AuthContext {

@@ -6,7 +6,7 @@ import { createTestApp } from '../../test/helpers/app.ts';
 import { sessions, users } from '../db/schema/index.ts';
 import { SESSION_COOKIE } from '../modules/auth/session-cookie.ts';
 import { hashSessionToken } from '../modules/auth/session-token.ts';
-import { currentAuth } from './auth.ts';
+import { currentAuth, requireSession } from './auth.ts';
 
 describe('plugin auth', () => {
   let app: FastifyInstance;
@@ -16,7 +16,7 @@ describe('plugin auth', () => {
       setup: (instance) => {
         // Escopo privado, como os módulos farão: o hook vale só para as rotas registradas aqui.
         instance.register((scope, _options, done) => {
-          scope.addHook('onRequest', scope.authenticate);
+          requireSession(scope);
           scope.get('/teste/privada', async (request) => {
             const { user, sessionId } = currentAuth(request);
             return { email: user.email, sessionId };

@@ -17,7 +17,7 @@ export const healthRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
   app.get(
     '/health',
     {
-      config: { requestLogging: false },
+      config: { requestLogging: false, rateLimit: false },
       schema: {
         tags: ['Operação'],
         summary: 'O processo está de pé',
@@ -30,7 +30,7 @@ export const healthRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
   app.get(
     '/ready',
     {
-      config: { requestLogging: false },
+      config: { requestLogging: false, rateLimit: false },
       schema: {
         tags: ['Operação'],
         summary: 'A API consegue atender (banco respondendo)',

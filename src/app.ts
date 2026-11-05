@@ -15,6 +15,7 @@ import { authPlugin } from './plugins/auth.ts';
 import { databasePlugin } from './plugins/db.ts';
 import { docsPlugin } from './plugins/docs.ts';
 import { errorsPlugin } from './plugins/errors.ts';
+import { rateLimitPlugin } from './plugins/rate-limit.ts';
 import { securityPlugin } from './plugins/security.ts';
 import { REQUEST_ID_HEADER } from './shared/http/headers.ts';
 import './shared/validation/zod.ts';
@@ -76,6 +77,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   // Lê e grava cookies (sessão em `__Host-session`); sem assinatura: o token já é opaco e aleatório.
   await app.register(cookie);
   await app.register(securityPlugin, { corsOrigins: env.CORS_ORIGINS });
+  await app.register(rateLimitPlugin, { enabled: env.RATE_LIMIT_ENABLED });
   await app.register(databasePlugin, {
     url: env.DATABASE_URL,
     maxConnections: env.DATABASE_POOL_MAX,

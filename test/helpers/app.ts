@@ -20,6 +20,8 @@ export async function createTestApp({ env, setup }: TestAppOptions = {}): Promis
       NODE_ENV: 'test',
       LOG_LEVEL: 'silent',
       DOCS_ENABLED: 'false',
+      // Os testes fazem muitas requisições do mesmo IP; os de limite o ligam com `env`.
+      RATE_LIMIT_ENABLED: 'false',
       DATABASE_URL: inject('databaseUrl'),
       DATABASE_POOL_MAX: '2',
       ...env,

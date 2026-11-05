@@ -1,7 +1,8 @@
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { currentAuth } from '../../plugins/auth.ts';
+import { currentAuth, requireSession } from '../../plugins/auth.ts';
+import { AUTH_RATE_LIMITS } from '../../plugins/rate-limit.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
 import { createAuthRepository } from './auth.repository.ts';
 import { loginBodySchema, registerBodySchema, toUserDto, userSchema } from './auth.schemas.ts';
@@ -22,6 +23,7 @@ export const authRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
   app.post(
     '/register',
     {
+      config: { rateLimit: AUTH_RATE_LIMITS.register },
       schema: {
         tags: [AUTH_TAG],
         summary: 'Cadastra um usuário e abre a sessão',
@@ -31,6 +33,7 @@ export const authRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
           201: userSchema,
           409: problemDetailsSchema,
           422: problemDetailsSchema,
+          429: problemDetailsSchema,
         },
       },
     },
@@ -44,6 +47,7 @@ export const authRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
   app.post(
     '/login',
     {
+      config: { rateLimit: AUTH_RATE_LIMITS.login },
       schema: {
         tags: [AUTH_TAG],
         summary: 'Entra com e-mail e senha',
@@ -53,6 +57,7 @@ export const authRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
           200: userSchema,
           401: problemDetailsSchema,
           422: problemDetailsSchema,
+          429: problemDetailsSchema,
         },
       },
     },
@@ -82,7 +87,7 @@ export const authRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
   );
 
   app.register((privateScope, _privateOptions, privateDone) => {
-    privateScope.addHook('onRequest', privateScope.authenticate);
+    requireSession(privateScope);
 
     privateScope.get(
       '/me',
