@@ -1576,6 +1576,118 @@
       }
     },
     "/v1/transactions": {
+      "get": {
+        "summary": "Lista as transações",
+        "tags": ["Transações"],
+        "description": "Transações do usuário, das mais recentes para as mais antigas, com filtros combináveis: período (`from`/`to`, inclusivos), tipo, status, conta (origem ou destino), cartão, categoria e busca `q` na descrição e nas observações, sem diferenciar maiúsculas e acentos.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "example": "2026-11-05"
+            },
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "description": "Data inicial do período, inclusiva."
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "example": "2026-11-05"
+            },
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "description": "Data final do período, inclusiva."
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["expense", "income", "transfer", "invoice-payment"]
+            },
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "description": "Só as transações deste tipo."
+          },
+          {
+            "schema": { "type": "string", "enum": ["completed", "pending"] },
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "description": "`completed` (realizada, altera o saldo) ou `pending` (pendente, não altera)."
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "query",
+            "name": "accountId",
+            "required": false,
+            "description": "Transações que saem ou entram nesta conta (origem ou destino)."
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "query",
+            "name": "creditCardId",
+            "required": false,
+            "description": "Compras e pagamentos de fatura deste cartão."
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "query",
+            "name": "categoryId",
+            "required": false
+          },
+          {
+            "schema": { "type": "string", "maxLength": 100 },
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "description": "Busca na descrição e nas observações, sem diferenciar maiúsculas e acentos."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Transaction" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
       "post": {
         "summary": "Cadastra uma receita, despesa ou transferência",
         "tags": ["Transações"],

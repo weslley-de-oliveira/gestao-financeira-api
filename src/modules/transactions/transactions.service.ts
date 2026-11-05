@@ -12,6 +12,7 @@ import {
   type CreateEntryInput,
   type CreateTransactionInput,
   type CreateTransferInput,
+  type ListTransactionsQuery,
   type UpdateTransactionInput,
 } from './transactions.schemas.ts';
 
@@ -40,6 +41,8 @@ export interface TransactionsServiceDependencies {
 }
 
 export interface TransactionsService {
+  /** Transações do usuário que passam nos filtros, das mais recentes para as mais antigas. */
+  list(userId: string, filters: ListTransactionsQuery): Promise<Transaction[]>;
   /** Transação do usuário; inexistente ou de outro usuário → `TransactionNotFoundError`. */
   get(userId: string, transactionId: string): Promise<Transaction>;
   /**
@@ -173,6 +176,10 @@ export function createTransactionsService({
   }
 
   return {
+    list(userId, filters) {
+      return transactions.listTransactions(userId, filters);
+    },
+
     get,
 
     async create(userId, input) {

@@ -1,11 +1,18 @@
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, gte, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '../../db/client.ts';
 import { transactions, type NewTransaction, type Transaction } from '../../db/schema/index.ts';
+import { normalizeForSearch } from '../../shared/utils/text.ts';
+import type { ListTransactionsQuery } from './transactions.schemas.ts';
 
 /** Campos que a edição regrava: nunca o dono, o id ou as datas de criação. */
 export type TransactionChanges = Omit<NewTransaction, 'id' | 'userId' | 'createdAt' | 'updatedAt'>;
 
 export interface TransactionsRepository {
+  /**
+   * Transações do usuário que passam em todos os filtros, das mais recentes para as mais antigas
+   * (data e, no mesmo dia, a registrada por último primeiro).
+   */
+  listTransactions(userId: string, filters: ListTransactionsQuery): Promise<Transaction[]>;
   /** Transação pelo id, só se for do usuário: a de outro usuário é tratada como inexistente. */
   findTransaction(userId: string, transactionId: string): Promise<Transaction | null>;
   insertTransaction(transaction: NewTransaction): Promise<Transaction>;
@@ -24,6 +31,17 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
     and(eq(transactions.id, transactionId), eq(transactions.userId, userId));
 
   return {
+    async listTransactions(userId, filters) {
+      return (
+        db
+          .select()
+          .from(transactions)
+          .where(and(eq(transactions.userId, userId), ...filterConditions(filters)))
+          // O id é UUID v7 (ordenado pelo momento do cadastro): desempata o mesmo dia.
+          .orderBy(desc(transactions.date), desc(transactions.id))
+      );
+    },
+
     async findTransaction(userId, transactionId) {
       const [transaction] = await db
         .select()
@@ -55,4 +73,41 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
       return deleted.length > 0;
     },
   };
+}
+
+/** Condições SQL dos filtros enviados; os ausentes não restringem nada. */
+function filterConditions({
+  from,
+  to,
+  type,
+  status,
+  accountId,
+  creditCardId,
+  categoryId,
+  q,
+}: ListTransactionsQuery): (SQL | undefined)[] {
+  return [
+    from ? gte(transactions.date, from) : undefined,
+    to ? lte(transactions.date, to) : undefined,
+    type ? eq(transactions.type, type) : undefined,
+    status ? eq(transactions.status, status) : undefined,
+    accountId
+      ? or(eq(transactions.accountId, accountId), eq(transactions.destinationAccountId, accountId))
+      : undefined,
+    creditCardId ? eq(transactions.creditCardId, creditCardId) : undefined,
+    categoryId ? eq(transactions.categoryId, categoryId) : undefined,
+    q ? searchCondition(q) : undefined,
+  ];
+}
+
+/**
+ * Busca na descrição e nas observações sem diferenciar maiúsculas e acentos (`unaccent` no banco,
+ * `normalizeForSearch` no termo). `%` e `_` digitados são procurados literalmente.
+ */
+function searchCondition(search: string): SQL | undefined {
+  const pattern = `%${normalizeForSearch(search).replace(/[\\%_]/g, '\\$&')}%`;
+  return or(
+    sql`lower(unaccent(${transactions.description})) like ${pattern}`,
+    sql`lower(unaccent(coalesce(${transactions.notes}, ''))) like ${pattern}`,
+  );
 }

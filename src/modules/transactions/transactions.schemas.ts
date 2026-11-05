@@ -137,6 +137,50 @@ export const transactionParamsSchema = z.object({
   id: z.uuid('Identificador de transação inválido.'),
 });
 
+export const TRANSACTION_SEARCH_MAX_LENGTH = 100;
+
+/** Filtros da listagem; todos opcionais e combináveis. */
+export const listTransactionsQuerySchema = z
+  .object({
+    from: isoDateSchema.optional().meta({ description: 'Data inicial do período, inclusiva.' }),
+    to: isoDateSchema.optional().meta({ description: 'Data final do período, inclusiva.' }),
+    type: z
+      .enum(TRANSACTION_TYPES, 'Tipo de transação inválido.')
+      .optional()
+      .meta({ description: 'Só as transações deste tipo.' }),
+    status: transactionStatusSchema.optional(),
+    accountId: z
+      .uuid('Identificador de conta inválido.')
+      .optional()
+      .meta({ description: 'Transações que saem ou entram nesta conta (origem ou destino).' }),
+    creditCardId: z
+      .uuid('Identificador de cartão inválido.')
+      .optional()
+      .meta({ description: 'Compras e pagamentos de fatura deste cartão.' }),
+    categoryId: z.uuid('Identificador de categoria inválido.').optional(),
+    q: z
+      .string()
+      .trim()
+      .max(
+        TRANSACTION_SEARCH_MAX_LENGTH,
+        `A busca deve ter no máximo ${TRANSACTION_SEARCH_MAX_LENGTH} caracteres.`,
+      )
+      .optional()
+      // Só espaços: sem busca.
+      .transform((value) => (value === '' ? undefined : value))
+      .meta({
+        description: 'Busca na descrição e nas observações, sem diferenciar maiúsculas e acentos.',
+      }),
+  })
+  .refine((query) => !query.from || !query.to || query.from <= query.to, {
+    path: ['to'],
+    message: 'A data final deve ser igual ou posterior à data inicial.',
+  });
+
+export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
+
+export const transactionListSchema = z.array(transactionSchema);
+
 export function toTransactionDto(transaction: Transaction): TransactionDto {
   return {
     id: transaction.id,

@@ -7,7 +7,9 @@ import { createCategoriesRepository } from '../categories/categories.repository.
 import { createTransactionsRepository } from './transactions.repository.ts';
 import {
   createTransactionBodySchema,
+  listTransactionsQuerySchema,
   toTransactionDto,
+  transactionListSchema,
   transactionParamsSchema,
   transactionSchema,
   updateTransactionBodySchema,
@@ -24,6 +26,28 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
     accounts: createAccountsRepository(app.db),
     categories: createCategoriesRepository(app.db),
   });
+
+  app.get(
+    '',
+    {
+      schema: {
+        tags: [TRANSACTIONS_TAG],
+        summary: 'Lista as transações',
+        description:
+          'Transações do usuário, das mais recentes para as mais antigas, com filtros combináveis: período (`from`/`to`, inclusivos), tipo, status, conta (origem ou destino), cartão, categoria e busca `q` na descrição e nas observações, sem diferenciar maiúsculas e acentos.',
+        querystring: listTransactionsQuerySchema,
+        response: {
+          200: transactionListSchema,
+          401: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request) => {
+      const list = await service.list(currentAuth(request).user.id, request.query);
+      return list.map(toTransactionDto);
+    },
+  );
 
   app.post(
     '',

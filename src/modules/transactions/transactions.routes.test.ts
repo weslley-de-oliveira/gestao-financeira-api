@@ -692,4 +692,157 @@ describe('rotas /v1/transactions', () => {
       });
     });
   });
+
+  describe('GET /v1/transactions', () => {
+    let ledger: Ledger;
+    let savings: AccountDto;
+    const cardId = randomUUIDv7();
+    /** Descrições na ordem esperada da listagem completa (mais recentes primeiro). */
+    const newestFirst = [
+      'Fatura de outubro',
+      'Farmácia',
+      'Reserva',
+      'Salário',
+      'Mercado Pão de Açúcar',
+    ];
+
+    beforeAll(async () => {
+      ledger = await createLedger();
+      const account = await app.inject({
+        method: 'POST',
+        url: '/v1/accounts',
+        cookies: ledger.cookies,
+        payload: { name: 'Poupança', type: 'savings', color: '#2e7d32', icon: 'savings' },
+      });
+      savings = account.json<AccountDto>();
+
+      // Cadastradas em sequência: no mesmo dia, a registrada por último vem primeiro.
+      for (const body of [
+        expense(ledger, { description: 'Mercado Pão de Açúcar', date: '2026-10-01' }),
+        expense(ledger, {
+          type: 'income',
+          description: 'Salário',
+          date: '2026-10-05',
+          categoryId: ledger.salary.id,
+          status: 'pending',
+        }),
+        {
+          type: 'transfer',
+          description: 'Reserva',
+          amount: 50_000,
+          date: '2026-10-05',
+          accountId: ledger.account.id,
+          destinationAccountId: savings.id,
+          notes: 'Poupança mensal',
+        },
+        expense(ledger, {
+          description: 'Farmácia',
+          date: '2026-11-02',
+          notes: 'Remédio 100% genérico',
+        }),
+      ]) {
+        expect((await post(ledger, body)).statusCode).toBe(201);
+      }
+      // Pagamento de fatura gravado direto no banco: as rotas de faturas chegam na Etapa 4.
+      await app.db.insert(transactions).values({
+        userId: ledger.userId,
+        type: 'invoice-payment',
+        description: 'Fatura de outubro',
+        amount: 80_000,
+        date: '2026-11-03',
+        accountId: ledger.account.id,
+        creditCardId: cardId,
+        invoiceMonth: '2026-10',
+      });
+      // Transação de outra pessoa, que nunca pode aparecer.
+      const other = await createLedger();
+      await post(other, expense(other, { description: 'Mercado de outra pessoa' }));
+    });
+
+    const list = async (query = '') => {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/v1/transactions${query}`,
+        cookies: ledger.cookies,
+      });
+      return response;
+    };
+
+    const descriptions = async (query = '') =>
+      (await list(query)).json<TransactionDto[]>().map((transaction) => transaction.description);
+
+    it('lista só as do usuário, da data mais recente para a mais antiga', async () => {
+      const response = await list();
+
+      expect(response.statusCode).toBe(200);
+      expect(await descriptions()).toEqual(newestFirst);
+    });
+
+    it.each([
+      ['período', '?from=2026-10-05&to=2026-11-02', ['Farmácia', 'Reserva', 'Salário']],
+      ['só a data inicial', '?from=2026-11-01', ['Fatura de outubro', 'Farmácia']],
+      ['só a data final', '?to=2026-10-01', ['Mercado Pão de Açúcar']],
+      ['tipo', '?type=expense', ['Farmácia', 'Mercado Pão de Açúcar']],
+      ['tipo pagamento de fatura', '?type=invoice-payment', ['Fatura de outubro']],
+      ['status', '?status=pending', ['Salário']],
+      ['categoria', () => `?categoryId=${ledger.food.id}`, ['Farmácia', 'Mercado Pão de Açúcar']],
+      ['conta de destino', () => `?accountId=${savings.id}`, ['Reserva']],
+      ['cartão', () => `?creditCardId=${cardId}`, ['Fatura de outubro']],
+      ['busca sem acento na descrição', '?q=acucar', ['Mercado Pão de Açúcar']],
+      ['busca em maiúsculas nas observações', '?q=POUPANCA', ['Reserva']],
+      ['busca com % literal', '?q=100%25', ['Farmácia']],
+      ['busca só com %', '?q=%25', ['Farmácia']],
+      ['busca só com espaços (ignorada)', '?q=%20%20', newestFirst],
+      [
+        'filtros combinados',
+        () => `?accountId=${ledger.account.id}&type=expense&from=2026-11-01&q=farm`,
+        ['Farmácia'],
+      ],
+    ])('filtra por %s', async (_case, query, expected) => {
+      expect(await descriptions(typeof query === 'function' ? query() : query)).toEqual(expected);
+    });
+
+    it('a conta de origem traz todas as que saem dela', async () => {
+      expect(await descriptions(`?accountId=${ledger.account.id}`)).toEqual(newestFirst);
+    });
+
+    it.each([
+      [
+        'data final antes da inicial',
+        '?from=2026-11-01&to=2026-10-31',
+        'querystring.to',
+        'A data final deve ser igual ou posterior à data inicial.',
+      ],
+      [
+        'data inválida',
+        '?from=2026-13-01',
+        'querystring.from',
+        'Informe uma data válida no formato aaaa-mm-dd.',
+      ],
+      ['tipo desconhecido', '?type=refund', 'querystring.type', 'Tipo de transação inválido.'],
+      [
+        'conta que não é UUID',
+        '?accountId=123',
+        'querystring.accountId',
+        'Identificador de conta inválido.',
+      ],
+      [
+        'busca longa demais',
+        `?q=${'a'.repeat(101)}`,
+        'querystring.q',
+        'A busca deve ter no máximo 100 caracteres.',
+      ],
+    ])('responde 422 para %s', async (_case, query, field, message) => {
+      const response = await list(query);
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json()).toMatchObject({ errors: [{ field, message }] });
+    });
+
+    it('responde 401 sem sessão', async () => {
+      const response = await app.inject({ method: 'GET', url: '/v1/transactions' });
+
+      expect(response.statusCode).toBe(401);
+    });
+  });
 });
