@@ -1,12 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import type { Env } from './config/env.ts';
 import { healthRoutes } from './modules/health/health.routes.ts';
 import { databasePlugin } from './plugins/db.ts';
+import { docsPlugin } from './plugins/docs.ts';
 import { errorsPlugin } from './plugins/errors.ts';
 import { securityPlugin } from './plugins/security.ts';
 import { REQUEST_ID_HEADER } from './shared/http/headers.ts';
+import './shared/validation/zod.ts';
 
 /** Tamanho máximo do corpo: os payloads da API são pequenos (formulários); acima disso, 413. */
 const BODY_LIMIT_BYTES = 100 * 1024;
@@ -42,6 +45,10 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
     },
   });
 
+  // Schemas Zod nas rotas: validam a entrada, filtram a saída e geram o OpenAPI.
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
+
   app.addHook('onRequest', async (request, reply) => {
     reply.header(REQUEST_ID_HEADER, request.id);
   });
@@ -53,6 +60,8 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
     maxConnections: env.DATABASE_POOL_MAX,
   });
 
+  // A documentação precisa ser registrada antes das rotas, para enxergá-las.
+  await app.register(docsPlugin, { enabled: env.DOCS_ENABLED });
   await app.register(healthRoutes);
 
   return app;

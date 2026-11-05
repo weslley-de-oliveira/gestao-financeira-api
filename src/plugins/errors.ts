@@ -1,30 +1,11 @@
 import sensible from '@fastify/sensible';
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
-
-/** Corpo de erro no formato Problem Details (RFC 9457). */
-export interface ProblemDetails {
-  /** URI que identifica o tipo do problema; `about:blank` quando o status já basta. */
-  type: string;
-  title: string;
-  status: number;
-  detail: string;
-  /** Caminho da requisição que falhou. */
-  instance: string;
-  /** Mesmo valor do cabeçalho `x-request-id`, para localizar o erro nos logs. */
-  requestId: string;
-  /** Só em erros de validação: um item por campo inválido. */
-  errors?: FieldError[];
-}
-
-export interface FieldError {
-  /** Caminho do campo no corpo, na query ou nos parâmetros (ex.: `body.amount`). */
-  field: string;
-  message: string;
-}
-
-export const PROBLEM_CONTENT_TYPE = 'application/problem+json';
-export const VALIDATION_PROBLEM_TYPE = '/problems/validation-error';
+import {
+  PROBLEM_CONTENT_TYPE,
+  VALIDATION_PROBLEM_TYPE,
+  type ProblemDetails,
+} from '../shared/http/problem.ts';
 
 const TITLES: Readonly<Record<number, string>> = {
   400: 'Requisição inválida',
