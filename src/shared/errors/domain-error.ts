@@ -2,7 +2,7 @@
  * Erro de regra de negócio lançado pelos serviços, que não conhecem HTTP: o plugin `errors`
  * converte o `kind` no status (ex.: `conflict` → 409) e usa a mensagem como `detail`.
  */
-export type DomainErrorKind = 'conflict' | 'not-found';
+export type DomainErrorKind = 'unauthorized' | 'not-found' | 'conflict';
 
 export abstract class DomainError extends Error {
   abstract readonly kind: DomainErrorKind;

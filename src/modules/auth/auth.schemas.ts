@@ -40,6 +40,18 @@ export const registerBodySchema = z.strictObject({
 
 export type RegisterInput = z.infer<typeof registerBodySchema>;
 
+// No login, a senha não é validada contra as regras de cadastro: só presença e tamanho máximo.
+export const loginBodySchema = z.strictObject({
+  email: emailSchema,
+  password: z
+    .string()
+    .min(1, 'Informe a senha.')
+    .max(PASSWORD_MAX_LENGTH, `A senha deve ter no máximo ${PASSWORD_MAX_LENGTH} caracteres.`)
+    .meta({ example: 'senha1234' }),
+});
+
+export type LoginInput = z.infer<typeof loginBodySchema>;
+
 /** Usuário como a API devolve: nunca inclui o hash da senha. */
 export const userSchema = z
   .object({

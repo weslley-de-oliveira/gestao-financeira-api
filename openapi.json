@@ -177,9 +177,9 @@
     },
     "/v1/auth/register": {
       "post": {
-        "summary": "Cadastra um usuário",
+        "summary": "Cadastra um usuário e abre a sessão",
         "tags": ["Autenticação"],
-        "description": "Senha com pelo menos 8 caracteres, uma letra e um número. O e-mail é guardado em minúsculas.",
+        "description": "Senha com pelo menos 8 caracteres, uma letra e um número. O e-mail é guardado em minúsculas. A resposta traz o cookie `__Host-session` com o token da sessão (HttpOnly, Secure, SameSite=Lax).",
         "requestBody": {
           "required": true,
           "content": {
@@ -219,6 +219,57 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
           },
           "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "summary": "Entra com e-mail e senha",
+        "tags": ["Autenticação"],
+        "description": "Abre uma sessão nova a cada login. Credenciais inválidas respondem 401 com a mesma mensagem, exista o e-mail ou não. A resposta traz o cookie `__Host-session` com o token da sessão (HttpOnly, Secure, SameSite=Lax).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "format": "email",
+                    "example": "pessoa@exemplo.com",
+                    "type": "string",
+                    "maxLength": 254
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "example": "senha1234"
+                  }
+                },
+                "required": ["email", "password"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          },
+          "401": {
             "description": "Default Response",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }

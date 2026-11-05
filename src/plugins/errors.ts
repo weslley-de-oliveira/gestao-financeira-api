@@ -25,8 +25,9 @@ const TITLES: Readonly<Record<number, string>> = {
 };
 
 const DOMAIN_ERROR_STATUS: Readonly<Record<DomainErrorKind, number>> = {
-  conflict: 409,
+  unauthorized: 401,
   'not-found': 404,
+  conflict: 409,
 };
 
 /**

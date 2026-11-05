@@ -1,10 +1,21 @@
+import { eq } from 'drizzle-orm';
 import type { Database } from '../../db/client.ts';
 import { isUniqueViolation } from '../../db/errors.ts';
-import { users, type NewUser, type User } from '../../db/schema/index.ts';
+import {
+  sessions,
+  users,
+  type NewSession,
+  type NewUser,
+  type User,
+} from '../../db/schema/index.ts';
 
 export interface AuthRepository {
   /** Insere o usuário; devolve `null` se o e-mail já estiver cadastrado. */
   insertUser(user: NewUser): Promise<User | null>;
+  /** Busca pelo e-mail sem diferenciar maiúsculas (coluna `citext`). */
+  findUserByEmail(email: string): Promise<User | null>;
+  updatePasswordHash(userId: string, passwordHash: string): Promise<void>;
+  insertSession(session: NewSession): Promise<void>;
 }
 
 export function createAuthRepository(db: Database): AuthRepository {
@@ -20,6 +31,19 @@ export function createAuthRepository(db: Database): AuthRepository {
         }
         throw error;
       }
+    },
+
+    async findUserByEmail(email) {
+      const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      return user ?? null;
+    },
+
+    async updatePasswordHash(userId, passwordHash) {
+      await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+    },
+
+    async insertSession(session) {
+      await db.insert(sessions).values(session);
     },
   };
 }

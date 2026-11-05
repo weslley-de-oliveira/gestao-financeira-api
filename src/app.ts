@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
+import cookie from '@fastify/cookie';
 import Fastify, {
   LogController,
   type FastifyInstance,
@@ -71,6 +72,8 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   });
 
   await app.register(errorsPlugin);
+  // Lê e grava cookies (sessão em `__Host-session`); sem assinatura: o token já é opaco e aleatório.
+  await app.register(cookie);
   await app.register(securityPlugin, { corsOrigins: env.CORS_ORIGINS });
   await app.register(databasePlugin, {
     url: env.DATABASE_URL,
