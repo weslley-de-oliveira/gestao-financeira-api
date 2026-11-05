@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { bigint, boolean, check, index, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import { bigint, boolean, check, index, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core';
 import {
   ACCOUNT_ICONS,
   ACCOUNT_INSTITUTION_MAX_LENGTH,
@@ -36,6 +36,8 @@ export const accounts = pgTable(
   (table) => [
     // Toda consulta filtra pelo dono da conta.
     index('accounts_user_id_idx').on(table.userId),
+    // Alvo das chaves estrangeiras compostas (conta + dono) de outras tabelas, como transações.
+    unique('accounts_id_user_id_unique').on(table.id, table.userId),
     check(
       'accounts_name_length',
       sql`char_length(${table.name}) between 1 and ${sql.raw(String(ACCOUNT_NAME_MAX_LENGTH))}`,
