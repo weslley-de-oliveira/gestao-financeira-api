@@ -87,6 +87,32 @@ const RESOURCES: Resource[] = [
     archivable: false,
     deletable: true,
   },
+  {
+    name: 'cartões',
+    path: '/v1/credit-cards',
+    listQueries: ['', '?includeArchived=true'],
+    async create(api) {
+      const account = await api('POST', '/v1/accounts', {
+        name: 'Conta da dona',
+        type: 'checking',
+        color: '#1565c0',
+        icon: 'home',
+      });
+      return {
+        name: 'Cartão da dona',
+        brand: 'visa',
+        lastFourDigits: '4321',
+        creditLimit: 500_000,
+        closingDay: 5,
+        dueDay: 12,
+        paymentAccountId: account.json<{ id: string }>().id,
+        color: '#6a1b9a',
+      };
+    },
+    edit: { name: 'Invadido', creditLimit: 1 },
+    archivable: true,
+    deletable: false,
+  },
 ];
 
 describe.each(RESOURCES)('isolamento entre usuários: $name', (resource) => {

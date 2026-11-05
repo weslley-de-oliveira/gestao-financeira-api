@@ -206,6 +206,134 @@
         },
         "required": ["id", "name", "type", "icon", "color", "isDefault", "isArchived", "createdAt"]
       },
+      "NextInvoiceInput": {
+        "type": "object",
+        "properties": {
+          "referenceMonth": {
+            "type": "string",
+            "description": "Mês do vencimento (`yyyy-MM`): a \"fatura de dezembro\" vence em dezembro.",
+            "example": "2026-12"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Primeiro dia de compras (o fechamento anterior)."
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Último dia de compras (a véspera do fechamento)."
+          },
+          "closingDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Compras já lançadas nesta fatura, em centavos."
+          }
+        },
+        "required": ["referenceMonth", "start", "end", "closingDate", "dueDate", "amount"],
+        "description": "A fatura aberta hoje."
+      },
+      "CreditCardInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": { "type": "string" },
+          "brand": {
+            "type": "string",
+            "enum": ["visa", "mastercard", "elo", "amex", "hipercard", "other"]
+          },
+          "lastFourDigits": { "type": "string", "example": "4321" },
+          "creditLimit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite em centavos."
+          },
+          "closingDay": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Dia do fechamento da fatura."
+          },
+          "dueDay": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Dia do vencimento da fatura."
+          },
+          "paymentAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Conta que paga as faturas."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "#1565c0",
+              "#2e7d32",
+              "#6a1b9a",
+              "#c62828",
+              "#ef6c00",
+              "#00838f",
+              "#ad1457",
+              "#546e7a"
+            ]
+          },
+          "isArchived": { "type": "boolean" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "usedLimit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Compras ainda não pagas, em centavos: compras menos faturas pagas."
+          },
+          "availableLimit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite menos o utilizado; negativo quando o limite foi ultrapassado."
+          },
+          "nextInvoice": { "$ref": "#/components/schemas/NextInvoiceInput" }
+        },
+        "required": [
+          "id",
+          "name",
+          "brand",
+          "lastFourDigits",
+          "creditLimit",
+          "closingDay",
+          "dueDay",
+          "paymentAccountId",
+          "color",
+          "isArchived",
+          "createdAt",
+          "usedLimit",
+          "availableLimit",
+          "nextInvoice"
+        ]
+      },
       "TransactionInput": {
         "type": "object",
         "properties": {
@@ -328,6 +456,7 @@
             "example": "2026-11-05"
           },
           "accountId": {
+            "description": "Conta da receita ou despesa. Ausente nas compras no cartão.",
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -339,15 +468,21 @@
             "description": "`completed` (realizada, altera o saldo) ou `pending` (pendente, não altera)."
           },
           "notes": { "anyOf": [{ "type": "string", "maxLength": 500 }, { "type": "null" }] },
+          "creditCardId": {
+            "description": "Cartão da compra (só despesas). Ausente quando há conta.",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
           "categoryId": {
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           }
         },
-        "required": ["type", "description", "amount", "date", "accountId", "categoryId"],
+        "required": ["type", "description", "amount", "date", "categoryId"],
         "additionalProperties": false,
-        "description": "Receita ou despesa em conta."
+        "description": "Receita ou despesa em conta, ou compra no cartão (despesa com `creditCardId`)."
       },
       "CreateTransferInput": {
         "type": "object",
@@ -407,6 +542,143 @@
           }
         },
         "required": ["items", "nextCursor"]
+      },
+      "InvoiceSummaryInput": {
+        "type": "object",
+        "properties": {
+          "referenceMonth": {
+            "type": "string",
+            "description": "Mês do vencimento (`yyyy-MM`): a \"fatura de dezembro\" vence em dezembro.",
+            "example": "2026-12"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Primeiro dia de compras (o fechamento anterior)."
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Último dia de compras (a véspera do fechamento)."
+          },
+          "closingDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "creditCardId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Soma das compras do ciclo, em centavos."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "closed", "paid", "overdue"],
+            "description": "`open` (aberta, até a véspera do fechamento), `closed` (fechada, até o vencimento), `overdue` (vencida, sem pagamento) ou `paid` (paga)."
+          },
+          "payment": {
+            "anyOf": [{ "$ref": "#/components/schemas/TransactionInput" }, { "type": "null" }],
+            "description": "A transação `invoice-payment` da fatura, se paga."
+          },
+          "purchaseCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "referenceMonth",
+          "start",
+          "end",
+          "closingDate",
+          "dueDate",
+          "creditCardId",
+          "total",
+          "status",
+          "payment",
+          "purchaseCount"
+        ]
+      },
+      "InvoiceInput": {
+        "type": "object",
+        "properties": {
+          "referenceMonth": {
+            "type": "string",
+            "description": "Mês do vencimento (`yyyy-MM`): a \"fatura de dezembro\" vence em dezembro.",
+            "example": "2026-12"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Primeiro dia de compras (o fechamento anterior)."
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Último dia de compras (a véspera do fechamento)."
+          },
+          "closingDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "creditCardId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Soma das compras do ciclo, em centavos."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "closed", "paid", "overdue"],
+            "description": "`open` (aberta, até a véspera do fechamento), `closed` (fechada, até o vencimento), `overdue` (vencida, sem pagamento) ou `paid` (paga)."
+          },
+          "payment": {
+            "anyOf": [{ "$ref": "#/components/schemas/TransactionInput" }, { "type": "null" }],
+            "description": "A transação `invoice-payment` da fatura, se paga."
+          },
+          "purchases": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TransactionInput" }
+          }
+        },
+        "required": [
+          "referenceMonth",
+          "start",
+          "end",
+          "closingDate",
+          "dueDate",
+          "creditCardId",
+          "total",
+          "status",
+          "payment",
+          "purchases"
+        ]
       },
       "ProblemDetails": {
         "type": "object",
@@ -612,6 +884,136 @@
         "required": ["id", "name", "type", "icon", "color", "isDefault", "isArchived", "createdAt"],
         "additionalProperties": false
       },
+      "NextInvoice": {
+        "type": "object",
+        "properties": {
+          "referenceMonth": {
+            "type": "string",
+            "description": "Mês do vencimento (`yyyy-MM`): a \"fatura de dezembro\" vence em dezembro.",
+            "example": "2026-12"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Primeiro dia de compras (o fechamento anterior)."
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Último dia de compras (a véspera do fechamento)."
+          },
+          "closingDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Compras já lançadas nesta fatura, em centavos."
+          }
+        },
+        "required": ["referenceMonth", "start", "end", "closingDate", "dueDate", "amount"],
+        "additionalProperties": false,
+        "description": "A fatura aberta hoje."
+      },
+      "CreditCard": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": { "type": "string" },
+          "brand": {
+            "type": "string",
+            "enum": ["visa", "mastercard", "elo", "amex", "hipercard", "other"]
+          },
+          "lastFourDigits": { "type": "string", "example": "4321" },
+          "creditLimit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite em centavos."
+          },
+          "closingDay": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Dia do fechamento da fatura."
+          },
+          "dueDay": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Dia do vencimento da fatura."
+          },
+          "paymentAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Conta que paga as faturas."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "#1565c0",
+              "#2e7d32",
+              "#6a1b9a",
+              "#c62828",
+              "#ef6c00",
+              "#00838f",
+              "#ad1457",
+              "#546e7a"
+            ]
+          },
+          "isArchived": { "type": "boolean" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "usedLimit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Compras ainda não pagas, em centavos: compras menos faturas pagas."
+          },
+          "availableLimit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite menos o utilizado; negativo quando o limite foi ultrapassado."
+          },
+          "nextInvoice": { "$ref": "#/components/schemas/NextInvoice" }
+        },
+        "required": [
+          "id",
+          "name",
+          "brand",
+          "lastFourDigits",
+          "creditLimit",
+          "closingDay",
+          "dueDay",
+          "paymentAccountId",
+          "color",
+          "isArchived",
+          "createdAt",
+          "usedLimit",
+          "availableLimit",
+          "nextInvoice"
+        ],
+        "additionalProperties": false
+      },
       "Transaction": {
         "type": "object",
         "properties": {
@@ -735,6 +1137,7 @@
             "example": "2026-11-05"
           },
           "accountId": {
+            "description": "Conta da receita ou despesa. Ausente nas compras no cartão.",
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -746,24 +1149,21 @@
             "description": "`completed` (realizada, altera o saldo) ou `pending` (pendente, não altera)."
           },
           "notes": {},
+          "creditCardId": {
+            "description": "Cartão da compra (só despesas). Ausente quando há conta.",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
           "categoryId": {
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           }
         },
-        "required": [
-          "type",
-          "description",
-          "amount",
-          "date",
-          "accountId",
-          "status",
-          "notes",
-          "categoryId"
-        ],
+        "required": ["type", "description", "amount", "date", "status", "notes", "categoryId"],
         "additionalProperties": false,
-        "description": "Receita ou despesa em conta."
+        "description": "Receita ou despesa em conta, ou compra no cartão (despesa com `creditCardId`)."
       },
       "CreateTransfer": {
         "type": "object",
@@ -829,6 +1229,142 @@
           }
         },
         "required": ["items", "nextCursor"],
+        "additionalProperties": false
+      },
+      "InvoiceSummary": {
+        "type": "object",
+        "properties": {
+          "referenceMonth": {
+            "type": "string",
+            "description": "Mês do vencimento (`yyyy-MM`): a \"fatura de dezembro\" vence em dezembro.",
+            "example": "2026-12"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Primeiro dia de compras (o fechamento anterior)."
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Último dia de compras (a véspera do fechamento)."
+          },
+          "closingDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "creditCardId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Soma das compras do ciclo, em centavos."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "closed", "paid", "overdue"],
+            "description": "`open` (aberta, até a véspera do fechamento), `closed` (fechada, até o vencimento), `overdue` (vencida, sem pagamento) ou `paid` (paga)."
+          },
+          "payment": {
+            "anyOf": [{ "$ref": "#/components/schemas/Transaction" }, { "type": "null" }],
+            "description": "A transação `invoice-payment` da fatura, se paga."
+          },
+          "purchaseCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "referenceMonth",
+          "start",
+          "end",
+          "closingDate",
+          "dueDate",
+          "creditCardId",
+          "total",
+          "status",
+          "payment",
+          "purchaseCount"
+        ],
+        "additionalProperties": false
+      },
+      "Invoice": {
+        "type": "object",
+        "properties": {
+          "referenceMonth": {
+            "type": "string",
+            "description": "Mês do vencimento (`yyyy-MM`): a \"fatura de dezembro\" vence em dezembro.",
+            "example": "2026-12"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Primeiro dia de compras (o fechamento anterior)."
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Último dia de compras (a véspera do fechamento)."
+          },
+          "closingDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "creditCardId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Soma das compras do ciclo, em centavos."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "closed", "paid", "overdue"],
+            "description": "`open` (aberta, até a véspera do fechamento), `closed` (fechada, até o vencimento), `overdue` (vencida, sem pagamento) ou `paid` (paga)."
+          },
+          "payment": {
+            "anyOf": [{ "$ref": "#/components/schemas/Transaction" }, { "type": "null" }],
+            "description": "A transação `invoice-payment` da fatura, se paga."
+          },
+          "purchases": { "type": "array", "items": { "$ref": "#/components/schemas/Transaction" } }
+        },
+        "required": [
+          "referenceMonth",
+          "start",
+          "end",
+          "closingDate",
+          "dueDate",
+          "creditCardId",
+          "total",
+          "status",
+          "payment",
+          "purchases"
+        ],
         "additionalProperties": false
       }
     }
@@ -1740,7 +2276,7 @@
       "post": {
         "summary": "Cadastra uma receita, despesa ou transferência",
         "tags": ["Transações"],
-        "description": "Receita ou despesa em conta, com categoria obrigatória do mesmo tipo; ou transferência entre duas contas diferentes, sem categoria. Contas e categoria precisam ser do usuário (senão, 422 no campo) e estar ativas (arquivada responde 409). Sem `status`, a transação é realizada.",
+        "description": "Receita ou despesa em conta, com categoria obrigatória do mesmo tipo; compra no cartão (despesa com `creditCardId` no lugar de `accountId`, sempre realizada); ou transferência entre duas contas diferentes, sem categoria. Contas, cartão e categoria precisam ser do usuário (senão, 422 no campo) e estar ativos (arquivado responde 409). Compra que cairia numa fatura já paga também responde 409. Sem `status`, a transação é realizada.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1829,7 +2365,7 @@
       "patch": {
         "summary": "Edita uma transação",
         "tags": ["Transações"],
-        "description": "Os campos enviados são aplicados sobre a transação e o resultado segue as regras do cadastro. Ao trocar o tipo, os campos que não servem ao novo tipo são descartados (a categoria, ao virar transferência; a conta de destino, ao virar receita ou despesa). `notes: null` remove as observações. Contas e categoria que a transação já tinha continuam aceitas mesmo se arquivadas depois; trocar por uma arquivada responde 409, assim como editar pagamento de fatura.",
+        "description": "Os campos enviados são aplicados sobre a transação e o resultado segue as regras do cadastro. Ao trocar o tipo, os campos que não servem ao novo tipo são descartados (a categoria, ao virar transferência; a conta de destino, ao virar receita ou despesa). `notes: null` remove as observações. Contas e categoria que a transação já tinha continuam aceitas mesmo se arquivadas depois; trocar por uma arquivada responde 409, assim como editar pagamento de fatura e editar compra de fatura já paga (ou movê-la para uma fatura paga).",
         "requestBody": {
           "required": true,
           "content": {
@@ -1860,7 +2396,14 @@
                   "accountId": {
                     "type": "string",
                     "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Ao informar a conta, a compra deixa de ser no cartão."
+                  },
+                  "creditCardId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Ao informar o cartão, a despesa vira compra e deixa a conta."
                   },
                   "destinationAccountId": {
                     "type": "string",
@@ -1932,7 +2475,7 @@
       "delete": {
         "summary": "Exclui uma transação",
         "tags": ["Transações"],
-        "description": "Remove a transação de vez. Pagamento de fatura responde 409: é desfeito pela fatura.",
+        "description": "Remove a transação de vez. Pagamento de fatura responde 409 (é desfeito pela fatura), assim como compra de fatura já paga (desfaça o pagamento antes).",
         "parameters": [
           {
             "schema": {
@@ -1973,6 +2516,526 @@
           }
         }
       }
+    },
+    "/v1/credit-cards": {
+      "get": {
+        "summary": "Lista os cartões",
+        "tags": ["Cartões"],
+        "description": "Cartões do usuário em ordem alfabética. Por padrão, só os ativos.",
+        "parameters": [
+          {
+            "schema": { "default": "false", "type": "string", "enum": ["true", "false"] },
+            "in": "query",
+            "name": "includeArchived",
+            "required": false,
+            "description": "Inclui os cartões arquivados na lista (padrão: só os ativos)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/CreditCard" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Cadastra um cartão",
+        "tags": ["Cartões"],
+        "description": "Só os quatro últimos dígitos são aceitos. Fechamento e vencimento em dias diferentes (1 a 31; em meses curtos vale o último dia). A conta de pagamento precisa ser do usuário (senão, 422) e estar ativa (arquivada responde 409).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40,
+                    "example": "Roxinho"
+                  },
+                  "brand": {
+                    "type": "string",
+                    "enum": ["visa", "mastercard", "elo", "amex", "hipercard", "other"]
+                  },
+                  "lastFourDigits": {
+                    "type": "string",
+                    "pattern": "^\\d{4}$",
+                    "description": "Só os quatro últimos dígitos do cartão.",
+                    "example": "4321"
+                  },
+                  "creditLimit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000000000,
+                    "description": "Limite em centavos.",
+                    "example": 500000
+                  },
+                  "closingDay": { "type": "integer", "minimum": 1, "maximum": 31 },
+                  "dueDay": { "type": "integer", "minimum": 1, "maximum": 31 },
+                  "paymentAccountId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "color": {
+                    "type": "string",
+                    "enum": [
+                      "#1565c0",
+                      "#2e7d32",
+                      "#6a1b9a",
+                      "#c62828",
+                      "#ef6c00",
+                      "#00838f",
+                      "#ad1457",
+                      "#546e7a"
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "brand",
+                  "lastFourDigits",
+                  "creditLimit",
+                  "closingDay",
+                  "dueDay",
+                  "paymentAccountId",
+                  "color"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CreditCard" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/credit-cards/{id}": {
+      "get": {
+        "summary": "Detalha um cartão",
+        "tags": ["Cartões"],
+        "description": "Cartão inexistente ou de outro usuário responde 404.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CreditCard" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edita, arquiva ou reativa um cartão",
+        "tags": ["Cartões"],
+        "description": "Altera só os campos enviados; o resultado segue as regras do cadastro. Arquivar é `{ \"isArchived\": true }` e reativar, `false`: cartões não são excluídos, para preservar as compras e as faturas. A conta de pagamento que o cartão já tinha continua aceita mesmo se arquivada; trocar por uma arquivada responde 409.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40,
+                    "example": "Roxinho"
+                  },
+                  "brand": {
+                    "type": "string",
+                    "enum": ["visa", "mastercard", "elo", "amex", "hipercard", "other"]
+                  },
+                  "lastFourDigits": {
+                    "type": "string",
+                    "pattern": "^\\d{4}$",
+                    "description": "Só os quatro últimos dígitos do cartão.",
+                    "example": "4321"
+                  },
+                  "creditLimit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000000000,
+                    "description": "Limite em centavos.",
+                    "example": 500000
+                  },
+                  "closingDay": { "type": "integer", "minimum": 1, "maximum": 31 },
+                  "dueDay": { "type": "integer", "minimum": 1, "maximum": 31 },
+                  "paymentAccountId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "color": {
+                    "type": "string",
+                    "enum": [
+                      "#1565c0",
+                      "#2e7d32",
+                      "#6a1b9a",
+                      "#c62828",
+                      "#ef6c00",
+                      "#00838f",
+                      "#ad1457",
+                      "#546e7a"
+                    ]
+                  },
+                  "isArchived": {
+                    "type": "boolean",
+                    "description": "true arquiva o cartão (não aceita novas compras); false o reativa."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CreditCard" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/credit-cards/{id}/invoices": {
+      "get": {
+        "summary": "Lista as faturas do cartão",
+        "tags": ["Faturas"],
+        "description": "Da mais recente para a mais antiga: a fatura aberta hoje e todas as que têm compras ou pagamento. Cartão inexistente ou de outro usuário responde 404.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/InvoiceSummary" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/credit-cards/{id}/invoices/{month}": {
+      "get": {
+        "summary": "Detalha uma fatura",
+        "tags": ["Faturas"],
+        "description": "A fatura do mês de referência (o mês do vencimento), com as compras do ciclo e o pagamento, se houver. Um mês sem compras devolve a fatura vazia.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "example": "2026-12"
+            },
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "description": "Mês de referência da fatura (o mês do vencimento)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Invoice" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/credit-cards/{id}/invoices/{month}/payment": {
+      "post": {
+        "summary": "Paga a fatura",
+        "tags": ["Faturas"],
+        "description": "Paga o valor total da fatura, com a data de hoje, debitando a conta de pagamento do cartão (cria a transação `invoice-payment`). Só fatura fechada ou vencida, com compras e ainda sem pagamento; senão, ou com a conta de pagamento arquivada, responde 409. Devolve a fatura paga.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "example": "2026-12"
+            },
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "description": "Mês de referência da fatura (o mês do vencimento)."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Invoice" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Desfaz o pagamento da fatura",
+        "tags": ["Faturas"],
+        "description": "Apaga a transação `invoice-payment`: o valor volta para a conta, as compras voltam a ocupar o limite e a fatura volta ao status pelas datas. Fatura sem pagamento responde 409. Devolve a fatura.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "example": "2026-12"
+            },
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "description": "Mês de referência da fatura (o mês do vencimento)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Invoice" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
     }
   },
   "tags": [
@@ -1980,6 +3043,8 @@
     { "name": "Autenticação", "description": "Cadastro, login, sessão e logout." },
     { "name": "Contas", "description": "Contas bancárias, carteiras e investimentos." },
     { "name": "Categorias", "description": "Categorias de receitas e despesas." },
-    { "name": "Transações", "description": "Receitas, despesas e transferências." }
+    { "name": "Transações", "description": "Receitas, despesas e transferências." },
+    { "name": "Cartões", "description": "Cartões de crédito, limite e próxima fatura." },
+    { "name": "Faturas", "description": "Faturas calculadas dos cartões e o pagamento." }
   ]
 }

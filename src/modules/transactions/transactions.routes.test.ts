@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestApp } from '../../../test/helpers/app.ts';
+import { insertCreditCard } from '../../../test/helpers/fixtures.ts';
 import { transactions } from '../../db/schema/index.ts';
 import type { AccountDto } from '../accounts/accounts.schemas.ts';
 import { SESSION_COOKIE } from '../auth/session-cookie.ts';
@@ -190,7 +191,12 @@ describe('rotas /v1/transactions', () => {
         'body.type',
         'Selecione despesa, receita ou transferência.',
       ],
-      ['sem conta', { accountId: undefined }, 'body.accountId', 'Selecione a conta.'],
+      [
+        'sem conta nem cartão',
+        { accountId: undefined },
+        'body.accountId',
+        'Selecione a conta ou o cartão.',
+      ],
       ['sem categoria', { categoryId: null }, 'body.categoryId', 'Selecione a categoria.'],
       [
         'status desconhecido',
@@ -409,8 +415,12 @@ describe('rotas /v1/transactions', () => {
       return response.json<TransactionDto>();
     }
 
-    /** Pagamento de fatura gravado direto no banco: as rotas de faturas chegam na Etapa 4. */
+    /** Pagamento de fatura gravado direto no banco, cada um num cartão novo. */
     async function insertInvoicePayment() {
+      const card = await insertCreditCard(app.db, {
+        userId: ledger.userId,
+        paymentAccountId: ledger.account.id,
+      });
       const [payment] = await app.db
         .insert(transactions)
         .values({
@@ -420,7 +430,7 @@ describe('rotas /v1/transactions', () => {
           amount: 80_000,
           date: '2026-11-05',
           accountId: ledger.account.id,
-          creditCardId: randomUUIDv7(),
+          creditCardId: card.id,
           invoiceMonth: '2026-10',
         })
         .returning();
@@ -696,7 +706,7 @@ describe('rotas /v1/transactions', () => {
   describe('GET /v1/transactions', () => {
     let ledger: Ledger;
     let savings: AccountDto;
-    const cardId = randomUUIDv7();
+    let cardId: string;
     /** Descrições na ordem esperada da listagem completa (mais recentes primeiro). */
     const newestFirst = [
       'Fatura de outubro',
@@ -743,7 +753,13 @@ describe('rotas /v1/transactions', () => {
       ]) {
         expect((await post(ledger, body)).statusCode).toBe(201);
       }
-      // Pagamento de fatura gravado direto no banco: as rotas de faturas chegam na Etapa 4.
+      // Pagamento de fatura gravado direto no banco, como cenário.
+      cardId = (
+        await insertCreditCard(app.db, {
+          userId: ledger.userId,
+          paymentAccountId: ledger.account.id,
+        })
+      ).id;
       await app.db.insert(transactions).values({
         userId: ledger.userId,
         type: 'invoice-payment',

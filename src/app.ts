@@ -12,9 +12,12 @@ import type { Env } from './config/env.ts';
 import { accountsRoutes } from './modules/accounts/accounts.routes.ts';
 import { authRoutes } from './modules/auth/auth.routes.ts';
 import { categoriesRoutes } from './modules/categories/categories.routes.ts';
+import { creditCardsRoutes } from './modules/credit-cards/credit-cards.routes.ts';
+import { invoicesRoutes } from './modules/invoices/invoices.routes.ts';
 import { transactionsRoutes } from './modules/transactions/transactions.routes.ts';
 import { healthRoutes } from './modules/health/health.routes.ts';
 import { authPlugin } from './plugins/auth.ts';
+import { clockPlugin } from './plugins/clock.ts';
 import { databasePlugin } from './plugins/db.ts';
 import { docsPlugin } from './plugins/docs.ts';
 import { errorsPlugin } from './plugins/errors.ts';
@@ -49,12 +52,17 @@ const REDACTED_PATHS = [
   '*.token',
 ];
 
+export interface BuildAppOptions {
+  /** Momento atual da aplicação; os testes fixam o "hoje" das regras de fatura. */
+  now?: () => Date;
+}
+
 /**
  * Cria a aplicação Fastify sem abrir porta: `server.ts` a inicia e os testes usam `app.inject()`.
  * Plugins e módulos são registrados aqui conforme a API cresce; a aplicação fica pronta no primeiro
  * `inject()` ou no `listen()`.
  */
-export async function buildApp(env: Env): Promise<FastifyInstance> {
+export async function buildApp(env: Env, { now }: BuildAppOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({
     logger: loggerOptions(env),
     logController: new LogController({ disableRequestLogging: isRequestLoggingDisabled }),
@@ -89,6 +97,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
     maxConnections: env.DATABASE_POOL_MAX,
   });
   await app.register(authPlugin);
+  await app.register(clockPlugin, { timeZone: env.TIME_ZONE, ...(now && { now }) });
 
   // A documentação precisa ser registrada antes das rotas, para enxergá-las.
   await app.register(docsPlugin, { enabled: env.DOCS_ENABLED });
@@ -97,6 +106,8 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(accountsRoutes, { prefix: '/v1/accounts' });
   await app.register(categoriesRoutes, { prefix: '/v1/categories' });
   await app.register(transactionsRoutes, { prefix: '/v1/transactions' });
+  await app.register(creditCardsRoutes, { prefix: '/v1/credit-cards' });
+  await app.register(invoicesRoutes, { prefix: '/v1/credit-cards' });
 
   return app;
 }

@@ -35,7 +35,22 @@ const envSchema = z.object({
     .default('')
     .pipe(z.union([z.literal(''), z.url({ protocol: /^https?$/ })]))
     .transform((value) => value || null),
+  // Fuso do "hoje" das regras de calendário (fatura aberta, fatura vencida, data do pagamento).
+  // O servidor pode rodar em UTC: às 22h de Brasília, em UTC já seria o dia seguinte.
+  TIME_ZONE: z
+    .string()
+    .default('America/Sao_Paulo')
+    .refine(isTimeZone, 'Fuso horário IANA inválido (ex.: America/Sao_Paulo).'),
 });
+
+function isTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat('pt-BR', { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export type Env = z.infer<typeof envSchema>;
 

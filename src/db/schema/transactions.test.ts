@@ -1,6 +1,7 @@
 import { randomUUID, randomUUIDv7 } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { insertCreditCard } from '../../../test/helpers/fixtures.ts';
 import { categoryNameKey } from '../../modules/categories/category-name.ts';
 import { createDatabase } from '../client.ts';
 import {
@@ -10,6 +11,7 @@ import {
   users,
   type Account,
   type Category,
+  type CreditCard,
   type NewTransaction,
   type User,
 } from './index.ts';
@@ -27,9 +29,10 @@ interface Owner {
   savings: Account;
   food: Category;
   salary: Category;
+  card: CreditCard;
 }
 
-/** Usuário com duas contas, uma categoria de despesa e uma de receita. */
+/** Usuário com duas contas, uma categoria de despesa, uma de receita e um cartão. */
 async function createOwner(): Promise<Owner> {
   const [user] = await db
     .insert(users)
@@ -60,7 +63,13 @@ async function createOwner(): Promise<Owner> {
     .insert(categories)
     .values([category('Alimentação', 'expense'), category('Salário', 'income')])
     .returning();
-  return { user, checking: checking!, savings: savings!, food: food!, salary: salary! };
+  const card = await newCard({ userId: user.id, checking: checking! });
+  return { user, checking: checking!, savings: savings!, food: food!, salary: salary!, card };
+}
+
+/** Outro cartão do dono, pago pela conta corrente. */
+function newCard(owner: { userId: string; checking: Account }): Promise<CreditCard> {
+  return insertCreditCard(db, { userId: owner.userId, paymentAccountId: owner.checking.id });
 }
 
 const violation = (code: string, constraint: string) => ({ cause: { code, constraint } });
@@ -97,7 +106,7 @@ describe('tabela transactions', () => {
       ...base,
       type: 'expense',
       date: '2026-11-05',
-      creditCardId: randomUUIDv7(),
+      creditCardId: owner.card.id,
       categoryId: owner.food.id,
     };
     transfer = {
@@ -112,7 +121,7 @@ describe('tabela transactions', () => {
       type: 'invoice-payment',
       date: '2026-11-05',
       accountId: owner.checking.id,
-      creditCardId: randomUUIDv7(),
+      creditCardId: owner.card.id,
       invoiceMonth: '2026-10',
     };
   });
@@ -195,7 +204,7 @@ describe('tabela transactions', () => {
   });
 
   it('rejeita um segundo pagamento da mesma fatura (cartão e mês)', async () => {
-    const creditCardId = randomUUIDv7();
+    const creditCardId = (await newCard({ userId: owner.user.id, checking: owner.checking })).id;
     await insert({ ...invoicePayment, creditCardId });
 
     await expect(insert({ ...invoicePayment, creditCardId })).rejects.toMatchObject(
@@ -208,10 +217,8 @@ describe('tabela transactions', () => {
   });
 
   it('permite várias compras no mesmo cartão e mês (só o pagamento é único)', async () => {
-    const creditCardId = randomUUIDv7();
-
-    await insert({ ...cardPurchase, creditCardId });
-    await expect(insert({ ...cardPurchase, creditCardId })).resolves.toHaveLength(1);
+    await insert(cardPurchase);
+    await expect(insert(cardPurchase)).resolves.toHaveLength(1);
   });
 
   describe('referências a dados de outro usuário', () => {
@@ -229,6 +236,11 @@ describe('tabela transactions', () => {
         'transactions_destination_account_fk',
       ],
       ['categoria', () => ({ ...expense, categoryId: other.food.id }), 'transactions_category_fk'],
+      [
+        'cartão',
+        () => ({ ...cardPurchase, creditCardId: other.card.id }),
+        'transactions_credit_card_fk',
+      ],
     ])('rejeita %s de outro usuário', async (_case, values, constraint) => {
       await expect(insert(values())).rejects.toMatchObject(violation('23503', constraint));
     });
@@ -242,6 +254,12 @@ describe('tabela transactions', () => {
     it('rejeita conta inexistente', async () => {
       await expect(insert({ ...expense, accountId: randomUUIDv7() })).rejects.toMatchObject(
         violation('23503', 'transactions_account_fk'),
+      );
+    });
+
+    it('rejeita cartão inexistente', async () => {
+      await expect(insert({ ...cardPurchase, creditCardId: randomUUIDv7() })).rejects.toMatchObject(
+        violation('23503', 'transactions_credit_card_fk'),
       );
     });
   });

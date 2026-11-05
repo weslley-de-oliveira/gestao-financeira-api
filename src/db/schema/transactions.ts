@@ -20,6 +20,7 @@ import {
 import { MAX_MONEY_CENTS } from '../../shared/utils/money.ts';
 import { accounts } from './accounts.ts';
 import { categories } from './categories.ts';
+import { creditCards } from './credit-cards.ts';
 import { oneOf, primaryId, timestamps } from './columns.ts';
 import { users } from './users.ts';
 
@@ -47,10 +48,7 @@ export const transactions = pgTable(
     date: date({ mode: 'string' }).notNull(),
     /** Conta da receita/despesa, origem da transferência ou conta que pagou a fatura. */
     accountId: uuid(),
-    /**
-     * Cartão da compra ou da fatura paga. A chave estrangeira para `credit_cards` entra na
-     * Etapa 4, junto com a tabela de cartões.
-     */
+    /** Cartão da compra ou da fatura paga. */
     creditCardId: uuid(),
     /** Mês de referência (`yyyy-MM`) da fatura paga; só em `invoice-payment`. */
     invoiceMonth: char({ length: 7 }),
@@ -86,6 +84,11 @@ export const transactions = pgTable(
       name: 'transactions_category_fk',
       columns: [table.categoryId, table.userId, table.type],
       foreignColumns: [categories.id, categories.userId, categories.type],
+    }),
+    foreignKey({
+      name: 'transactions_credit_card_fk',
+      columns: [table.creditCardId, table.userId],
+      foreignColumns: [creditCards.id, creditCards.userId],
     }),
 
     check('transactions_type_valid', oneOf(table.type, TRANSACTION_TYPES)),
