@@ -98,6 +98,44 @@ describe('GET /v1/dashboard', () => {
     expect(balance).toEqual({ total: 157_000, activeAccounts: 2 });
   });
 
+  it('agrupa receitas × despesas em blocos de 7 dias num mês só', async () => {
+    const { incomeVsExpense } = (await dashboard()).json<DashboardDto>();
+
+    expect(incomeVsExpense.map(({ label, income, expense }) => [label, income, expense])).toEqual([
+      ['01–07', 30_000, 12_000],
+      ['08–14', 0, 0],
+      ['15–21', 0, 0],
+      ['22–28', 0, 0],
+      ['29–30', 0, 0],
+    ]);
+    expect(incomeVsExpense[4]).toMatchObject({ start: '2026-11-29', end: '2026-11-30' });
+  });
+
+  it('agrupa por mês quando o período tem vários meses', async () => {
+    const { incomeVsExpense } = (
+      await dashboard('?from=2026-09-01&to=2026-11-30')
+    ).json<DashboardDto>();
+
+    expect(incomeVsExpense).toEqual([
+      { label: 'set/26', start: '2026-09-01', end: '2026-09-30', income: 0, expense: 0 },
+      { label: 'out/26', start: '2026-10-01', end: '2026-10-31', income: 0, expense: 18_000 },
+      { label: 'nov/26', start: '2026-11-01', end: '2026-11-30', income: 30_000, expense: 12_000 },
+    ]);
+  });
+
+  it('mostra o saldo das contas ativas ao fim de cada dia, partindo do saldo de abertura', async () => {
+    const { balanceEvolution, balance } = (await dashboard()).json<DashboardDto>();
+
+    expect(balanceEvolution).toHaveLength(30);
+    // Abertura de novembro: Corrente 1.000 − 100 (outubro) + Poupança 500.
+    expect(balanceEvolution[0]).toEqual({ date: '2026-11-01', balance: 140_000 });
+    // 02/11: + 300 de receita − 50 de despesa; a pendente e a transferência não mudam o total.
+    expect(balanceEvolution.slice(1, 14).every((point) => point.balance === 165_000)).toBe(true);
+    // 15/11: o pagamento da fatura (R$ 80, feito hoje) sai da Corrente.
+    expect(balanceEvolution[14]).toEqual({ date: '2026-11-15', balance: 157_000 });
+    expect(balanceEvolution.at(-1)?.balance).toBe(balance.total);
+  });
+
   it('resume o período pedido', async () => {
     const response = await dashboard('?from=2026-10-01&to=2026-10-31');
 

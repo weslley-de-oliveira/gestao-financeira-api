@@ -1,7 +1,7 @@
 import { monthRange, type IsoDate } from '../../shared/utils/date.ts';
 import type { AccountsRepository } from '../accounts/accounts.repository.ts';
 import type { DashboardRepository } from './dashboard.repository.ts';
-import { summarizeTransactions } from './dashboard-metrics.ts';
+import { balanceEvolution, incomeVsExpense, summarizeTransactions } from './dashboard-metrics.ts';
 import type { DashboardDto, DashboardQuery } from './dashboard.schemas.ts';
 
 export interface DashboardServiceDependencies {
@@ -21,32 +21,50 @@ export function createDashboardService({
   accounts,
   today,
 }: DashboardServiceDependencies): DashboardService {
-  /** Saldo atual somado das contas ativas (a mesma regra de `currentBalance`). */
-  async function activeBalance(userId: string) {
+  /**
+   * Contas ativas com o saldo atual e o saldo de abertura do período (antes de `from`), pela
+   * mesma regra de `currentBalance`.
+   */
+  async function activeAccounts(userId: string, from: IsoDate) {
     const active = await accounts.listAccounts(userId, { includeArchived: false });
-    const totals = await accounts.movementTotals(
-      userId,
-      active.map((account) => account.id),
-    );
-    return {
-      total: active.reduce(
-        (sum, account) => sum + account.initialBalance + (totals.get(account.id) ?? 0),
-        0,
-      ),
-      activeAccounts: active.length,
-    };
+    const ids = active.map((account) => account.id);
+    const [current, beforePeriod] = await Promise.all([
+      accounts.movementTotals(userId, ids),
+      accounts.movementTotals(userId, ids, { before: from }),
+    ]);
+    return active.map((account) => ({
+      id: account.id,
+      isArchived: false,
+      currentBalance: account.initialBalance + (current.get(account.id) ?? 0),
+      openingBalance: account.initialBalance + (beforePeriod.get(account.id) ?? 0),
+    }));
   }
 
   return {
     async get(userId, query) {
       const { start, end } = monthRange(today().slice(0, 7));
-      const from = query.from ?? start;
-      const to = query.to ?? end;
-      const [period, balance] = await Promise.all([
-        dashboard.periodTransactions(userId, { from, to }),
-        activeBalance(userId),
+      const range = { start: query.from ?? start, end: query.to ?? end };
+      const [period, active] = await Promise.all([
+        dashboard.periodTransactions(userId, { from: range.start, to: range.end }),
+        activeAccounts(userId, range.start),
       ]);
-      return { from, to, summary: summarizeTransactions(period), balance };
+
+      return {
+        from: range.start,
+        to: range.end,
+        summary: summarizeTransactions(period),
+        balance: {
+          total: active.reduce((sum, account) => sum + account.currentBalance, 0),
+          activeAccounts: active.length,
+        },
+        incomeVsExpense: incomeVsExpense(period, range),
+        // Parte do saldo de abertura e aplica só as transações do período.
+        balanceEvolution: balanceEvolution(
+          active.map((account) => ({ ...account, initialBalance: account.openingBalance })),
+          period,
+          range,
+        ),
+      };
     },
   };
 }

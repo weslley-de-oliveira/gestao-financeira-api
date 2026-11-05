@@ -67,6 +67,24 @@ export const dashboardSchema = z
       total: z.int().meta({ description: 'Saldo atual somado das contas ativas, em centavos.' }),
       activeAccounts: z.int().meta({ description: 'Quantidade de contas ativas.' }),
     }),
+    incomeVsExpense: z
+      .array(
+        z.object({
+          label: z.string().meta({ example: 'set/26' }),
+          start: z.iso.date(),
+          end: z.iso.date(),
+          income: z.int(),
+          expense: z.int(),
+        }),
+      )
+      .meta({
+        description:
+          'Gráfico de receitas × despesas: blocos de 7 dias quando o período é de um só mês (`01–07`), senão um por mês (`set/26`). Mesma regra dos totais.',
+      }),
+    balanceEvolution: z.array(z.object({ date: z.iso.date(), balance: z.int() })).meta({
+      description:
+        'Saldo somado das contas ativas ao fim de cada dia do período (pendentes não contam).',
+    }),
   })
   .meta({ id: 'Dashboard' });
 
