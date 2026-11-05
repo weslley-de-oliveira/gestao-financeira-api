@@ -12,7 +12,7 @@ Conventional Commits, validados pelo commitlint no hook `commit-msg`; o hook `pr
 
 - Node.js 26 (definido em `.nvmrc`)
 - npm 11
-- Docker (Postgres local via Docker Compose)
+- Docker (Postgres local via Docker Compose e Postgres descartável nos testes, via Testcontainers)
 
 ## Como executar
 
@@ -39,6 +39,8 @@ Copie `.env.example` para `.env` e ajuste os valores. Elas são validadas na ini
 | `npm run build`        | Compila para `dist/`                                             |
 | `npm start`            | Executa a versão compilada                                       |
 | `npm run typecheck`    | Verifica os tipos sem gerar arquivos                             |
+| `npm test`             | Roda os testes (Vitest) contra um Postgres no Testcontainers     |
+| `npm run test:watch`   | Roda os testes em modo observação                                |
 | `npm run openapi`      | Regenera o `openapi.json` a partir das rotas                     |
 | `npm run db:up`        | Sobe o Postgres local (Docker Compose) e espera ficar pronto     |
 | `npm run db:down`      | Para o Postgres local (os dados ficam no volume)                 |
