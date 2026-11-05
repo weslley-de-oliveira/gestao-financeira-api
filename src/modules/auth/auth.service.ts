@@ -45,6 +45,8 @@ export interface AuthService {
   register(input: RegisterInput, client: ClientInfo): Promise<AuthenticatedSession>;
   /** Confere as credenciais e abre uma sessão nova. Falha → `InvalidCredentialsError`. */
   login(input: LoginInput, client: ClientInfo): Promise<AuthenticatedSession>;
+  /** Encerra a sessão deste token (apaga do banco). Sem token ou já encerrada: não faz nada. */
+  logout(token: string | undefined): Promise<void>;
 }
 
 export function createAuthService(repository: AuthRepository, now = () => new Date()): AuthService {
@@ -89,6 +91,12 @@ export function createAuthService(repository: AuthRepository, now = () => new Da
         await repository.updatePasswordHash(user.id, await hashPassword(password));
       }
       return openSession(user, client);
+    },
+
+    async logout(token) {
+      if (token) {
+        await repository.deleteSession(hashSessionToken(token));
+      }
     },
   };
 }

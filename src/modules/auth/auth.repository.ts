@@ -21,6 +21,7 @@ export interface AuthRepository {
     tokenHash: string,
     now: Date,
   ): Promise<{ user: User; sessionId: string } | null>;
+  deleteSession(tokenHash: string): Promise<void>;
 }
 
 export function createAuthRepository(db: Database): AuthRepository {
@@ -59,6 +60,10 @@ export function createAuthRepository(db: Database): AuthRepository {
         .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now)))
         .limit(1);
       return row ?? null;
+    },
+
+    async deleteSession(tokenHash) {
+      await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));
     },
   };
 }

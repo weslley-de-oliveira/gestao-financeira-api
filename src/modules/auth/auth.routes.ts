@@ -1,10 +1,12 @@
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
+import { z } from 'zod';
+import { currentAuth } from '../../plugins/auth.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
 import { createAuthRepository } from './auth.repository.ts';
 import { loginBodySchema, registerBodySchema, toUserDto, userSchema } from './auth.schemas.ts';
 import { createAuthService, type ClientInfo } from './auth.service.ts';
-import { SESSION_COOKIE, setSessionCookie } from './session-cookie.ts';
+import { SESSION_COOKIE, clearSessionCookie, setSessionCookie } from './session-cookie.ts';
 
 export const AUTH_TAG = 'Autenticação';
 
@@ -60,6 +62,44 @@ export const authRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
       return toUserDto(session.user);
     },
   );
+
+  // Não exige sessão válida: sair com o cookie já expirado também responde 204 e limpa o cookie.
+  app.post(
+    '/logout',
+    {
+      schema: {
+        tags: [AUTH_TAG],
+        summary: 'Sai da conta',
+        description: 'Encerra a sessão do cookie no servidor e pede ao navegador para apagá-lo.',
+        response: { 204: z.null() },
+      },
+    },
+    async (request, reply) => {
+      await service.logout(request.cookies[SESSION_COOKIE]);
+      clearSessionCookie(reply);
+      return reply.status(204).send(null);
+    },
+  );
+
+  app.register((privateScope, _privateOptions, privateDone) => {
+    privateScope.addHook('onRequest', privateScope.authenticate);
+
+    privateScope.get(
+      '/me',
+      {
+        schema: {
+          tags: [AUTH_TAG],
+          summary: 'Usuário da sessão atual',
+          description:
+            'Usado pelo front ao abrir o app para restaurar a sessão a partir do cookie.',
+          response: { 200: userSchema, 401: problemDetailsSchema },
+        },
+      },
+      async (request) => toUserDto(currentAuth(request).user),
+    );
+
+    privateDone();
+  });
 
   done();
 };

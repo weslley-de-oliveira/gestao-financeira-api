@@ -260,3 +260,97 @@ describe('POST /v1/auth/login', () => {
     expect(fields).toEqual(expect.arrayContaining(['body.email', 'body.password']));
   });
 });
+
+describe('GET /v1/auth/me e POST /v1/auth/logout', () => {
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  async function signUp(): Promise<{ email: string; token: string }> {
+    const email = uniqueEmail();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/register',
+      payload: { name: 'Pessoa de Teste', email, password: 'senha1234' },
+    });
+    return { email, token: sessionCookie(response).value };
+  }
+
+  const me = (token?: string) =>
+    app.inject({
+      method: 'GET',
+      url: '/v1/auth/me',
+      ...(token && { cookies: { [SESSION_COOKIE]: token } }),
+    });
+
+  const logout = (token?: string) =>
+    app.inject({
+      method: 'POST',
+      url: '/v1/auth/logout',
+      ...(token && { cookies: { [SESSION_COOKIE]: token } }),
+    });
+
+  it('GET /me devolve o usuário da sessão', async () => {
+    const { email, token } = await signUp();
+
+    const response = await me(token);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json<UserDto>()).toMatchObject({ email, name: 'Pessoa de Teste' });
+    expect(response.body).not.toMatch(/password/i);
+  });
+
+  it('GET /me responde 401 sem sessão', async () => {
+    const response = await me();
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('logout responde 204, apaga o cookie e encerra a sessão no banco', async () => {
+    const { token } = await signUp();
+
+    const response = await logout(token);
+
+    expect(response.statusCode).toBe(204);
+    expect(response.body).toBe('');
+    const cleared = sessionCookie(response);
+    expect(cleared).toMatchObject({ value: '', httpOnly: true, secure: true, path: '/' });
+    expect(cleared.expires?.getTime()).toBeLessThan(Date.now());
+
+    const stored = await app.db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.tokenHash, hashSessionToken(token)));
+    expect(stored).toEqual([]);
+    expect((await me(token)).statusCode).toBe(401);
+  });
+
+  it('logout encerra só a sessão do cookie; as outras do usuário continuam', async () => {
+    const { email, token: first } = await signUp();
+    const login = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/login',
+      payload: { email, password: 'senha1234' },
+    });
+    const second = sessionCookie(login).value;
+
+    await logout(first);
+
+    expect((await me(first)).statusCode).toBe(401);
+    expect((await me(second)).statusCode).toBe(200);
+  });
+
+  it('logout sem cookie ou com sessão já encerrada também responde 204', async () => {
+    const { token } = await signUp();
+    await logout(token);
+
+    expect((await logout()).statusCode).toBe(204);
+    expect((await logout(token)).statusCode).toBe(204);
+  });
+});

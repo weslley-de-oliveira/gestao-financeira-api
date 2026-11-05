@@ -283,6 +283,33 @@
           }
         }
       }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "summary": "Sai da conta",
+        "tags": ["Autenticação"],
+        "description": "Encerra a sessão do cookie no servidor e pede ao navegador para apagá-lo.",
+        "responses": { "204": { "description": "Default Response" } }
+      }
+    },
+    "/v1/auth/me": {
+      "get": {
+        "summary": "Usuário da sessão atual",
+        "tags": ["Autenticação"],
+        "description": "Usado pelo front ao abrir o app para restaurar a sessão a partir do cookie.",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
     }
   },
   "tags": [
