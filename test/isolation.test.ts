@@ -118,6 +118,12 @@ describe.each(RESOURCES)('isolamento entre usuários: $name', (resource) => {
       });
   }
 
+  /** Ids de uma listagem, seja lista simples ou página (`{ items, nextCursor }`). */
+  function listedIds(response: LightMyRequestResponse): string[] {
+    const body = response.json<{ id: string }[] | { items: { id: string }[] }>();
+    return (Array.isArray(body) ? body : body.items).map(({ id }) => id);
+  }
+
   /** O que um 404 diz, sem os campos que mudam a cada requisição (`requestId`, `instance`). */
   function notFound(response: LightMyRequestResponse) {
     expect(response.statusCode).toBe(404);
@@ -143,8 +149,7 @@ describe.each(RESOURCES)('isolamento entre usuários: $name', (resource) => {
       const response = await intruder('GET', `${resource.path}${query}`);
 
       expect(response.statusCode).toBe(200);
-      const ids = response.json<{ id: string }[]>().map(({ id }) => id);
-      expect(ids).not.toContain(original.id);
+      expect(listedIds(response)).not.toContain(original.id);
     }
   });
 
@@ -186,6 +191,6 @@ describe.each(RESOURCES)('isolamento entre usuários: $name', (resource) => {
 
     expect(detail.statusCode).toBe(200);
     expect(detail.json()).toEqual(original);
-    expect(list.json<{ id: string }[]>().map(({ id }) => id)).toContain(original.id);
+    expect(listedIds(list)).toContain(original.id);
   });
 });

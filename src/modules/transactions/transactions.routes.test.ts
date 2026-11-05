@@ -768,14 +768,108 @@ describe('rotas /v1/transactions', () => {
       return response;
     };
 
+    interface TransactionPage {
+      items: TransactionDto[];
+      nextCursor: string | null;
+    }
+
     const descriptions = async (query = '') =>
-      (await list(query)).json<TransactionDto[]>().map((transaction) => transaction.description);
+      (await list(query))
+        .json<TransactionPage>()
+        .items.map((transaction) => transaction.description);
 
     it('lista só as do usuário, da data mais recente para a mais antiga', async () => {
       const response = await list();
 
       expect(response.statusCode).toBe(200);
+      expect(response.json<TransactionPage>().nextCursor).toBeNull();
       expect(await descriptions()).toEqual(newestFirst);
+    });
+
+    describe('paginação por cursor', () => {
+      /** Percorre todas as páginas e devolve as descrições de cada uma. */
+      async function allPages(query: string): Promise<string[][]> {
+        const pages: string[][] = [];
+        let cursor: string | null = null;
+        do {
+          const separator = query ? '&' : '?';
+          const page: TransactionPage = (
+            await list(`${query}${cursor ? `${separator}cursor=${cursor}` : ''}`)
+          ).json<TransactionPage>();
+          pages.push(page.items.map((transaction) => transaction.description));
+          cursor = page.nextCursor;
+        } while (cursor);
+        return pages;
+      }
+
+      it('divide a lista em páginas sem pular nem repetir, inclusive no mesmo dia', async () => {
+        // "Reserva" e "Salário" são do mesmo dia e ficam em páginas diferentes.
+        expect(await allPages('?limit=3')).toEqual([
+          ['Fatura de outubro', 'Farmácia', 'Reserva'],
+          ['Salário', 'Mercado Pão de Açúcar'],
+        ]);
+        expect((await allPages('?limit=1')).flat()).toEqual(newestFirst);
+      });
+
+      it('mantém os filtros entre as páginas', async () => {
+        expect(await allPages(`?categoryId=${ledger.food.id}&limit=1`)).toEqual([
+          ['Farmácia'],
+          ['Mercado Pão de Açúcar'],
+        ]);
+      });
+
+      it('na última página cheia, não promete outra', async () => {
+        const page = (await list('?limit=5')).json<TransactionPage>();
+
+        expect(page.items).toHaveLength(5);
+        expect(page.nextCursor).toBeNull();
+      });
+
+      it('uma transação nova não desloca a página seguinte', async () => {
+        const first = (await list('?limit=2')).json<TransactionPage>();
+        // Entra no topo da lista depois que a primeira página foi lida.
+        await post(ledger, expense(ledger, { description: 'Nova', date: '2026-12-01' }));
+
+        const second = (await list(`?limit=2&cursor=${first.nextCursor}`)).json<TransactionPage>();
+
+        expect(second.items.map((transaction) => transaction.description)).toEqual([
+          'Reserva',
+          'Salário',
+        ]);
+        await app.db.delete(transactions).where(eq(transactions.description, 'Nova'));
+      });
+
+      it.each([
+        [
+          'cursor inválido',
+          '?cursor=abc',
+          'querystring.cursor',
+          'Cursor inválido: use o `nextCursor` recebido.',
+        ],
+        [
+          'limite zero',
+          '?limit=0',
+          'querystring.limit',
+          'O tamanho da página deve ser pelo menos 1.',
+        ],
+        [
+          'limite acima de 100',
+          '?limit=101',
+          'querystring.limit',
+          'O tamanho da página deve ser no máximo 100.',
+        ],
+        [
+          'limite que não é número',
+          '?limit=dez',
+          'querystring.limit',
+          'Informe o tamanho da página como número.',
+        ],
+      ])('responde 422 para %s', async (_case, query, field, message) => {
+        const response = await list(query);
+
+        expect(response.statusCode).toBe(422);
+        expect(response.json()).toMatchObject({ errors: [{ field, message }] });
+      });
     });
 
     it.each([

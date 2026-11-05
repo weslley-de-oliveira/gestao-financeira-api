@@ -1,4 +1,5 @@
 import type { Transaction } from '../../db/schema/index.ts';
+import type { Page } from '../../shared/http/pagination.ts';
 import {
   DomainError,
   InvalidInputError,
@@ -41,8 +42,8 @@ export interface TransactionsServiceDependencies {
 }
 
 export interface TransactionsService {
-  /** Transações do usuário que passam nos filtros, das mais recentes para as mais antigas. */
-  list(userId: string, filters: ListTransactionsQuery): Promise<Transaction[]>;
+  /** Uma página das transações do usuário que passam nos filtros, das mais recentes às antigas. */
+  list(userId: string, query: ListTransactionsQuery): Promise<Page<Transaction>>;
   /** Transação do usuário; inexistente ou de outro usuário → `TransactionNotFoundError`. */
   get(userId: string, transactionId: string): Promise<Transaction>;
   /**
@@ -176,8 +177,8 @@ export function createTransactionsService({
   }
 
   return {
-    list(userId, filters) {
-      return transactions.listTransactions(userId, filters);
+    list(userId, query) {
+      return transactions.listTransactions(userId, query);
     },
 
     get,

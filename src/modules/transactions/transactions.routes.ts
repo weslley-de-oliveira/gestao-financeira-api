@@ -9,7 +9,7 @@ import {
   createTransactionBodySchema,
   listTransactionsQuerySchema,
   toTransactionDto,
-  transactionListSchema,
+  transactionPageSchema,
   transactionParamsSchema,
   transactionSchema,
   updateTransactionBodySchema,
@@ -34,18 +34,18 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
         tags: [TRANSACTIONS_TAG],
         summary: 'Lista as transações',
         description:
-          'Transações do usuário, das mais recentes para as mais antigas, com filtros combináveis: período (`from`/`to`, inclusivos), tipo, status, conta (origem ou destino), cartão, categoria e busca `q` na descrição e nas observações, sem diferenciar maiúsculas e acentos.',
+          'Transações do usuário, das mais recentes para as mais antigas, com filtros combináveis: período (`from`/`to`, inclusivos), tipo, status, conta (origem ou destino), cartão, categoria e busca `q` na descrição e nas observações, sem diferenciar maiúsculas e acentos. Paginada por cursor: para a próxima página, repita a consulta com `cursor` igual ao `nextCursor` recebido.',
         querystring: listTransactionsQuerySchema,
         response: {
-          200: transactionListSchema,
+          200: transactionPageSchema,
           401: problemDetailsSchema,
           422: problemDetailsSchema,
         },
       },
     },
     async (request) => {
-      const list = await service.list(currentAuth(request).user.id, request.query);
-      return list.map(toTransactionDto);
+      const page = await service.list(currentAuth(request).user.id, request.query);
+      return { items: page.items.map(toTransactionDto), nextCursor: page.nextCursor };
     },
   );
 

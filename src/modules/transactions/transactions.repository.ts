@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '../../db/client.ts';
 import { transactions, type NewTransaction, type Transaction } from '../../db/schema/index.ts';
+import { toPage, type Page } from '../../shared/http/pagination.ts';
 import { normalizeForSearch } from '../../shared/utils/text.ts';
 import type { ListTransactionsQuery } from './transactions.schemas.ts';
 
@@ -9,10 +10,10 @@ export type TransactionChanges = Omit<NewTransaction, 'id' | 'userId' | 'created
 
 export interface TransactionsRepository {
   /**
-   * Transações do usuário que passam em todos os filtros, das mais recentes para as mais antigas
-   * (data e, no mesmo dia, a registrada por último primeiro).
+   * Uma página das transações do usuário que passam em todos os filtros, das mais recentes para
+   * as mais antigas (data e, no mesmo dia, a registrada por último primeiro).
    */
-  listTransactions(userId: string, filters: ListTransactionsQuery): Promise<Transaction[]>;
+  listTransactions(userId: string, query: ListTransactionsQuery): Promise<Page<Transaction>>;
   /** Transação pelo id, só se for do usuário: a de outro usuário é tratada como inexistente. */
   findTransaction(userId: string, transactionId: string): Promise<Transaction | null>;
   insertTransaction(transaction: NewTransaction): Promise<Transaction>;
@@ -31,15 +32,26 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
     and(eq(transactions.id, transactionId), eq(transactions.userId, userId));
 
   return {
-    async listTransactions(userId, filters) {
-      return (
-        db
-          .select()
-          .from(transactions)
-          .where(and(eq(transactions.userId, userId), ...filterConditions(filters)))
-          // O id é UUID v7 (ordenado pelo momento do cadastro): desempata o mesmo dia.
-          .orderBy(desc(transactions.date), desc(transactions.id))
-      );
+    async listTransactions(userId, query) {
+      const { cursor, limit } = query;
+      const rows = await db
+        .select()
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            ...filterConditions(query),
+            // Continua logo depois do último item da página anterior.
+            cursor
+              ? sql`(${transactions.date}, ${transactions.id}) < (${cursor.date}::date, ${cursor.id}::uuid)`
+              : undefined,
+          ),
+        )
+        // O id é UUID v7 (ordenado pelo momento do cadastro): desempata o mesmo dia.
+        .orderBy(desc(transactions.date), desc(transactions.id))
+        // Uma linha a mais só para saber se há próxima página.
+        .limit(limit + 1);
+      return toPage(rows, limit);
     },
 
     async findTransaction(userId, transactionId) {

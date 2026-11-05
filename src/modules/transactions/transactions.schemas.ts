@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Transaction } from '../../db/schema/index.ts';
+import { pageQueryFields, pageSchema } from '../../shared/http/pagination.ts';
 import { collapseWhitespace } from '../../shared/utils/text.ts';
 import { positiveCentsSchema } from '../../shared/validation/money.ts';
 import {
@@ -139,9 +140,10 @@ export const transactionParamsSchema = z.object({
 
 export const TRANSACTION_SEARCH_MAX_LENGTH = 100;
 
-/** Filtros da listagem; todos opcionais e combináveis. */
+/** Filtros da listagem, todos opcionais e combináveis, e a página. */
 export const listTransactionsQuerySchema = z
   .object({
+    ...pageQueryFields,
     from: isoDateSchema.optional().meta({ description: 'Data inicial do período, inclusiva.' }),
     to: isoDateSchema.optional().meta({ description: 'Data final do período, inclusiva.' }),
     type: z
@@ -179,7 +181,7 @@ export const listTransactionsQuerySchema = z
 
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
 
-export const transactionListSchema = z.array(transactionSchema);
+export const transactionPageSchema = pageSchema(transactionSchema, 'TransactionPage');
 
 export function toTransactionDto(transaction: Transaction): TransactionDto {
   return {
