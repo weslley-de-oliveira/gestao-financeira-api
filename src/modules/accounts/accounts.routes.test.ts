@@ -131,6 +131,7 @@ describe('rotas /v1/accounts', () => {
         type: 'savings',
         institution: 'Banco Exemplo',
         initialBalance: -150_075,
+        currentBalance: -150_075,
         color: '#2e7d32',
         icon: 'savings',
         isArchived: false,
@@ -355,6 +356,8 @@ describe('rotas /v1/accounts', () => {
         name: 'Conta salário',
         type: 'other',
         initialBalance: -1,
+        // Sem transações, o saldo atual acompanha o inicial.
+        currentBalance: -1,
       });
       const stored = await storedAccount(account.id);
       expect(stored?.updatedAt.getTime()).toBeGreaterThan(stored?.createdAt.getTime() ?? 0);

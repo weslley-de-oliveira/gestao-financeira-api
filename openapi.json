@@ -67,6 +67,12 @@
             "maximum": 9007199254740991,
             "description": "Saldo inicial em centavos; pode ser negativo."
           },
+          "currentBalance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Saldo atual em centavos: saldo inicial mais as transações realizadas (pendentes não contam)."
+          },
           "color": {
             "type": "string",
             "enum": [
@@ -107,6 +113,7 @@
           "type",
           "institution",
           "initialBalance",
+          "currentBalance",
           "color",
           "icon",
           "isArchived",
@@ -463,6 +470,12 @@
             "maximum": 9007199254740991,
             "description": "Saldo inicial em centavos; pode ser negativo."
           },
+          "currentBalance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Saldo atual em centavos: saldo inicial mais as transações realizadas (pendentes não contam)."
+          },
           "color": {
             "type": "string",
             "enum": [
@@ -503,6 +516,7 @@
           "type",
           "institution",
           "initialBalance",
+          "currentBalance",
           "color",
           "icon",
           "isArchived",

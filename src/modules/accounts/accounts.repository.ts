@@ -1,7 +1,7 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import type { Database } from '../../db/client.ts';
 import { alphabetical } from '../../db/order.ts';
-import { accounts, type Account, type NewAccount } from '../../db/schema/index.ts';
+import { accounts, transactions, type Account, type NewAccount } from '../../db/schema/index.ts';
 
 /** Campos que o usuário pode alterar: nunca o dono, o id ou as datas. */
 export type AccountChanges = Partial<
@@ -23,6 +23,11 @@ export interface AccountsRepository {
     accountId: string,
     changes: AccountChanges,
   ): Promise<Account | null>;
+  /**
+   * Efeito somado das transações realizadas em cada conta (sem o saldo inicial), com a regra de
+   * `movementEffect`. Contas sem movimentação ficam fora do mapa.
+   */
+  movementTotals(userId: string, accountIds: readonly string[]): Promise<Map<string, number>>;
 }
 
 export function createAccountsRepository(db: Database): AccountsRepository {
@@ -61,6 +66,41 @@ export function createAccountsRepository(db: Database): AccountsRepository {
         .where(ownedBy(userId, accountId))
         .returning();
       return updated ?? null;
+    },
+
+    async movementTotals(userId, accountIds) {
+      if (accountIds.length === 0) {
+        return new Map();
+      }
+      const ids = sql`array[${sql.join(
+        accountIds.map((id) => sql`${id}`),
+        sql`, `,
+      )}]::uuid[]`;
+      // Mesma regra de `movementEffect`: pendentes não contam; receita credita a conta; despesa,
+      // pagamento de fatura e transferência debitam a conta de origem; a transferência credita o
+      // destino. Compras no cartão não têm conta e ficam de fora.
+      const { rows } = await db.execute<{ account_id: string; total: string }>(sql`
+        select account_id, sum(effect) as total
+        from (
+          select ${transactions.accountId} as account_id,
+            case when ${transactions.type} = 'income' then ${transactions.amount}
+              else -${transactions.amount} end as effect
+          from ${transactions}
+          where ${transactions.userId} = ${userId}
+            and ${transactions.status} = 'completed'
+            and ${transactions.accountId} = any(${ids})
+          union all
+          select ${transactions.destinationAccountId}, ${transactions.amount}
+          from ${transactions}
+          where ${transactions.userId} = ${userId}
+            and ${transactions.status} = 'completed'
+            and ${transactions.type} = 'transfer'
+            and ${transactions.destinationAccountId} = any(${ids})
+        ) as movements
+        group by account_id
+      `);
+      // `sum` de bigint vem como texto (numeric); os valores cabem com folga em um `number`.
+      return new Map(rows.map((row) => [row.account_id, Number(row.total)]));
     },
   };
 }
