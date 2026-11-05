@@ -1,0 +1,58 @@
+import { randomUUID } from 'node:crypto';
+import type { IncomingMessage } from 'node:http';
+import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
+import type { Env } from './config/env.ts';
+
+/** Cabeçalho que correlaciona a requisição nos logs do front, do proxy e da API. */
+export const REQUEST_ID_HEADER = 'x-request-id';
+
+/** Aceita o id vindo do proxy só se for curto e seguro para logs; senão, gera um novo. */
+const SAFE_REQUEST_ID = /^[A-Za-z0-9._-]{8,64}$/;
+
+/** Dados que nunca podem aparecer nos logs. */
+const REDACTED_PATHS = [
+  'req.headers.authorization',
+  'req.headers.cookie',
+  'res.headers["set-cookie"]',
+  '*.password',
+  '*.currentPassword',
+  '*.token',
+];
+
+/**
+ * Cria a aplicação Fastify sem abrir porta: `server.ts` a inicia e os testes usam `app.inject()`.
+ * Plugins e módulos são registrados aqui conforme a API cresce.
+ */
+export async function buildApp(env: Env): Promise<FastifyInstance> {
+  const app = Fastify({
+    logger: loggerOptions(env),
+    requestIdHeader: false,
+    genReqId: (request: IncomingMessage) => {
+      const incoming = request.headers[REQUEST_ID_HEADER];
+      return typeof incoming === 'string' && SAFE_REQUEST_ID.test(incoming)
+        ? incoming
+        : randomUUID();
+    },
+  });
+
+  app.addHook('onRequest', async (request, reply) => {
+    reply.header(REQUEST_ID_HEADER, request.id);
+  });
+
+  await app.ready();
+  return app;
+}
+
+function loggerOptions(env: Env): FastifyServerOptions['logger'] {
+  return {
+    level: env.LOG_LEVEL,
+    redact: { paths: REDACTED_PATHS, censor: '[oculto]' },
+    // Em desenvolvimento, logs legíveis; nos demais ambientes, JSON (para o provedor de logs).
+    ...(env.NODE_ENV === 'development' && {
+      transport: {
+        target: 'pino-pretty',
+        options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' },
+      },
+    }),
+  };
+}

@@ -1,6 +1,8 @@
+import { buildApp } from './app.ts';
 import { loadEnv } from './config/env.ts';
 
-// Ponto de entrada da API. O servidor HTTP é criado no próximo passo da fundação.
+// Ponto de entrada: valida o ambiente, cria a aplicação e abre a porta.
 const env = loadEnv();
+const app = await buildApp(env);
 
-console.log(`Gestão Financeira API — ${env.NODE_ENV}, porta ${env.PORT}`);
+await app.listen({ host: env.HOST, port: env.PORT });
