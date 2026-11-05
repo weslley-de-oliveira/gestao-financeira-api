@@ -11,6 +11,7 @@ import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod
 import type { Env } from './config/env.ts';
 import { authRoutes } from './modules/auth/auth.routes.ts';
 import { healthRoutes } from './modules/health/health.routes.ts';
+import { authPlugin } from './plugins/auth.ts';
 import { databasePlugin } from './plugins/db.ts';
 import { docsPlugin } from './plugins/docs.ts';
 import { errorsPlugin } from './plugins/errors.ts';
@@ -79,6 +80,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
     url: env.DATABASE_URL,
     maxConnections: env.DATABASE_POOL_MAX,
   });
+  await app.register(authPlugin);
 
   // A documentação precisa ser registrada antes das rotas, para enxergá-las.
   await app.register(docsPlugin, { enabled: env.DOCS_ENABLED });

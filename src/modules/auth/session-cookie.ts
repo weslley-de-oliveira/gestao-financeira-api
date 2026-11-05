@@ -18,3 +18,8 @@ const BASE_OPTIONS = {
 export function setSessionCookie(reply: FastifyReply, token: string, expiresAt: Date): void {
   reply.setCookie(SESSION_COOKIE, token, { ...BASE_OPTIONS, expires: expiresAt });
 }
+
+/** Pede ao navegador para apagar o cookie (mesmos atributos, já expirado). */
+export function clearSessionCookie(reply: FastifyReply): void {
+  reply.clearCookie(SESSION_COOKIE, BASE_OPTIONS);
+}

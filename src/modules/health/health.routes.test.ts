@@ -30,7 +30,9 @@ describe('rotas de operação', () => {
 
   it('GET /ready responde 503 em Problem Details quando o banco não responde', async () => {
     // Porta sem nenhum serviço: a conexão é recusada na hora.
-    app = await createTestApp({ DATABASE_URL: 'postgres://gestao:gestao@127.0.0.1:1/inexistente' });
+    app = await createTestApp({
+      env: { DATABASE_URL: 'postgres://gestao:gestao@127.0.0.1:1/inexistente' },
+    });
 
     const response = await app.inject({ method: 'GET', url: '/ready' });
 

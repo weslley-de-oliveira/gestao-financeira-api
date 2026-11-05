@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, gt } from 'drizzle-orm';
 import type { Database } from '../../db/client.ts';
 import { isUniqueViolation } from '../../db/errors.ts';
 import {
@@ -16,6 +16,11 @@ export interface AuthRepository {
   findUserByEmail(email: string): Promise<User | null>;
   updatePasswordHash(userId: string, passwordHash: string): Promise<void>;
   insertSession(session: NewSession): Promise<void>;
+  /** Sessão com este hash de token que ainda não expirou em `now`, com o usuário dela. */
+  findActiveSession(
+    tokenHash: string,
+    now: Date,
+  ): Promise<{ user: User; sessionId: string } | null>;
 }
 
 export function createAuthRepository(db: Database): AuthRepository {
@@ -44,6 +49,16 @@ export function createAuthRepository(db: Database): AuthRepository {
 
     async insertSession(session) {
       await db.insert(sessions).values(session);
+    },
+
+    async findActiveSession(tokenHash, now) {
+      const [row] = await db
+        .select({ sessionId: sessions.id, user: users })
+        .from(sessions)
+        .innerJoin(users, eq(users.id, sessions.userId))
+        .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now)))
+        .limit(1);
+      return row ?? null;
     },
   };
 }
