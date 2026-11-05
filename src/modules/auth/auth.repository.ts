@@ -6,6 +6,7 @@ import {
   users,
   type NewSession,
   type NewUser,
+  type Session,
   type User,
 } from '../../db/schema/index.ts';
 
@@ -17,10 +18,9 @@ export interface AuthRepository {
   updatePasswordHash(userId: string, passwordHash: string): Promise<void>;
   insertSession(session: NewSession): Promise<void>;
   /** Sessão com este hash de token que ainda não expirou em `now`, com o usuário dela. */
-  findActiveSession(
-    tokenHash: string,
-    now: Date,
-  ): Promise<{ user: User; sessionId: string } | null>;
+  findActiveSession(tokenHash: string, now: Date): Promise<{ user: User; session: Session } | null>;
+  /** Registra o uso da sessão e estende a validade (expiração deslizante). */
+  touchSession(sessionId: string, lastSeenAt: Date, expiresAt: Date): Promise<void>;
   deleteSession(tokenHash: string): Promise<void>;
 }
 
@@ -54,12 +54,16 @@ export function createAuthRepository(db: Database): AuthRepository {
 
     async findActiveSession(tokenHash, now) {
       const [row] = await db
-        .select({ sessionId: sessions.id, user: users })
+        .select({ session: sessions, user: users })
         .from(sessions)
         .innerJoin(users, eq(users.id, sessions.userId))
         .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now)))
         .limit(1);
       return row ?? null;
+    },
+
+    async touchSession(sessionId, lastSeenAt, expiresAt) {
+      await db.update(sessions).set({ lastSeenAt, expiresAt }).where(eq(sessions.id, sessionId));
     },
 
     async deleteSession(tokenHash) {

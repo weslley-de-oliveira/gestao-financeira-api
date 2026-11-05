@@ -109,5 +109,6 @@ function clientInfo(request: FastifyRequest): ClientInfo {
   return {
     ip: request.ip || null,
     userAgent: userAgent ? userAgent.slice(0, USER_AGENT_MAX_LENGTH) : null,
+    currentToken: request.cookies[SESSION_COOKIE] ?? null,
   };
 }

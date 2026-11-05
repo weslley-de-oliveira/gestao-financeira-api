@@ -2,7 +2,12 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 import type { User } from '../db/schema/index.ts';
 import { createAuthRepository } from '../modules/auth/auth.repository.ts';
-import { SESSION_COOKIE, clearSessionCookie } from '../modules/auth/session-cookie.ts';
+import {
+  SESSION_COOKIE,
+  clearSessionCookie,
+  setSessionCookie,
+} from '../modules/auth/session-cookie.ts';
+import { exceedsMaxLifetime, shouldTouch, slidingExpiry } from '../modules/auth/session-rules.ts';
 import { hashSessionToken } from '../modules/auth/session-token.ts';
 import { DomainError } from '../shared/errors/domain-error.ts';
 
@@ -39,6 +44,9 @@ export class SessionRequiredError extends DomainError {
  * Valida a sessão das rotas privadas: lê o token do cookie, procura o hash dele entre as sessões
  * não expiradas e decora a requisição com o usuário. Sem cookie, sessão expirada ou encerrada
  * (apagada no logout) → 401; nos dois últimos casos o cookie velho também é removido.
+ *
+ * Expiração deslizante: com o uso, a validade volta a 7 dias (no máximo a cada 5 minutos, sem
+ * passar de 30 dias do login), no banco e no cookie.
  */
 export const authPlugin = fp(
   (app, _options, done) => {
@@ -51,12 +59,20 @@ export const authPlugin = fp(
         throw new SessionRequiredError();
       }
 
-      const auth = await repository.findActiveSession(hashSessionToken(token), new Date());
-      if (!auth) {
+      const now = new Date();
+      const found = await repository.findActiveSession(hashSessionToken(token), now);
+      if (!found || exceedsMaxLifetime(found.session.createdAt, now)) {
         clearSessionCookie(reply);
         throw new SessionRequiredError();
       }
-      request.auth = auth;
+
+      const { session, user } = found;
+      if (shouldTouch(session.lastSeenAt, now)) {
+        const expiresAt = slidingExpiry(session.createdAt, now);
+        await repository.touchSession(session.id, now, expiresAt);
+        setSessionCookie(reply, token, expiresAt);
+      }
+      request.auth = { user, sessionId: session.id };
     });
 
     done();

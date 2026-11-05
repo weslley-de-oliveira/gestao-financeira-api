@@ -8,7 +8,8 @@ import { sessions, users } from '../../db/schema/index.ts';
 import type { UserDto } from './auth.schemas.ts';
 import { PASSWORD_HASH_OPTIONS } from './password.ts';
 import { SESSION_COOKIE } from './session-cookie.ts';
-import { SESSION_IDLE_TIMEOUT_MS, hashSessionToken } from './session-token.ts';
+import { SESSION_IDLE_TIMEOUT_MS } from './session-rules.ts';
+import { hashSessionToken } from './session-token.ts';
 
 const uniqueEmail = () => `pessoa.${randomUUID()}@exemplo.com`;
 
@@ -220,6 +221,20 @@ describe('POST /v1/auth/login', () => {
     const second = sessionCookie(await login({ email, password }));
 
     expect(first.value).not.toBe(second.value);
+  });
+
+  it('encerra a sessão que o navegador já tinha (contra fixação de sessão)', async () => {
+    const email = await registeredEmail();
+    const previous = sessionCookie(await login({ email, password })).value;
+
+    const response = await login({ email, password }, { cookie: `${SESSION_COOKIE}=${previous}` });
+
+    expect(sessionCookie(response).value).not.toBe(previous);
+    const stored = await app.db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.tokenHash, hashSessionToken(previous)));
+    expect(stored).toEqual([]);
   });
 
   it('responde 401 com a mesma mensagem para senha errada e e-mail inexistente', async () => {

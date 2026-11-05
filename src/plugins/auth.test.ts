@@ -140,4 +140,88 @@ describe('plugin auth', () => {
 
     expect(response.statusCode).toBe(500);
   });
+
+  describe('expiração deslizante', () => {
+    const MINUTE_MS = 60 * 1000;
+    const DAY_MS = 24 * 60 * MINUTE_MS;
+
+    /** Reescreve as datas da sessão no banco, simulando a passagem do tempo. */
+    async function ageSession(token: string, dates: Partial<typeof sessions.$inferInsert>) {
+      await app.db
+        .update(sessions)
+        .set(dates)
+        .where(eq(sessions.tokenHash, hashSessionToken(token)));
+    }
+
+    async function storedSession(token: string) {
+      const [session] = await app.db
+        .select()
+        .from(sessions)
+        .where(eq(sessions.tokenHash, hashSessionToken(token)));
+      if (!session) throw new Error('sessão não encontrada');
+      return session;
+    }
+
+    it('com o uso, volta a valer 7 dias no banco e no cookie', async () => {
+      const { token } = await signUp();
+      await ageSession(token, {
+        createdAt: new Date(Date.now() - 2 * DAY_MS),
+        lastSeenAt: new Date(Date.now() - 10 * MINUTE_MS),
+        expiresAt: new Date(Date.now() + 60 * MINUTE_MS),
+      });
+      const before = Date.now();
+
+      const response = await getPrivate(token);
+
+      expect(response.statusCode).toBe(200);
+      const session = await storedSession(token);
+      expect(session.lastSeenAt.getTime()).toBeGreaterThanOrEqual(before - 1_000);
+      expect(session.expiresAt.getTime() - before).toBeGreaterThan(7 * DAY_MS - 5_000);
+      const cookie = response.cookies.find(({ name }) => name === SESSION_COOKIE);
+      expect(cookie?.value).toBe(token);
+      expect(cookie?.expires?.getTime()).toBe(
+        Math.floor(session.expiresAt.getTime() / 1000) * 1000,
+      );
+    });
+
+    it('não renova de novo antes de 5 minutos do último uso', async () => {
+      const { token } = await signUp();
+      const original = await storedSession(token);
+
+      const response = await getPrivate(token);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.cookies).toEqual([]);
+      expect((await storedSession(token)).expiresAt).toEqual(original.expiresAt);
+    });
+
+    it('não estende além de 30 dias depois do login', async () => {
+      const { token } = await signUp();
+      const createdAt = new Date(Date.now() - 28 * DAY_MS);
+      await ageSession(token, {
+        createdAt,
+        lastSeenAt: new Date(Date.now() - DAY_MS),
+        expiresAt: new Date(Date.now() + DAY_MS),
+      });
+
+      expect((await getPrivate(token)).statusCode).toBe(200);
+
+      expect((await storedSession(token)).expiresAt).toEqual(
+        new Date(createdAt.getTime() + 30 * DAY_MS),
+      );
+    });
+
+    it('responde 401 depois de 30 dias do login, mesmo com expires_at no futuro', async () => {
+      const { token } = await signUp();
+      await ageSession(token, {
+        createdAt: new Date(Date.now() - 31 * DAY_MS),
+        expiresAt: new Date(Date.now() + DAY_MS),
+      });
+
+      const response = await getPrivate(token);
+
+      expectUnauthorized(response);
+      expectCookieCleared(response);
+    });
+  });
 });

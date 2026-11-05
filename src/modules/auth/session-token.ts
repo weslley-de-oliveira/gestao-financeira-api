@@ -3,9 +3,6 @@ import { createHash, randomBytes } from 'node:crypto';
 /** 256 bits de entropia: impossível de adivinhar, mesmo com muitas tentativas. */
 const TOKEN_BYTES = 32;
 
-/** Inatividade máxima de uma sessão. */
-export const SESSION_IDLE_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000;
-
 /** Gera o token opaco da sessão (vai só no cookie, em base64url). */
 export function generateSessionToken(): string {
   return randomBytes(TOKEN_BYTES).toString('base64url');

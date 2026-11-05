@@ -4,11 +4,8 @@ import { DomainError } from '../../shared/errors/domain-error.ts';
 import type { AuthRepository } from './auth.repository.ts';
 import type { LoginInput, RegisterInput } from './auth.schemas.ts';
 import { hashPassword, verifyPassword } from './password.ts';
-import {
-  SESSION_IDLE_TIMEOUT_MS,
-  generateSessionToken,
-  hashSessionToken,
-} from './session-token.ts';
+import { slidingExpiry } from './session-rules.ts';
+import { generateSessionToken, hashSessionToken } from './session-token.ts';
 
 export class EmailAlreadyRegisteredError extends DomainError {
   readonly kind = 'conflict';
@@ -27,10 +24,12 @@ export class InvalidCredentialsError extends DomainError {
   }
 }
 
-/** Dados da requisição guardados na sessão, para o usuário reconhecer seus acessos. */
+/** Dados da requisição: IP e user-agent ficam na sessão, para o usuário reconhecer seus acessos. */
 export interface ClientInfo {
   ip: string | null;
   userAgent: string | null;
+  /** Token do cookie que o navegador já tinha, se houver: é encerrado ao abrir a sessão nova. */
+  currentToken: string | null;
 }
 
 export interface AuthenticatedSession {
@@ -50,14 +49,22 @@ export interface AuthService {
 }
 
 export function createAuthService(repository: AuthRepository, now = () => new Date()): AuthService {
+  /**
+   * Sempre um token novo, e a sessão anterior deste navegador é encerrada: um token plantado antes
+   * do login (fixação de sessão) nunca vira uma sessão autenticada.
+   */
   async function openSession(user: User, client: ClientInfo): Promise<AuthenticatedSession> {
+    if (client.currentToken) {
+      await repository.deleteSession(hashSessionToken(client.currentToken));
+    }
     const token = generateSessionToken();
     const issuedAt = now();
-    const expiresAt = new Date(issuedAt.getTime() + SESSION_IDLE_TIMEOUT_MS);
+    const expiresAt = slidingExpiry(issuedAt, issuedAt);
     await repository.insertSession({
       userId: user.id,
       tokenHash: hashSessionToken(token),
       expiresAt,
+      createdAt: issuedAt,
       lastSeenAt: issuedAt,
       ip: client.ip,
       userAgent: client.userAgent,
