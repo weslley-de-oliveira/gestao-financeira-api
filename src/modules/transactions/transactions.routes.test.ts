@@ -939,4 +939,184 @@ describe('rotas /v1/transactions', () => {
       expect(response.statusCode).toBe(401);
     });
   });
+
+  describe('contas e categorias arquivadas', () => {
+    let ledger: Ledger;
+    let savings: AccountDto;
+
+    beforeAll(async () => {
+      ledger = await createLedger();
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/accounts',
+        cookies: ledger.cookies,
+        payload: { name: 'Poupança', type: 'savings', color: '#2e7d32', icon: 'savings' },
+      });
+      savings = response.json<AccountDto>();
+    });
+
+    const setArchived = (resource: 'accounts' | 'categories', id: string, isArchived: boolean) =>
+      app.inject({
+        method: 'PATCH',
+        url: `/v1/${resource}/${id}`,
+        cookies: ledger.cookies,
+        payload: { isArchived },
+      });
+
+    /** Arquiva durante o teste e reativa no fim, para os outros testes partirem do mesmo estado. */
+    async function whileArchived(
+      resource: 'accounts' | 'categories',
+      id: string,
+      run: () => Promise<void>,
+    ) {
+      await setArchived(resource, id, true);
+      try {
+        await run();
+      } finally {
+        await setArchived(resource, id, false);
+      }
+    }
+
+    function expectConflict(response: Awaited<ReturnType<typeof post>>, detail: string) {
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toMatchObject({ status: 409, title: 'Conflito', detail });
+    }
+
+    const transfer = () => ({
+      type: 'transfer',
+      description: 'Reserva',
+      amount: 10_000,
+      date: '2026-11-05',
+      accountId: ledger.account.id,
+      destinationAccountId: savings.id,
+    });
+
+    const countFor = async (accountId: string) =>
+      (await app.db.select().from(transactions).where(eq(transactions.accountId, accountId)))
+        .length;
+
+    it('não lança em conta arquivada, sem gravar nada', async () => {
+      await whileArchived('accounts', ledger.account.id, async () => {
+        const before = await countFor(ledger.account.id);
+
+        const response = await post(ledger, expense(ledger));
+
+        expectConflict(
+          response,
+          'A conta "Conta corrente" está arquivada. Reative-a para lançar nela.',
+        );
+        expect(await countFor(ledger.account.id)).toBe(before);
+      });
+    });
+
+    it.each([
+      [
+        'origem',
+        'accountId',
+        'A conta de origem "Conta corrente" está arquivada. Reative-a para lançar nela.',
+      ],
+      [
+        'destino',
+        'destinationAccountId',
+        'A conta de destino "Poupança" está arquivada. Reative-a para lançar nela.',
+      ],
+    ])('não transfere com conta de %s arquivada', async (_case, field, detail) => {
+      const id = field === 'accountId' ? ledger.account.id : savings.id;
+      await whileArchived('accounts', id, async () => {
+        expectConflict(await post(ledger, transfer()), detail);
+      });
+    });
+
+    it('não usa categoria arquivada', async () => {
+      await whileArchived('categories', ledger.food.id, async () => {
+        expectConflict(
+          await post(ledger, expense(ledger)),
+          'A categoria "Alimentação" está arquivada. Reative-a para usá-la.',
+        );
+      });
+    });
+
+    it('referência inexistente pesa mais que arquivada: 422 no campo', async () => {
+      await whileArchived('categories', ledger.food.id, async () => {
+        const response = await post(ledger, expense(ledger, { accountId: randomUUIDv7() }));
+
+        expect(response.statusCode).toBe(422);
+        expect(response.json()).toMatchObject({
+          errors: [{ field: 'body.accountId', message: 'Conta não encontrada.' }],
+        });
+      });
+    });
+
+    it('volta a aceitar depois de reativada', async () => {
+      await setArchived('accounts', ledger.account.id, true);
+      await setArchived('accounts', ledger.account.id, false);
+
+      expect((await post(ledger, expense(ledger))).statusCode).toBe(201);
+    });
+
+    describe('na edição', () => {
+      const patch = (id: string, body: Record<string, unknown>) =>
+        app.inject({
+          method: 'PATCH',
+          url: `/v1/transactions/${id}`,
+          cookies: ledger.cookies,
+          payload: body,
+        });
+
+      it('mantém a conta e a categoria que a transação já tinha, mesmo arquivadas', async () => {
+        const created = (await post(ledger, expense(ledger))).json<TransactionDto>();
+
+        await whileArchived('accounts', ledger.account.id, async () => {
+          await whileArchived('categories', ledger.food.id, async () => {
+            const response = await patch(created.id, { description: 'Editada', amount: 1 });
+
+            expect(response.statusCode).toBe(200);
+            expect(response.json()).toMatchObject({
+              description: 'Editada',
+              accountId: ledger.account.id,
+              categoryId: ledger.food.id,
+            });
+          });
+        });
+      });
+
+      it('mantém as contas da transferência, mesmo invertidas', async () => {
+        const created = (await post(ledger, transfer())).json<TransactionDto>();
+
+        await whileArchived('accounts', savings.id, async () => {
+          const response = await patch(created.id, {
+            accountId: savings.id,
+            destinationAccountId: ledger.account.id,
+          });
+
+          expect(response.statusCode).toBe(200);
+        });
+      });
+
+      it('não troca para uma conta arquivada', async () => {
+        const created = (await post(ledger, expense(ledger))).json<TransactionDto>();
+
+        await whileArchived('accounts', savings.id, async () => {
+          expectConflict(
+            await patch(created.id, { accountId: savings.id }),
+            'A conta "Poupança" está arquivada. Reative-a para lançar nela.',
+          );
+        });
+        expect((await stored(created.id))?.accountId).toBe(ledger.account.id);
+      });
+
+      it('não troca para uma categoria arquivada', async () => {
+        const created = (
+          await post(ledger, expense(ledger, { type: 'income', categoryId: ledger.salary.id }))
+        ).json<TransactionDto>();
+
+        await whileArchived('categories', ledger.food.id, async () => {
+          expectConflict(
+            await patch(created.id, { type: 'expense', categoryId: ledger.food.id }),
+            'A categoria "Alimentação" está arquivada. Reative-a para usá-la.',
+          );
+        });
+      });
+    });
+  });
 });

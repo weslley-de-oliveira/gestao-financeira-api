@@ -56,9 +56,14 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
         tags: [TRANSACTIONS_TAG],
         summary: 'Cadastra uma receita, despesa ou transferência',
         description:
-          'Receita ou despesa em conta, com categoria obrigatória do mesmo tipo; ou transferência entre duas contas diferentes, sem categoria. Contas e categoria precisam ser do usuário (senão, 422 no campo). Sem `status`, a transação é realizada.',
+          'Receita ou despesa em conta, com categoria obrigatória do mesmo tipo; ou transferência entre duas contas diferentes, sem categoria. Contas e categoria precisam ser do usuário (senão, 422 no campo) e estar ativas (arquivada responde 409). Sem `status`, a transação é realizada.',
         body: createTransactionBodySchema,
-        response: { 201: transactionSchema, 401: problemDetailsSchema, 422: problemDetailsSchema },
+        response: {
+          201: transactionSchema,
+          401: problemDetailsSchema,
+          409: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
       },
     },
     async (request, reply) => {
@@ -97,7 +102,7 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
         tags: [TRANSACTIONS_TAG],
         summary: 'Edita uma transação',
         description:
-          'Os campos enviados são aplicados sobre a transação e o resultado segue as regras do cadastro. Ao trocar o tipo, os campos que não servem ao novo tipo são descartados (a categoria, ao virar transferência; a conta de destino, ao virar receita ou despesa). `notes: null` remove as observações. Pagamento de fatura responde 409.',
+          'Os campos enviados são aplicados sobre a transação e o resultado segue as regras do cadastro. Ao trocar o tipo, os campos que não servem ao novo tipo são descartados (a categoria, ao virar transferência; a conta de destino, ao virar receita ou despesa). `notes: null` remove as observações. Contas e categoria que a transação já tinha continuam aceitas mesmo se arquivadas depois; trocar por uma arquivada responde 409, assim como editar pagamento de fatura.',
         params: transactionParamsSchema,
         body: updateTransactionBodySchema,
         response: {

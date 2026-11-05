@@ -35,6 +35,15 @@ export class InvoicePaymentNotEditableError extends DomainError {
   }
 }
 
+/** Conta ou categoria arquivada numa transação nova (ou trocada na edição). */
+export class ArchivedReferenceError extends DomainError {
+  readonly kind = 'conflict';
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export interface TransactionsServiceDependencies {
   transactions: TransactionsRepository;
   accounts: AccountsRepository;
@@ -48,7 +57,8 @@ export interface TransactionsService {
   get(userId: string, transactionId: string): Promise<Transaction>;
   /**
    * Cria a receita, a despesa ou a transferência. Contas e categoria precisam ser do usuário, e a
-   * categoria do mesmo tipo da transação; senão → `InvalidInputError` com os campos.
+   * categoria do mesmo tipo da transação; senão → `InvalidInputError` com os campos. Conta ou
+   * categoria arquivada → `ArchivedReferenceError`.
    */
   create(userId: string, input: CreateTransactionInput): Promise<Transaction>;
   /**
@@ -86,56 +96,112 @@ export function createTransactionsService({
     return transaction;
   }
 
-  // Conta e categoria de outro usuário respondem como inexistentes, sem revelar que existem.
-  async function missingAccount(
-    userId: string,
-    accountId: string,
-    field: string,
-    message: string,
-  ): Promise<InvalidField | null> {
-    return (await accounts.findAccount(userId, accountId)) ? null : { field, message };
+  /**
+   * Problemas das referências de uma transação: as inexistentes (ou de outro usuário, que
+   * respondem igual, sem revelar que existem) e as arquivadas.
+   */
+  interface ReferenceCheck {
+    invalid: InvalidField[];
+    archived: string[];
   }
 
-  async function checkEntry(userId: string, input: CreateEntryInput): Promise<InvalidField[]> {
-    const [account, category] = await Promise.all([
-      missingAccount(userId, input.accountId, 'accountId', 'Conta não encontrada.'),
+  /**
+   * Na edição, as referências que a transação já tinha continuam valendo mesmo se arquivadas
+   * depois (como no front): só uma conta ou categoria *nova* precisa estar ativa.
+   */
+  async function checkAccount(
+    check: ReferenceCheck,
+    userId: string,
+    reference: { id: string; field: string; label: string },
+    previous: Transaction | undefined,
+  ): Promise<void> {
+    const account = await accounts.findAccount(userId, reference.id);
+    const label = reference.label ? `conta ${reference.label}` : 'conta';
+    if (!account) {
+      check.invalid.push({
+        field: reference.field,
+        message: `${capitalize(label)} não encontrada.`,
+      });
+    } else if (
+      account.isArchived &&
+      account.id !== previous?.accountId &&
+      account.id !== previous?.destinationAccountId
+    ) {
+      check.archived.push(
+        `A ${label} "${account.name}" está arquivada. Reative-a para lançar nela.`,
+      );
+    }
+  }
+
+  async function checkEntry(
+    check: ReferenceCheck,
+    userId: string,
+    input: CreateEntryInput,
+    previous: Transaction | undefined,
+  ): Promise<void> {
+    const [category] = await Promise.all([
       categories.findCategory(userId, input.categoryId),
+      checkAccount(check, userId, { id: input.accountId, field: 'accountId', label: '' }, previous),
     ]);
-    const invalid = account ? [account] : [];
     if (!category) {
-      invalid.push({ field: 'categoryId', message: 'Categoria não encontrada.' });
+      check.invalid.push({ field: 'categoryId', message: 'Categoria não encontrada.' });
     } else if (category.type !== input.type) {
-      invalid.push({
+      check.invalid.push({
         field: 'categoryId',
         message: `Selecione uma categoria de ${input.type === 'income' ? 'receita' : 'despesa'}.`,
       });
+    } else if (category.isArchived && category.id !== previous?.categoryId) {
+      check.archived.push(`A categoria "${category.name}" está arquivada. Reative-a para usá-la.`);
     }
-    return invalid;
   }
 
   async function checkTransfer(
+    check: ReferenceCheck,
     userId: string,
     input: CreateTransferInput,
-  ): Promise<InvalidField[]> {
-    const results = await Promise.all([
-      missingAccount(userId, input.accountId, 'accountId', 'Conta de origem não encontrada.'),
-      missingAccount(
+    previous: Transaction | undefined,
+  ): Promise<void> {
+    await Promise.all([
+      checkAccount(
+        check,
         userId,
-        input.destinationAccountId,
-        'destinationAccountId',
-        'Conta de destino não encontrada.',
+        { id: input.accountId, field: 'accountId', label: 'de origem' },
+        previous,
+      ),
+      checkAccount(
+        check,
+        userId,
+        { id: input.destinationAccountId, field: 'destinationAccountId', label: 'de destino' },
+        previous,
       ),
     ]);
-    return results.filter((field) => field !== null);
   }
 
-  async function checkReferences(userId: string, input: CreateTransactionInput): Promise<void> {
-    const invalid =
-      input.type === 'transfer'
-        ? await checkTransfer(userId, input)
-        : await checkEntry(userId, input);
-    if (invalid.length > 0) {
-      throw new InvalidInputError(invalid);
+  /**
+   * Contas e categoria inexistentes → `InvalidInputError` (422, por campo); se todas existem, uma
+   * arquivada → `ArchivedReferenceError` (409).
+   */
+  async function checkReferences(
+    userId: string,
+    input: CreateTransactionInput,
+    previous?: Transaction,
+  ): Promise<void> {
+    const check: ReferenceCheck = { invalid: [], archived: [] };
+    if (input.type === 'transfer') {
+      await checkTransfer(check, userId, input, previous);
+    } else {
+      await checkEntry(check, userId, input, previous);
+    }
+    // Campos na ordem do corpo, independente de qual consulta terminou primeiro.
+    const order = ['accountId', 'destinationAccountId', 'categoryId'];
+    if (check.invalid.length > 0) {
+      throw new InvalidInputError(
+        check.invalid.toSorted((a, b) => order.indexOf(a.field) - order.indexOf(b.field)),
+      );
+    }
+    const [archived] = check.archived;
+    if (archived) {
+      throw new ArchivedReferenceError(archived);
     }
   }
 
@@ -191,7 +257,7 @@ export function createTransactionsService({
     async update(userId, transactionId, changes) {
       const current = await getEditable(userId, transactionId);
       const next = mergeChanges(current, changes);
-      await checkReferences(userId, next);
+      await checkReferences(userId, next, current);
       const updated = await transactions.updateTransaction(userId, transactionId, {
         // Os campos que o novo tipo não usa voltam a ser nulos.
         categoryId: null,
