@@ -11,6 +11,7 @@ import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod
 import type { Env } from './config/env.ts';
 import { accountsRoutes } from './modules/accounts/accounts.routes.ts';
 import { authRoutes } from './modules/auth/auth.routes.ts';
+import { budgetsRoutes } from './modules/budgets/budgets.routes.ts';
 import { categoriesRoutes } from './modules/categories/categories.routes.ts';
 import { creditCardsRoutes } from './modules/credit-cards/credit-cards.routes.ts';
 import { invoicesRoutes } from './modules/invoices/invoices.routes.ts';
@@ -108,6 +109,7 @@ export async function buildApp(env: Env, { now }: BuildAppOptions = {}): Promise
   await app.register(transactionsRoutes, { prefix: '/v1/transactions' });
   await app.register(creditCardsRoutes, { prefix: '/v1/credit-cards' });
   await app.register(invoicesRoutes, { prefix: '/v1/credit-cards' });
+  await app.register(budgetsRoutes, { prefix: '/v1/budgets' });
 
   return app;
 }
