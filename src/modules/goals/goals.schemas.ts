@@ -5,6 +5,7 @@ import { MAX_MONEY_CENTS } from '../../shared/utils/money.ts';
 import { collapseWhitespace } from '../../shared/utils/text.ts';
 import { positiveCentsSchema } from '../../shared/validation/money.ts';
 import { booleanQueryParam } from '../../shared/validation/query.ts';
+import { GOAL_STATUSES, type GoalProgress } from './goal-rules.ts';
 import {
   CONTRIBUTION_NOTE_MAX_LENGTH,
   CONTRIBUTION_TYPES,
@@ -52,6 +53,21 @@ export const goalSchema = z
     contributions: z
       .array(contributionSchema)
       .meta({ description: 'Aportes e retiradas, dos mais recentes para os mais antigos.' }),
+    currentAmount: z.int().meta({ description: 'Acumulado: inicial + aportes − retiradas.' }),
+    remainingAmount: z.int().meta({ description: 'Quanto falta para o alvo; zero se atingido.' }),
+    excessAmount: z.int().meta({ description: 'Quanto passou do alvo; zero se não atingido.' }),
+    percent: z.number().meta({ description: 'Percentual atingido, sem teto em 100.' }),
+    status: z.enum(GOAL_STATUSES).meta({
+      description:
+        'Pela regra concluída > pausada > atrasada > em andamento: `completed`, `paused`, `overdue` ou `in-progress`.',
+    }),
+    monthsLeft: z.int().nullable().meta({
+      description: 'Meses até o prazo, contando o atual; `null` sem prazo, concluída ou vencida.',
+    }),
+    monthlyPace: z.int().nullable().meta({
+      description:
+        'Aporte mensal para atingir o alvo no prazo, arredondado para cima; mesmo critério de `monthsLeft`.',
+    }),
   })
   .meta({ id: 'Goal' });
 
@@ -156,7 +172,9 @@ export const createContributionBodySchema = z.strictObject({
 
 export type CreateContributionInput = z.infer<typeof createContributionBodySchema>;
 
-export function toGoalDto(goal: Goal & { contributions: GoalContribution[] }): GoalDto {
+export function toGoalDto(
+  goal: Goal & { contributions: GoalContribution[] } & GoalProgress,
+): GoalDto {
   return {
     id: goal.id,
     name: goal.name,
@@ -178,5 +196,12 @@ export function toGoalDto(goal: Goal & { contributions: GoalContribution[] }): G
       note: contribution.note,
       createdAt: contribution.createdAt.toISOString(),
     })),
+    currentAmount: goal.currentAmount,
+    remainingAmount: goal.remainingAmount,
+    excessAmount: goal.excessAmount,
+    percent: goal.percent,
+    status: goal.status,
+    monthsLeft: goal.monthsLeft,
+    monthlyPace: goal.monthlyPace,
   };
 }

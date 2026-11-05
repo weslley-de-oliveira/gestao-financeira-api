@@ -1,7 +1,12 @@
 import type { Goal, GoalContribution } from '../../db/schema/index.ts';
 import { DomainError, InvalidInputError } from '../../shared/errors/domain-error.ts';
 import type { IsoDate } from '../../shared/utils/date.ts';
-import { goalBalance } from './goal-rules.ts';
+import {
+  calculateGoalProgress,
+  compareGoals,
+  goalBalance,
+  type GoalProgress,
+} from './goal-rules.ts';
 import type { GoalsRepository } from './goals.repository.ts';
 import {
   createGoalBodySchema,
@@ -33,8 +38,11 @@ export class InsufficientGoalBalanceError extends DomainError {
   readonly kind = 'conflict';
 }
 
-/** Meta com os aportes e retiradas, dos mais recentes para os mais antigos. */
-export type GoalWithContributions = Goal & { contributions: GoalContribution[] };
+/**
+ * Meta com os aportes e retiradas (dos mais recentes para os mais antigos) e o progresso
+ * calculado para hoje.
+ */
+export type GoalWithContributions = Goal & { contributions: GoalContribution[] } & GoalProgress;
 
 export interface GoalsServiceDependencies {
   goals: GoalsRepository;
@@ -43,6 +51,10 @@ export interface GoalsServiceDependencies {
 }
 
 export interface GoalsService {
+  /**
+   * Metas do usuário, o que pede ação primeiro: atrasadas, em andamento, pausadas e concluídas;
+   * depois o prazo mais próximo e o nome.
+   */
   list(userId: string, query: ListGoalsQuery): Promise<GoalWithContributions[]>;
   /** Meta do usuário; inexistente ou de outro usuário → `GoalNotFoundError`. */
   get(userId: string, goalId: string): Promise<GoalWithContributions>;
@@ -71,12 +83,18 @@ export interface GoalsService {
 const PAST_DEADLINE = 'A data-limite deve ser hoje ou uma data futura.';
 
 export function createGoalsService({ goals, today }: GoalsServiceDependencies): GoalsService {
+  /** Movimentações de cada meta e o progresso calculado para hoje. */
   async function withContributions(list: Goal[]): Promise<GoalWithContributions[]> {
     const contributions = await goals.listContributions(list.map((goal) => goal.id));
-    return list.map((goal) => ({
-      ...goal,
-      contributions: contributions.filter((item) => item.goalId === goal.id),
-    }));
+    const date = today();
+    return list.map((goal) => {
+      const own = contributions.filter((item) => item.goalId === goal.id);
+      return {
+        ...goal,
+        contributions: own,
+        ...calculateGoalProgress({ ...goal, contributions: own }, date),
+      };
+    });
   }
 
   async function withOne(goal: Goal): Promise<GoalWithContributions> {
@@ -101,7 +119,9 @@ export function createGoalsService({ goals, today }: GoalsServiceDependencies): 
 
   return {
     async list(userId, query) {
-      return withContributions(await goals.listGoals(userId, query));
+      const list = await withContributions(await goals.listGoals(userId, query));
+      // O que pede ação primeiro, como na tela de metas do front.
+      return list.toSorted(compareGoals);
     },
 
     async get(userId, goalId) {

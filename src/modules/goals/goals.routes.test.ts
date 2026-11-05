@@ -66,6 +66,13 @@ describe('rotas /v1/goals', () => {
         isArchived: false,
         createdAt: expect.any(String) as unknown,
         contributions: [],
+        currentAmount: 0,
+        remainingAmount: 1_000_000,
+        excessAmount: 0,
+        percent: 0,
+        status: 'in-progress',
+        monthsLeft: null,
+        monthlyPace: null,
       });
     });
 
@@ -182,6 +189,10 @@ describe('rotas /v1/goals', () => {
         targetAmount: 2_000_000,
         description: null,
         deadline: null,
+        // Novo alvo e sem prazo: o restante muda e não há mais ritmo mensal.
+        remainingAmount: 2_000_000,
+        monthsLeft: null,
+        monthlyPace: null,
       });
     });
 

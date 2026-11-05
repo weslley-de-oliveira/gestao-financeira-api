@@ -31,7 +31,8 @@ export const goalsRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
       schema: {
         tags: [GOALS_TAG],
         summary: 'Lista as metas',
-        description: 'Metas do usuário. Por padrão, só as ativas (não arquivadas).',
+        description:
+          'Metas do usuário, com progresso, status e ritmo mensal, o que pede ação primeiro: atrasadas, em andamento, pausadas e concluídas; depois o prazo mais próximo e o nome. Por padrão, só as ativas (não arquivadas).',
         querystring: listGoalsQuerySchema,
         response: { 200: goalListSchema, 401: problemDetailsSchema, 422: problemDetailsSchema },
       },
