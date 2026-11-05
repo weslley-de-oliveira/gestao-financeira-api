@@ -1,0 +1,22 @@
+# Banco local para desenvolvimento. Uso: npm run db:up (sobe) e npm run db:down (para).
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: gestao-financeira-db
+    environment:
+      POSTGRES_USER: gestao
+      POSTGRES_PASSWORD: gestao
+      POSTGRES_DB: gestao_financeira
+    ports:
+      # 5433 no host para não conflitar com um Postgres já instalado na máquina.
+      - '5433:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gestao -d gestao_financeira']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

@@ -1,0 +1,143 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Gestão Financeira API",
+    "description": "API REST da Gestão Financeira. Erros seguem o formato Problem Details (RFC 9457); valores monetários em centavos inteiros.",
+    "version": "0.0.0"
+  },
+  "components": {
+    "schemas": {
+      "ProblemDetailsInput": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Tipo do problema; `about:blank` quando o status já basta.",
+            "example": "about:blank"
+          },
+          "title": { "type": "string", "example": "Recurso não encontrado" },
+          "status": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "example": 404
+          },
+          "detail": { "type": "string" },
+          "instance": { "type": "string", "description": "Caminho da requisição que falhou." },
+          "requestId": {
+            "type": "string",
+            "description": "Mesmo valor do cabeçalho `x-request-id`."
+          },
+          "errors": {
+            "description": "Só em erros de validação: um item por campo inválido.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "description": "Caminho do campo (ex.: `body.amount`)."
+                },
+                "message": { "type": "string" }
+              },
+              "required": ["field", "message"]
+            }
+          }
+        },
+        "required": ["type", "title", "status", "detail", "instance", "requestId"]
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Tipo do problema; `about:blank` quando o status já basta.",
+            "example": "about:blank"
+          },
+          "title": { "type": "string", "example": "Recurso não encontrado" },
+          "status": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "example": 404
+          },
+          "detail": { "type": "string" },
+          "instance": { "type": "string", "description": "Caminho da requisição que falhou." },
+          "requestId": {
+            "type": "string",
+            "description": "Mesmo valor do cabeçalho `x-request-id`."
+          },
+          "errors": {
+            "description": "Só em erros de validação: um item por campo inválido.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "description": "Caminho do campo (ex.: `body.amount`)."
+                },
+                "message": { "type": "string" }
+              },
+              "required": ["field", "message"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["type", "title", "status", "detail", "instance", "requestId"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "O processo está de pé",
+        "tags": ["Operação"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "status": { "type": "string", "enum": ["ok"] } },
+                  "required": ["status"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "summary": "A API consegue atender (banco respondendo)",
+        "tags": ["Operação"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "status": { "type": "string", "enum": ["ready"] } },
+                  "required": ["status"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [{ "name": "Operação", "description": "Saúde e prontidão da API." }]
+}

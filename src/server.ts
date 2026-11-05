@@ -1,4 +1,10 @@
-// Ponto de entrada da API. O servidor HTTP é criado nas próximas etapas da fundação.
-const nodeVersion = process.versions.node;
+import { buildApp } from './app.ts';
+import { loadEnv } from './config/env.ts';
+import { registerGracefulShutdown } from './shared/process/graceful-shutdown.ts';
 
-console.log(`Gestão Financeira API — Node.js ${nodeVersion}`);
+// Ponto de entrada: valida o ambiente, cria a aplicação e abre a porta.
+const env = loadEnv();
+const app = await buildApp(env);
+
+registerGracefulShutdown(app);
+await app.listen({ host: env.HOST, port: env.PORT });
