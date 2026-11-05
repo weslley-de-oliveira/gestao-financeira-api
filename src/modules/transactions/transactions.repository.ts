@@ -25,6 +25,8 @@ export interface TransactionsRepository {
   ): Promise<Transaction | null>;
   /** Apaga a transação só se for do usuário; devolve se apagou. */
   deleteTransaction(userId: string, transactionId: string): Promise<boolean>;
+  /** Se a fatura (cartão e mês de referência) do usuário já tem pagamento. */
+  hasInvoicePayment(userId: string, creditCardId: string, invoiceMonth: string): Promise<boolean>;
 }
 
 export function createTransactionsRepository(db: Database): TransactionsRepository {
@@ -83,6 +85,22 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
         .where(ownedBy(userId, transactionId))
         .returning({ id: transactions.id });
       return deleted.length > 0;
+    },
+
+    async hasInvoicePayment(userId, creditCardId, invoiceMonth) {
+      const [payment] = await db
+        .select({ id: transactions.id })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            eq(transactions.creditCardId, creditCardId),
+            eq(transactions.type, 'invoice-payment'),
+            eq(transactions.invoiceMonth, invoiceMonth),
+          ),
+        )
+        .limit(1);
+      return payment !== undefined;
     },
   };
 }

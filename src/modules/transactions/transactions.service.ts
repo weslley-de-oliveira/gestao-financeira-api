@@ -5,6 +5,8 @@ import {
   InvalidInputError,
   type InvalidField,
 } from '../../shared/errors/domain-error.ts';
+import { monthLabel } from '../../shared/utils/date.ts';
+import { invoiceCycleFor } from '../../shared/utils/invoice-cycle.ts';
 import type { AccountsRepository } from '../accounts/accounts.repository.ts';
 import type { CategoriesRepository } from '../categories/categories.repository.ts';
 import type { CreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
@@ -33,6 +35,20 @@ export class InvoicePaymentNotEditableError extends DomainError {
 
   constructor() {
     super('Pagamentos de fatura não são alterados por aqui: desfaça o pagamento pela fatura.');
+  }
+}
+
+/**
+ * Compra numa fatura já paga: não pode ser criada, alterada nem excluída, senão o total pago
+ * deixaria de conferir com os itens. É preciso desfazer o pagamento antes.
+ */
+export class PaidInvoiceError extends DomainError {
+  readonly kind = 'conflict';
+
+  constructor(cardName: string, referenceMonth: string) {
+    super(
+      `A fatura de ${monthLabel(referenceMonth)} do cartão "${cardName}" já foi paga. Desfaça o pagamento para alterar as compras dela.`,
+    );
   }
 }
 
@@ -100,13 +116,35 @@ export function createTransactionsService({
     return transaction;
   }
 
-  /** Transação que pode ser alterada ou apagada por aqui. */
+  /**
+   * Transação que pode ser alterada ou apagada por aqui: não é pagamento de fatura nem compra de
+   * uma fatura já paga.
+   */
   async function getEditable(userId: string, transactionId: string): Promise<Transaction> {
     const transaction = await get(userId, transactionId);
     if (transaction.type === 'invoice-payment') {
       throw new InvoicePaymentNotEditableError();
     }
+    if (transaction.creditCardId) {
+      await assertInvoiceNotPaid(userId, transaction.creditCardId, transaction.date);
+    }
     return transaction;
+  }
+
+  /** A fatura em que cai uma compra do cartão nesta data não pode estar paga. */
+  async function assertInvoiceNotPaid(
+    userId: string,
+    creditCardId: string,
+    date: string,
+  ): Promise<void> {
+    const card = await creditCards.findCreditCard(userId, creditCardId);
+    if (!card) {
+      return;
+    }
+    const { referenceMonth } = invoiceCycleFor(card, date);
+    if (await transactions.hasInvoicePayment(userId, creditCardId, referenceMonth)) {
+      throw new PaidInvoiceError(card.name, referenceMonth);
+    }
   }
 
   /**
@@ -305,13 +343,20 @@ export function createTransactionsService({
 
     async create(userId, input) {
       await checkReferences(userId, input);
+      if (input.type !== 'transfer' && input.creditCardId) {
+        await assertInvoiceNotPaid(userId, input.creditCardId, input.date);
+      }
       return transactions.insertTransaction({ ...withCardRules(input), userId });
     },
 
     async update(userId, transactionId, changes) {
+      // Compra de fatura paga não muda (nem para sair dela); e nenhuma pode entrar numa paga.
       const current = await getEditable(userId, transactionId);
       const next = mergeChanges(current, changes);
       await checkReferences(userId, next, current);
+      if (next.type !== 'transfer' && next.creditCardId) {
+        await assertInvoiceNotPaid(userId, next.creditCardId, next.date);
+      }
       const updated = await transactions.updateTransaction(userId, transactionId, {
         // Os campos que o novo tipo não usa voltam a ser nulos.
         accountId: null,

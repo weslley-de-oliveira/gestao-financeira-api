@@ -58,7 +58,7 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
         tags: [TRANSACTIONS_TAG],
         summary: 'Cadastra uma receita, despesa ou transferência',
         description:
-          'Receita ou despesa em conta, com categoria obrigatória do mesmo tipo; compra no cartão (despesa com `creditCardId` no lugar de `accountId`, sempre realizada); ou transferência entre duas contas diferentes, sem categoria. Contas, cartão e categoria precisam ser do usuário (senão, 422 no campo) e estar ativos (arquivado responde 409). Sem `status`, a transação é realizada.',
+          'Receita ou despesa em conta, com categoria obrigatória do mesmo tipo; compra no cartão (despesa com `creditCardId` no lugar de `accountId`, sempre realizada); ou transferência entre duas contas diferentes, sem categoria. Contas, cartão e categoria precisam ser do usuário (senão, 422 no campo) e estar ativos (arquivado responde 409). Compra que cairia numa fatura já paga também responde 409. Sem `status`, a transação é realizada.',
         body: createTransactionBodySchema,
         response: {
           201: transactionSchema,
@@ -104,7 +104,7 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
         tags: [TRANSACTIONS_TAG],
         summary: 'Edita uma transação',
         description:
-          'Os campos enviados são aplicados sobre a transação e o resultado segue as regras do cadastro. Ao trocar o tipo, os campos que não servem ao novo tipo são descartados (a categoria, ao virar transferência; a conta de destino, ao virar receita ou despesa). `notes: null` remove as observações. Contas e categoria que a transação já tinha continuam aceitas mesmo se arquivadas depois; trocar por uma arquivada responde 409, assim como editar pagamento de fatura.',
+          'Os campos enviados são aplicados sobre a transação e o resultado segue as regras do cadastro. Ao trocar o tipo, os campos que não servem ao novo tipo são descartados (a categoria, ao virar transferência; a conta de destino, ao virar receita ou despesa). `notes: null` remove as observações. Contas e categoria que a transação já tinha continuam aceitas mesmo se arquivadas depois; trocar por uma arquivada responde 409, assim como editar pagamento de fatura e editar compra de fatura já paga (ou movê-la para uma fatura paga).',
         params: transactionParamsSchema,
         body: updateTransactionBodySchema,
         response: {
@@ -133,7 +133,7 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
         tags: [TRANSACTIONS_TAG],
         summary: 'Exclui uma transação',
         description:
-          'Remove a transação de vez. Pagamento de fatura responde 409: é desfeito pela fatura.',
+          'Remove a transação de vez. Pagamento de fatura responde 409 (é desfeito pela fatura), assim como compra de fatura já paga (desfaça o pagamento antes).',
         params: transactionParamsSchema,
         response: {
           204: z.null(),
