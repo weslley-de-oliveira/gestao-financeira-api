@@ -19,6 +19,8 @@ function sessionCookie(response: LightMyRequestResponse) {
   return cookie;
 }
 
+const headerNames = (response: LightMyRequestResponse) => Object.keys(response.headers).sort();
+
 describe('POST /v1/auth/register', () => {
   let app: FastifyInstance;
 
@@ -252,6 +254,14 @@ describe('POST /v1/auth/login', () => {
         detail: 'E-mail ou senha inválidos.',
       });
     }
+
+    // Fora o id da requisição, as respostas são idênticas: nada revela se o e-mail tem conta.
+    const withoutRequestId = (response: LightMyRequestResponse) => ({
+      ...response.json<Record<string, unknown>>(),
+      requestId: undefined,
+    });
+    expect(withoutRequestId(unknownEmail)).toEqual(withoutRequestId(wrongPassword));
+    expect(headerNames(unknownEmail)).toEqual(headerNames(wrongPassword));
   });
 
   it('refaz o hash da senha quando ele usa parâmetros antigos', async () => {
@@ -359,6 +369,23 @@ describe('GET /v1/auth/me e POST /v1/auth/logout', () => {
 
     expect((await me(first)).statusCode).toBe(401);
     expect((await me(second)).statusCode).toBe(200);
+  });
+
+  it('cópia do cookie guardada antes do logout não vale mais, nem depois de um novo login', async () => {
+    const { email, token: copied } = await signUp();
+    await logout(copied);
+    const relogin = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/login',
+      payload: { email, password: 'senha1234' },
+    });
+    expect(relogin.statusCode).toBe(200);
+
+    const response = await me(copied);
+
+    expect(response.statusCode).toBe(401);
+    expect(sessionCookie(response).value).toBe('');
+    expect(sessionCookie(relogin).value).not.toBe(copied);
   });
 
   it('logout sem cookie ou com sessão já encerrada também responde 204', async () => {

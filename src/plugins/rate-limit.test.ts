@@ -49,6 +49,47 @@ describe('plugin rate-limit', () => {
     expectTooManyRequests(await login(email));
   });
 
+  it('depois do bloqueio, nem a senha certa entra (o limite vem antes de conferir a senha)', async () => {
+    await createApp();
+    const email = uniqueEmail();
+    const register = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/register',
+      payload: { name: 'Pessoa de Teste', email, password: 'senha1234' },
+    });
+    expect(register.statusCode).toBe(201);
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      expect((await login(email)).statusCode).toBe(401);
+    }
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/login',
+      payload: { email, password: 'senha1234' },
+    });
+
+    expectTooManyRequests(response);
+    expect(response.cookies).toEqual([]);
+  });
+
+  it('bloqueia da mesma forma e-mails com e sem conta', async () => {
+    await createApp();
+    const registered = uniqueEmail();
+    await app.inject({
+      method: 'POST',
+      url: '/v1/auth/register',
+      payload: { name: 'Pessoa de Teste', email: registered, password: 'senha1234' },
+    });
+    const unknown = uniqueEmail();
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      await login(registered);
+      await login(unknown);
+    }
+
+    expectTooManyRequests(await login(registered));
+    expectTooManyRequests(await login(unknown));
+  });
+
   it('conta o e-mail sem diferenciar maiúsculas', async () => {
     await createApp();
     const email = uniqueEmail();
