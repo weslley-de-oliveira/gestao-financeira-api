@@ -4656,6 +4656,59 @@
           }
         }
       }
+    },
+    "/v1/me": {
+      "patch": {
+        "summary": "Altera o nome do perfil",
+        "tags": ["Perfil"],
+        "description": "Só o nome muda por aqui: enviar e-mail ou senha responde 422. Para ler o perfil, use `GET /v1/auth/me`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80,
+                    "example": "Pessoa de Exemplo"
+                  },
+                  "email": {
+                    "description": "Não aceito: o e-mail não muda por esta rota.",
+                    "not": {}
+                  },
+                  "password": {
+                    "description": "Não aceito: a senha não muda por esta rota.",
+                    "not": {}
+                  }
+                },
+                "required": ["name"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
     }
   },
   "tags": [
@@ -4668,6 +4721,7 @@
     { "name": "Faturas", "description": "Faturas calculadas dos cartões e o pagamento." },
     { "name": "Orçamentos", "description": "Limites mensais de gastos por categoria." },
     { "name": "Metas", "description": "Metas de economia, aportes e retiradas." },
-    { "name": "Dashboard", "description": "Resumo do período numa chamada só." }
+    { "name": "Dashboard", "description": "Resumo do período numa chamada só." },
+    { "name": "Perfil", "description": "Dados da pessoa e exclusão da conta." }
   ]
 }

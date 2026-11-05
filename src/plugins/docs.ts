@@ -52,6 +52,7 @@ export const docsPlugin = fp<DocsOptions>(
           { name: 'Orçamentos', description: 'Limites mensais de gastos por categoria.' },
           { name: 'Metas', description: 'Metas de economia, aportes e retiradas.' },
           { name: 'Dashboard', description: 'Resumo do período numa chamada só.' },
+          { name: 'Perfil', description: 'Dados da pessoa e exclusão da conta.' },
         ],
       },
       transform: jsonSchemaTransform,
