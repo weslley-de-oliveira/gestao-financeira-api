@@ -46,6 +46,7 @@ export const docsPlugin = fp<DocsOptions>(
           { name: 'Autenticação', description: 'Cadastro, login, sessão e logout.' },
           { name: 'Contas', description: 'Contas bancárias, carteiras e investimentos.' },
           { name: 'Categorias', description: 'Categorias de receitas e despesas.' },
+          { name: 'Transações', description: 'Receitas, despesas e transferências.' },
         ],
       },
       transform: jsonSchemaTransform,
