@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Cancela execuções anteriores da mesma branch/PR quando um novo push chega.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Format, lint, typecheck, test e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Os hooks do Husky são apenas para uso local.
+      HUSKY: 0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # O Docker do runner sobe o Postgres de teste (Testcontainers).
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # Regenera a especificação e falha se o openapi.json commitado estiver desatualizado.
+      - name: Check OpenAPI is up to date
+        run: |
+          npm run openapi
+          git diff --exit-code -- openapi.json || {
+            echo "::error file=openapi.json::openapi.json desatualizado. Rode 'npm run openapi' e commite o resultado."
+            exit 1
+          }

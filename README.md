@@ -8,6 +8,10 @@ API REST que serve o front [Gestão Financeira](https://github.com/weslley-de-ol
 
 Conventional Commits, validados pelo commitlint no hook `commit-msg`; o hook `pre-commit` roda ESLint e Prettier nos arquivos alterados (lint-staged).
 
+## Integração contínua
+
+O workflow `.github/workflows/ci.yml` roda em todo pull request e em pushes na `main`: formatação, lint, typecheck, testes (Postgres via Testcontainers no Docker do runner), build e a verificação de que o `openapi.json` está atualizado.
+
 ## Requisitos
 
 - Node.js 26 (definido em `.nvmrc`)
