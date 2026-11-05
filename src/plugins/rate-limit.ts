@@ -49,6 +49,12 @@ export const AUTH_RATE_LIMITS = {
     timeWindow: '1 minute',
     keyGenerator: (request: FastifyRequest) => `register:${request.ip}`,
   },
+  /** Exclusão da conta: confere a senha, então tem o mesmo limite do login (5 por minuto por IP). */
+  deleteAccount: {
+    max: 5,
+    timeWindow: '1 minute',
+    keyGenerator: (request: FastifyRequest) => `delete-account:${request.ip}`,
+  },
 } as const satisfies Record<string, RateLimitOptions>;
 
 function emailFromBody(body: unknown): string {

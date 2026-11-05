@@ -1,5 +1,6 @@
 import fp from 'fastify-plugin';
 import type { IsoDate } from '../shared/utils/date.ts';
+import { todayIn } from '../shared/utils/today.ts';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -17,14 +18,7 @@ export interface ClockOptions {
 /** Relógio da API: o "hoje" das regras de calendário (faturas) não depende do fuso do servidor. */
 export const clockPlugin = fp<ClockOptions>(
   async (app, { timeZone, now = () => new Date() }) => {
-    // `en-CA` formata como `yyyy-MM-dd`.
-    const format = new Intl.DateTimeFormat('en-CA', {
-      timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    app.decorate('today', () => format.format(now()));
+    app.decorate('today', () => todayIn(timeZone, now()));
   },
   { name: 'clock' },
 );

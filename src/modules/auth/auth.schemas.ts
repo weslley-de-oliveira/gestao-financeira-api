@@ -26,14 +26,17 @@ const passwordSchema = z
   .regex(PASSWORD_PATTERN, 'A senha deve conter pelo menos uma letra e um número.')
   .meta({ example: 'senha1234' });
 
+/** Nome da pessoa: sem espaços nas pontas, de 1 a 80 caracteres (cadastro e perfil). */
+export const userNameSchema = z
+  .string('Informe o nome.')
+  .trim()
+  .min(1, 'Informe o nome.')
+  .max(USER_NAME_MAX_LENGTH, `O nome deve ter no máximo ${USER_NAME_MAX_LENGTH} caracteres.`)
+  .meta({ example: 'Pessoa de Exemplo' });
+
 // `strictObject`: campos desconhecidos (ex.: `id`, `passwordHash`) são rejeitados com 422.
 export const registerBodySchema = z.strictObject({
-  name: z
-    .string()
-    .trim()
-    .min(1, 'Informe o nome.')
-    .max(USER_NAME_MAX_LENGTH, `O nome deve ter no máximo ${USER_NAME_MAX_LENGTH} caracteres.`)
-    .meta({ example: 'Pessoa de Exemplo' }),
+  name: userNameSchema,
   email: emailSchema,
   password: passwordSchema,
 });

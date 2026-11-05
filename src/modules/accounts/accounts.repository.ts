@@ -25,9 +25,14 @@ export interface AccountsRepository {
   ): Promise<Account | null>;
   /**
    * Efeito somado das transações realizadas em cada conta (sem o saldo inicial), com a regra de
-   * `movementEffect`. Contas sem movimentação ficam fora do mapa.
+   * `movementEffect`. Com `before`, só as transações anteriores a essa data (o saldo de abertura
+   * de um período). Contas sem movimentação ficam fora do mapa.
    */
-  movementTotals(userId: string, accountIds: readonly string[]): Promise<Map<string, number>>;
+  movementTotals(
+    userId: string,
+    accountIds: readonly string[],
+    options?: { before?: string },
+  ): Promise<Map<string, number>>;
 }
 
 export function createAccountsRepository(db: Database): AccountsRepository {
@@ -68,7 +73,7 @@ export function createAccountsRepository(db: Database): AccountsRepository {
       return updated ?? null;
     },
 
-    async movementTotals(userId, accountIds) {
+    async movementTotals(userId, accountIds, { before } = {}) {
       if (accountIds.length === 0) {
         return new Map();
       }
@@ -76,6 +81,7 @@ export function createAccountsRepository(db: Database): AccountsRepository {
         accountIds.map((id) => sql`${id}`),
         sql`, `,
       )}]::uuid[]`;
+      const beforeDate = before ? sql`and ${transactions.date} < ${before}::date` : sql``;
       // Mesma regra de `movementEffect`: pendentes não contam; receita credita a conta; despesa,
       // pagamento de fatura e transferência debitam a conta de origem; a transferência credita o
       // destino. Compras no cartão não têm conta e ficam de fora.
@@ -89,6 +95,7 @@ export function createAccountsRepository(db: Database): AccountsRepository {
           where ${transactions.userId} = ${userId}
             and ${transactions.status} = 'completed'
             and ${transactions.accountId} = any(${ids})
+            ${beforeDate}
           union all
           select ${transactions.destinationAccountId}, ${transactions.amount}
           from ${transactions}
@@ -96,6 +103,7 @@ export function createAccountsRepository(db: Database): AccountsRepository {
             and ${transactions.status} = 'completed'
             and ${transactions.type} = 'transfer'
             and ${transactions.destinationAccountId} = any(${ids})
+            ${beforeDate}
         ) as movements
         group by account_id
       `);

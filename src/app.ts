@@ -14,10 +14,12 @@ import { authRoutes } from './modules/auth/auth.routes.ts';
 import { budgetsRoutes } from './modules/budgets/budgets.routes.ts';
 import { categoriesRoutes } from './modules/categories/categories.routes.ts';
 import { creditCardsRoutes } from './modules/credit-cards/credit-cards.routes.ts';
+import { dashboardRoutes } from './modules/dashboard/dashboard.routes.ts';
 import { goalsRoutes } from './modules/goals/goals.routes.ts';
 import { invoicesRoutes } from './modules/invoices/invoices.routes.ts';
 import { transactionsRoutes } from './modules/transactions/transactions.routes.ts';
 import { healthRoutes } from './modules/health/health.routes.ts';
+import { usersRoutes } from './modules/users/users.routes.ts';
 import { authPlugin } from './plugins/auth.ts';
 import { clockPlugin } from './plugins/clock.ts';
 import { databasePlugin } from './plugins/db.ts';
@@ -112,6 +114,8 @@ export async function buildApp(env: Env, { now }: BuildAppOptions = {}): Promise
   await app.register(invoicesRoutes, { prefix: '/v1/credit-cards' });
   await app.register(budgetsRoutes, { prefix: '/v1/budgets' });
   await app.register(goalsRoutes, { prefix: '/v1/goals' });
+  await app.register(dashboardRoutes, { prefix: '/v1/dashboard' });
+  await app.register(usersRoutes, { prefix: '/v1/me' });
 
   return app;
 }

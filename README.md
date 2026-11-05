@@ -37,20 +37,21 @@ Copie `.env.example` para `.env` e ajuste os valores. Elas são validadas na ini
 
 ## Scripts
 
-| Script                 | Descrição                                                        |
-| ---------------------- | ---------------------------------------------------------------- |
-| `npm run dev`          | Executa a API com recarga automática (TypeScript nativo do Node) |
-| `npm run build`        | Compila para `dist/`                                             |
-| `npm start`            | Executa a versão compilada                                       |
-| `npm run typecheck`    | Verifica os tipos sem gerar arquivos                             |
-| `npm test`             | Roda os testes (Vitest) contra um Postgres no Testcontainers     |
-| `npm run test:watch`   | Roda os testes em modo observação                                |
-| `npm run openapi`      | Regenera o `openapi.json` a partir das rotas                     |
-| `npm run db:up`        | Sobe o Postgres local (Docker Compose) e espera ficar pronto     |
-| `npm run db:down`      | Para o Postgres local (os dados ficam no volume)                 |
-| `npm run db:generate`  | Gera uma migração SQL a partir das mudanças no schema            |
-| `npm run db:migrate`   | Aplica as migrações pendentes                                    |
-| `npm run db:studio`    | Abre o Drizzle Studio para inspecionar o banco                   |
-| `npm run lint`         | Executa o ESLint (com regras que usam os tipos)                  |
-| `npm run format`       | Formata o código com Prettier                                    |
-| `npm run format:check` | Verifica a formatação sem alterar arquivos                       |
+| Script                 | Descrição                                                          |
+| ---------------------- | ------------------------------------------------------------------ |
+| `npm run dev`          | Executa a API com recarga automática (TypeScript nativo do Node)   |
+| `npm run build`        | Compila para `dist/`                                               |
+| `npm start`            | Executa a versão compilada                                         |
+| `npm run typecheck`    | Verifica os tipos sem gerar arquivos                               |
+| `npm test`             | Roda os testes (Vitest) contra um Postgres no Testcontainers       |
+| `npm run test:watch`   | Roda os testes em modo observação                                  |
+| `npm run openapi`      | Regenera o `openapi.json` a partir das rotas                       |
+| `npm run db:up`        | Sobe o Postgres local (Docker Compose) e espera ficar pronto       |
+| `npm run db:down`      | Para o Postgres local (os dados ficam no volume)                   |
+| `npm run db:generate`  | Gera uma migração SQL a partir das mudanças no schema              |
+| `npm run db:migrate`   | Aplica as migrações pendentes                                      |
+| `npm run db:studio`    | Abre o Drizzle Studio para inspecionar o banco                     |
+| `npm run db:seed`      | Cria a demo (`demo@exemplo.com` / `demo1234`) com 6 meses de dados |
+| `npm run lint`         | Executa o ESLint (com regras que usam os tipos)                    |
+| `npm run format`       | Formata o código com Prettier                                      |
+| `npm run format:check` | Verifica a formatação sem alterar arquivos                         |

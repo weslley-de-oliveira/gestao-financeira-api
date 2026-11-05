@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createTestApp } from '../../test/helpers/app.ts';
+import { SESSION_COOKIE } from '../modules/auth/session-cookie.ts';
 
 const uniqueEmail = () => `pessoa.${randomUUID()}@exemplo.com`;
 
@@ -110,6 +111,29 @@ describe('plugin rate-limit', () => {
 
     expect((await login(uniqueEmail())).statusCode).toBe(401);
     expect((await login(email, '203.0.113.7')).statusCode).toBe(401);
+  });
+
+  it('bloqueia a 6ª tentativa de excluir a conta por minuto (a rota confere a senha)', async () => {
+    await createApp();
+    const registered = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/register',
+      payload: { name: 'Pessoa de Teste', email: uniqueEmail(), password: 'senha1234' },
+    });
+    const cookies = { [SESSION_COOKIE]: registered.cookies[0]?.value ?? '' };
+    const attempt = () =>
+      app.inject({
+        method: 'DELETE',
+        url: '/v1/me',
+        cookies,
+        payload: { password: 'senha-errada-1' },
+      });
+
+    for (let count = 1; count <= 5; count++) {
+      expect((await attempt()).statusCode).toBe(422);
+    }
+
+    expectTooManyRequests(await attempt());
   });
 
   it('bloqueia o 6º cadastro por minuto do mesmo IP', async () => {
