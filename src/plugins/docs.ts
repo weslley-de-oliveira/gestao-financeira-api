@@ -47,6 +47,7 @@ export const docsPlugin = fp<DocsOptions>(
           { name: 'Contas', description: 'Contas bancárias, carteiras e investimentos.' },
           { name: 'Categorias', description: 'Categorias de receitas e despesas.' },
           { name: 'Transações', description: 'Receitas, despesas e transferências.' },
+          { name: 'Cartões', description: 'Cartões de crédito, limite e próxima fatura.' },
         ],
       },
       transform: jsonSchemaTransform,
