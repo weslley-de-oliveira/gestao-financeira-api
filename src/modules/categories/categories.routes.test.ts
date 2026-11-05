@@ -7,6 +7,7 @@ import { categories, type NewCategory } from '../../db/schema/index.ts';
 import { SESSION_COOKIE } from '../auth/session-cookie.ts';
 import type { CategoryDto } from './categories.schemas.ts';
 import { categoryNameKey } from './category-name.ts';
+import { DEFAULT_CATEGORIES } from './default-categories.ts';
 
 describe('rotas /v1/categories', () => {
   let app: FastifyInstance;
@@ -19,8 +20,14 @@ describe('rotas /v1/categories', () => {
     await app.close();
   });
 
-  /** Cadastra um usuário novo e devolve o id e o token da sessão. */
-  async function signUp(): Promise<{ userId: string; token: string }> {
+  /**
+   * Cadastra um usuário novo e devolve o id e o token da sessão. Por padrão, apaga as categorias
+   * criadas no cadastro, para cada teste montar só o cenário que precisa.
+   */
+  async function signUp({ keepDefaults = false } = {}): Promise<{
+    userId: string;
+    token: string;
+  }> {
     const response = await app.inject({
       method: 'POST',
       url: '/v1/auth/register',
@@ -32,10 +39,14 @@ describe('rotas /v1/categories', () => {
     });
     const token = response.cookies.find(({ name }) => name === SESSION_COOKIE)?.value;
     if (!token) throw new Error('cadastro sem cookie de sessão');
-    return { userId: response.json<{ id: string }>().id, token };
+    const userId = response.json<{ id: string }>().id;
+    if (!keepDefaults) {
+      await app.db.delete(categories).where(eq(categories.userId, userId));
+    }
+    return { userId, token };
   }
 
-  /** O cadastro de categorias pela API chega no próximo passo; aqui elas entram direto no banco. */
+  /** Categoria gravada direto no banco, para montar cenários (ex.: já arquivada). */
   async function insertCategory(userId: string, overrides: Partial<NewCategory> = {}) {
     const name = overrides.name ?? 'Alimentação';
     const [category] = await app.db
@@ -453,6 +464,60 @@ describe('rotas /v1/categories', () => {
 
     it('responde 401 sem sessão', async () => {
       expect((await patch(randomUUIDv7(), { name: 'Qualquer' })).statusCode).toBe(401);
+    });
+  });
+
+  describe('conjunto padrão criado no cadastro', () => {
+    it('o usuário novo já tem as 14 categorias padrão, ativas e marcadas como padrão', async () => {
+      const { token } = await signUp({ keepDefaults: true });
+
+      const response = await get('/v1/categories', token);
+
+      const listed = response.json<CategoryDto[]>();
+      expect(listed).toHaveLength(DEFAULT_CATEGORIES.length);
+      expect(listed.every((category) => category.isDefault && !category.isArchived)).toBe(true);
+      const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
+      expect(
+        listed.map(({ name, type, icon, color }) => ({ name, type, icon, color })).sort(byName),
+      ).toEqual([...DEFAULT_CATEGORIES].sort(byName));
+    });
+
+    it('separa 9 de despesa e 5 de receita', async () => {
+      const { token } = await signUp({ keepDefaults: true });
+
+      const expenses = await get('/v1/categories?type=expense', token);
+      const incomes = await get('/v1/categories?type=income', token);
+
+      expect(expenses.json()).toHaveLength(9);
+      expect(names(incomes)).toEqual([
+        'Freelance',
+        'Investimentos',
+        'Outras receitas',
+        'Presentes',
+        'Salário',
+      ]);
+    });
+
+    it('as padrão contam na unicidade do nome, como as criadas pelo usuário', async () => {
+      const { token } = await signUp({ keepDefaults: true });
+
+      const response = await create(token, { name: 'saude' });
+
+      expectConflict(response, 'Já existe uma categoria de despesa com este nome.');
+    });
+
+    it('cada usuário recebe o próprio conjunto', async () => {
+      const first = await signUp({ keepDefaults: true });
+      const second = await signUp({ keepDefaults: true });
+
+      const rows = await app.db
+        .select()
+        .from(categories)
+        .where(eq(categories.nameNormalized, 'alimentacao'));
+
+      const owners = rows.map((row) => row.userId);
+      expect(owners).toContain(first.userId);
+      expect(owners).toContain(second.userId);
     });
   });
 });

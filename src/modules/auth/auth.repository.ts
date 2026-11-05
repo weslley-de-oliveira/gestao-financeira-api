@@ -2,6 +2,7 @@ import { and, eq, gt } from 'drizzle-orm';
 import type { Database } from '../../db/client.ts';
 import { isUniqueViolation } from '../../db/errors.ts';
 import {
+  categories,
   sessions,
   users,
   type NewSession,
@@ -9,9 +10,17 @@ import {
   type Session,
   type User,
 } from '../../db/schema/index.ts';
+import {
+  DEFAULT_CATEGORIES,
+  defaultCategoriesFor,
+  type DefaultCategory,
+} from '../categories/default-categories.ts';
 
 export interface AuthRepository {
-  /** Insere o usuário; devolve `null` se o e-mail já estiver cadastrado. */
+  /**
+   * Insere o usuário e o conjunto inicial de categorias na mesma transação: ou entra tudo, ou
+   * nada. Devolve `null` se o e-mail já estiver cadastrado.
+   */
   insertUser(user: NewUser): Promise<User | null>;
   /** Busca pelo e-mail sem diferenciar maiúsculas (coluna `citext`). */
   findUserByEmail(email: string): Promise<User | null>;
@@ -24,12 +33,23 @@ export interface AuthRepository {
   deleteSession(tokenHash: string): Promise<void>;
 }
 
-export function createAuthRepository(db: Database): AuthRepository {
+/**
+ * `defaultCategories` existe para os testes provarem a transação (um conjunto inválido desfaz o
+ * cadastro); a aplicação usa sempre o padrão.
+ */
+export function createAuthRepository(
+  db: Database,
+  defaultCategories: readonly DefaultCategory[] = DEFAULT_CATEGORIES,
+): AuthRepository {
   return {
     async insertUser(user) {
       try {
-        const [created] = await db.insert(users).values(user).returning();
-        return created ?? null;
+        return await db.transaction(async (tx) => {
+          const [created] = await tx.insert(users).values(user).returning();
+          if (!created) throw new Error('O usuário não foi inserido.');
+          await tx.insert(categories).values(defaultCategoriesFor(created.id, defaultCategories));
+          return created;
+        });
       } catch (error) {
         // A constraint resolve a corrida de dois cadastros simultâneos com o mesmo e-mail.
         if (isUniqueViolation(error, 'users_email_unique')) {
