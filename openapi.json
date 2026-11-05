@@ -400,6 +400,7 @@
             "example": "2026-11-05"
           },
           "accountId": {
+            "description": "Conta da receita ou despesa. Ausente nas compras no cartão.",
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -411,15 +412,21 @@
             "description": "`completed` (realizada, altera o saldo) ou `pending` (pendente, não altera)."
           },
           "notes": { "anyOf": [{ "type": "string", "maxLength": 500 }, { "type": "null" }] },
+          "creditCardId": {
+            "description": "Cartão da compra (só despesas). Ausente quando há conta.",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
           "categoryId": {
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           }
         },
-        "required": ["type", "description", "amount", "date", "accountId", "categoryId"],
+        "required": ["type", "description", "amount", "date", "categoryId"],
         "additionalProperties": false,
-        "description": "Receita ou despesa em conta."
+        "description": "Receita ou despesa em conta, ou compra no cartão (despesa com `creditCardId`)."
       },
       "CreateTransferInput": {
         "type": "object",
@@ -880,6 +887,7 @@
             "example": "2026-11-05"
           },
           "accountId": {
+            "description": "Conta da receita ou despesa. Ausente nas compras no cartão.",
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -891,24 +899,21 @@
             "description": "`completed` (realizada, altera o saldo) ou `pending` (pendente, não altera)."
           },
           "notes": {},
+          "creditCardId": {
+            "description": "Cartão da compra (só despesas). Ausente quando há conta.",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
           "categoryId": {
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           }
         },
-        "required": [
-          "type",
-          "description",
-          "amount",
-          "date",
-          "accountId",
-          "status",
-          "notes",
-          "categoryId"
-        ],
+        "required": ["type", "description", "amount", "date", "status", "notes", "categoryId"],
         "additionalProperties": false,
-        "description": "Receita ou despesa em conta."
+        "description": "Receita ou despesa em conta, ou compra no cartão (despesa com `creditCardId`)."
       },
       "CreateTransfer": {
         "type": "object",
@@ -1885,7 +1890,7 @@
       "post": {
         "summary": "Cadastra uma receita, despesa ou transferência",
         "tags": ["Transações"],
-        "description": "Receita ou despesa em conta, com categoria obrigatória do mesmo tipo; ou transferência entre duas contas diferentes, sem categoria. Contas e categoria precisam ser do usuário (senão, 422 no campo) e estar ativas (arquivada responde 409). Sem `status`, a transação é realizada.",
+        "description": "Receita ou despesa em conta, com categoria obrigatória do mesmo tipo; compra no cartão (despesa com `creditCardId` no lugar de `accountId`, sempre realizada); ou transferência entre duas contas diferentes, sem categoria. Contas, cartão e categoria precisam ser do usuário (senão, 422 no campo) e estar ativos (arquivado responde 409). Sem `status`, a transação é realizada.",
         "requestBody": {
           "required": true,
           "content": {
@@ -2005,7 +2010,14 @@
                   "accountId": {
                     "type": "string",
                     "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Ao informar a conta, a compra deixa de ser no cartão."
+                  },
+                  "creditCardId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Ao informar o cartão, a despesa vira compra e deixa a conta."
                   },
                   "destinationAccountId": {
                     "type": "string",

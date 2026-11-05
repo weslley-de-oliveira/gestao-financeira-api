@@ -78,14 +78,48 @@ const commonFields = {
   notes: notesSchema,
 };
 
-/** Receita ou despesa em conta: categoria obrigatória, do mesmo tipo. */
+/**
+ * Receita ou despesa: categoria obrigatória, do mesmo tipo, e conta **ou** cartão. Despesa no
+ * cartão é uma compra: entra na fatura, não move a conta e é sempre realizada.
+ */
 const entryBodySchema = z
   .strictObject({
     type: z.enum(['expense', 'income']),
     ...commonFields,
+    accountId: commonFields.accountId.optional().meta({
+      description: 'Conta da receita ou despesa. Ausente nas compras no cartão.',
+    }),
+    creditCardId: z
+      .uuid('Selecione o cartão.')
+      .optional()
+      .meta({ description: 'Cartão da compra (só despesas). Ausente quando há conta.' }),
     categoryId: z.uuid('Selecione a categoria.'),
   })
-  .meta({ id: 'CreateEntry', description: 'Receita ou despesa em conta.' });
+  .superRefine((body, context) => {
+    if (body.creditCardId && body.type === 'income') {
+      context.addIssue({
+        code: 'custom',
+        path: ['creditCardId'],
+        message: 'Receitas não podem ser no cartão: escolha uma conta.',
+      });
+    } else if (body.creditCardId && body.accountId) {
+      context.addIssue({
+        code: 'custom',
+        path: ['creditCardId'],
+        message: 'Informe a conta ou o cartão, não os dois.',
+      });
+    } else if (!body.creditCardId && !body.accountId) {
+      context.addIssue({
+        code: 'custom',
+        path: ['accountId'],
+        message: 'Selecione a conta ou o cartão.',
+      });
+    }
+  })
+  .meta({
+    id: 'CreateEntry',
+    description: 'Receita ou despesa em conta, ou compra no cartão (despesa com `creditCardId`).',
+  });
 
 /** Transferência: sai de `accountId` e entra em `destinationAccountId`, sem categoria. */
 const transferBodySchema = z
@@ -124,7 +158,12 @@ export const updateTransactionBodySchema = z
     description: descriptionSchema,
     amount: positiveCentsSchema,
     date: isoDateSchema,
-    accountId: z.uuid('Selecione a conta.'),
+    accountId: z
+      .uuid('Selecione a conta.')
+      .meta({ description: 'Ao informar a conta, a compra deixa de ser no cartão.' }),
+    creditCardId: z
+      .uuid('Selecione o cartão.')
+      .meta({ description: 'Ao informar o cartão, a despesa vira compra e deixa a conta.' }),
     destinationAccountId: z.uuid('Selecione a conta de destino.'),
     categoryId: z.uuid('Selecione a categoria.'),
     status: transactionStatusSchema,

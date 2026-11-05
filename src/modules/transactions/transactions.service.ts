@@ -7,6 +7,7 @@ import {
 } from '../../shared/errors/domain-error.ts';
 import type { AccountsRepository } from '../accounts/accounts.repository.ts';
 import type { CategoriesRepository } from '../categories/categories.repository.ts';
+import type { CreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
 import type { TransactionsRepository } from './transactions.repository.ts';
 import {
   createTransactionBodySchema,
@@ -40,6 +41,16 @@ export class ArchivedReferenceError extends DomainError {
   readonly kind = 'conflict';
 }
 
+/**
+ * Compra no cartão é sempre realizada: compromete o limite desde a data da compra (como o
+ * `normalizeTransactionInput` do front, que ignora o status escolhido).
+ */
+function withCardRules(input: CreateTransactionInput): CreateTransactionInput {
+  return input.type !== 'transfer' && input.creditCardId
+    ? { ...input, status: 'completed' }
+    : input;
+}
+
 function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
@@ -48,6 +59,7 @@ export interface TransactionsServiceDependencies {
   transactions: TransactionsRepository;
   accounts: AccountsRepository;
   categories: CategoriesRepository;
+  creditCards: CreditCardsRepository;
 }
 
 export interface TransactionsService {
@@ -78,6 +90,7 @@ export function createTransactionsService({
   transactions,
   accounts,
   categories,
+  creditCards,
 }: TransactionsServiceDependencies): TransactionsService {
   async function get(userId: string, transactionId: string): Promise<Transaction> {
     const transaction = await transactions.findTransaction(userId, transactionId);
@@ -133,6 +146,20 @@ export function createTransactionsService({
     }
   }
 
+  async function checkCreditCard(
+    check: ReferenceCheck,
+    userId: string,
+    creditCardId: string,
+    previous: Transaction | undefined,
+  ): Promise<void> {
+    const card = await creditCards.findCreditCard(userId, creditCardId);
+    if (!card) {
+      check.invalid.push({ field: 'creditCardId', message: 'Cartão não encontrado.' });
+    } else if (card.isArchived && card.id !== previous?.creditCardId) {
+      check.archived.push(`O cartão "${card.name}" está arquivado. Reative-o para lançar nele.`);
+    }
+  }
+
   async function checkEntry(
     check: ReferenceCheck,
     userId: string,
@@ -141,7 +168,15 @@ export function createTransactionsService({
   ): Promise<void> {
     const [category] = await Promise.all([
       categories.findCategory(userId, input.categoryId),
-      checkAccount(check, userId, { id: input.accountId, field: 'accountId', label: '' }, previous),
+      // O schema garante que há exatamente um dos dois.
+      input.creditCardId
+        ? checkCreditCard(check, userId, input.creditCardId, previous)
+        : checkAccount(
+            check,
+            userId,
+            { id: input.accountId ?? '', field: 'accountId', label: '' },
+            previous,
+          ),
     ]);
     if (!category) {
       check.invalid.push({ field: 'categoryId', message: 'Categoria não encontrada.' });
@@ -193,7 +228,7 @@ export function createTransactionsService({
       await checkEntry(check, userId, input, previous);
     }
     // Campos na ordem do corpo, independente de qual consulta terminou primeiro.
-    const order = ['accountId', 'destinationAccountId', 'categoryId'];
+    const order = ['accountId', 'creditCardId', 'destinationAccountId', 'categoryId'];
     if (check.invalid.length > 0) {
       throw new InvalidInputError(
         check.invalid.toSorted((a, b) => order.indexOf(a.field) - order.indexOf(b.field)),
@@ -213,12 +248,22 @@ export function createTransactionsService({
     current: Transaction,
     changes: UpdateTransactionInput,
   ): CreateTransactionInput {
+    // Conta e cartão se excluem: informar um deles descarta o outro (como no formulário do front).
+    let accountId = current.accountId;
+    let creditCardId = current.creditCardId;
+    if (changes.accountId !== undefined) {
+      accountId = changes.accountId;
+      creditCardId = changes.creditCardId ?? null;
+    } else if (changes.creditCardId !== undefined) {
+      creditCardId = changes.creditCardId;
+      accountId = null;
+    }
     const merged = {
       type: changes.type ?? current.type,
       description: changes.description ?? current.description,
       amount: changes.amount ?? current.amount,
       date: changes.date ?? current.date,
-      accountId: changes.accountId ?? current.accountId,
+      accountId: accountId ?? undefined,
       status: changes.status ?? current.status,
       notes: changes.notes === undefined ? current.notes : changes.notes,
     };
@@ -226,11 +271,20 @@ export function createTransactionsService({
       merged.type === 'transfer'
         ? {
             ...merged,
+            // Cartão informado numa transferência: o schema recusa o campo.
+            ...(changes.creditCardId !== undefined && { creditCardId: changes.creditCardId }),
             destinationAccountId: changes.destinationAccountId ?? current.destinationAccountId,
           }
-        : { ...merged, categoryId: changes.categoryId ?? current.categoryId };
+        : {
+            ...merged,
+            creditCardId: creditCardId ?? undefined,
+            categoryId: changes.categoryId ?? current.categoryId,
+          };
 
-    const result = createTransactionBodySchema.safeParse(candidate);
+    // Sem chaves `undefined`: elas passariam pelo schema e apagariam os nulos padrão na gravação.
+    const result = createTransactionBodySchema.safeParse(
+      Object.fromEntries(Object.entries(candidate).filter(([, value]) => value !== undefined)),
+    );
     if (!result.success) {
       throw new InvalidInputError(
         result.error.issues.map((issue) => ({
@@ -251,7 +305,7 @@ export function createTransactionsService({
 
     async create(userId, input) {
       await checkReferences(userId, input);
-      return transactions.insertTransaction({ ...input, userId });
+      return transactions.insertTransaction({ ...withCardRules(input), userId });
     },
 
     async update(userId, transactionId, changes) {
@@ -260,9 +314,11 @@ export function createTransactionsService({
       await checkReferences(userId, next, current);
       const updated = await transactions.updateTransaction(userId, transactionId, {
         // Os campos que o novo tipo não usa voltam a ser nulos.
+        accountId: null,
+        creditCardId: null,
         categoryId: null,
         destinationAccountId: null,
-        ...next,
+        ...withCardRules(next),
       });
       if (!updated) {
         throw new TransactionNotFoundError();

@@ -4,6 +4,7 @@ import { currentAuth, requireSession } from '../../plugins/auth.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
 import { createAccountsRepository } from '../accounts/accounts.repository.ts';
 import { createCategoriesRepository } from '../categories/categories.repository.ts';
+import { createCreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
 import { createTransactionsRepository } from './transactions.repository.ts';
 import {
   createTransactionBodySchema,
@@ -25,6 +26,7 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
     transactions: createTransactionsRepository(app.db),
     accounts: createAccountsRepository(app.db),
     categories: createCategoriesRepository(app.db),
+    creditCards: createCreditCardsRepository(app.db),
   });
 
   app.get(
@@ -56,7 +58,7 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
         tags: [TRANSACTIONS_TAG],
         summary: 'Cadastra uma receita, despesa ou transferência',
         description:
-          'Receita ou despesa em conta, com categoria obrigatória do mesmo tipo; ou transferência entre duas contas diferentes, sem categoria. Contas e categoria precisam ser do usuário (senão, 422 no campo) e estar ativas (arquivada responde 409). Sem `status`, a transação é realizada.',
+          'Receita ou despesa em conta, com categoria obrigatória do mesmo tipo; compra no cartão (despesa com `creditCardId` no lugar de `accountId`, sempre realizada); ou transferência entre duas contas diferentes, sem categoria. Contas, cartão e categoria precisam ser do usuário (senão, 422 no campo) e estar ativos (arquivado responde 409). Sem `status`, a transação é realizada.',
         body: createTransactionBodySchema,
         response: {
           201: transactionSchema,

@@ -191,7 +191,12 @@ describe('rotas /v1/transactions', () => {
         'body.type',
         'Selecione despesa, receita ou transferência.',
       ],
-      ['sem conta', { accountId: undefined }, 'body.accountId', 'Selecione a conta.'],
+      [
+        'sem conta nem cartão',
+        { accountId: undefined },
+        'body.accountId',
+        'Selecione a conta ou o cartão.',
+      ],
       ['sem categoria', { categoryId: null }, 'body.categoryId', 'Selecione a categoria.'],
       [
         'status desconhecido',
