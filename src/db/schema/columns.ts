@@ -1,5 +1,6 @@
 import { randomUUIDv7 } from 'node:crypto';
-import { customType, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { sql, type SQL } from 'drizzle-orm';
+import { customType, timestamp, uuid, type AnyPgColumn } from 'drizzle-orm/pg-core';
 
 /**
  * Chave primária UUID v7, gerada pela API (ordenável por tempo: bom para índice e paginação por
@@ -23,3 +24,12 @@ export const timestamps = () => ({
     .defaultNow()
     .$onUpdate(() => new Date()),
 });
+
+/**
+ * Condição `coluna IN ('a', 'b', ...)` para constraints `CHECK`. DDL não aceita parâmetros, então
+ * os valores entram como literais: só use com constantes do código, nunca com dados do usuário.
+ */
+export function oneOf(column: AnyPgColumn, values: readonly string[]): SQL {
+  const literals = values.map((value) => `'${value.replaceAll("'", "''")}'`).join(', ');
+  return sql`${column} in (${sql.raw(literals)})`;
+}

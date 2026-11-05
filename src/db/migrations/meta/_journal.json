@@ -15,6 +15,13 @@
       "when": 1793886957989,
       "tag": "0001_cria-users-e-sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793897704630,
+      "tag": "0002_cria-accounts",
+      "breakpoints": true
     }
   ]
 }
