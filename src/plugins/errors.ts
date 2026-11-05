@@ -70,6 +70,13 @@ export const errorsPlugin = fp(
         return sendProblem(request, reply, { status, detail: error.message });
       }
 
+      // 5xx lançado de propósito (ex.: 503 com `app.httpErrors.serviceUnavailable`) mantém status e
+      // mensagem; só o erro inesperado (500) esconde os detalhes.
+      if (status > 500 && status < 600) {
+        request.log.error({ err: error }, 'serviço indisponível');
+        return sendProblem(request, reply, { status, detail: error.message });
+      }
+
       request.log.error({ err: error }, 'erro inesperado');
       return sendProblem(request, reply, {
         status: 500,
