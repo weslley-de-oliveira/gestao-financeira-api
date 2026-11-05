@@ -27,9 +27,9 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
     {
       schema: {
         tags: [TRANSACTIONS_TAG],
-        summary: 'Cadastra uma receita ou despesa',
+        summary: 'Cadastra uma receita, despesa ou transferência',
         description:
-          'Receita ou despesa em conta. A categoria é obrigatória e do mesmo tipo da transação; conta e categoria precisam ser do usuário (senão, 422 no campo). Sem `status`, a transação é realizada.',
+          'Receita ou despesa em conta, com categoria obrigatória do mesmo tipo; ou transferência entre duas contas diferentes, sem categoria. Contas e categoria precisam ser do usuário (senão, 422 no campo). Sem `status`, a transação é realizada.',
         body: createTransactionBodySchema,
         response: { 201: transactionSchema, 401: problemDetailsSchema, 422: problemDetailsSchema },
       },

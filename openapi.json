@@ -297,6 +297,96 @@
           "createdAt"
         ]
       },
+      "CreateEntryInput": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["expense", "income"] },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "example": "Mercado do mês"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000000,
+            "description": "Centavos inteiros, maior que zero (R$ 1.234,56 → 123456).",
+            "example": 123456
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "example": "2026-11-05"
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "default": "completed",
+            "type": "string",
+            "enum": ["completed", "pending"],
+            "description": "`completed` (realizada, altera o saldo) ou `pending` (pendente, não altera)."
+          },
+          "notes": { "anyOf": [{ "type": "string", "maxLength": 500 }, { "type": "null" }] },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["type", "description", "amount", "date", "accountId", "categoryId"],
+        "additionalProperties": false,
+        "description": "Receita ou despesa em conta."
+      },
+      "CreateTransferInput": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "const": "transfer" },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "example": "Mercado do mês"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000000,
+            "description": "Centavos inteiros, maior que zero (R$ 1.234,56 → 123456).",
+            "example": 123456
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "example": "2026-11-05"
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "default": "completed",
+            "type": "string",
+            "enum": ["completed", "pending"],
+            "description": "`completed` (realizada, altera o saldo) ou `pending` (pendente, não altera)."
+          },
+          "notes": { "anyOf": [{ "type": "string", "maxLength": 500 }, { "type": "null" }] },
+          "destinationAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["type", "description", "amount", "date", "accountId", "destinationAccountId"],
+        "additionalProperties": false,
+        "description": "Transferência entre duas contas do usuário."
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -592,6 +682,114 @@
           "createdAt"
         ],
         "additionalProperties": false
+      },
+      "CreateEntry": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["expense", "income"] },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "example": "Mercado do mês"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000000,
+            "description": "Centavos inteiros, maior que zero (R$ 1.234,56 → 123456).",
+            "example": 123456
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "example": "2026-11-05"
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "default": "completed",
+            "type": "string",
+            "enum": ["completed", "pending"],
+            "description": "`completed` (realizada, altera o saldo) ou `pending` (pendente, não altera)."
+          },
+          "notes": {},
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "type",
+          "description",
+          "amount",
+          "date",
+          "accountId",
+          "status",
+          "notes",
+          "categoryId"
+        ],
+        "additionalProperties": false,
+        "description": "Receita ou despesa em conta."
+      },
+      "CreateTransfer": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "const": "transfer" },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "example": "Mercado do mês"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000000,
+            "description": "Centavos inteiros, maior que zero (R$ 1.234,56 → 123456).",
+            "example": 123456
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "example": "2026-11-05"
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "default": "completed",
+            "type": "string",
+            "enum": ["completed", "pending"],
+            "description": "`completed` (realizada, altera o saldo) ou `pending` (pendente, não altera)."
+          },
+          "notes": {},
+          "destinationAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "type",
+          "description",
+          "amount",
+          "date",
+          "accountId",
+          "status",
+          "notes",
+          "destinationAccountId"
+        ],
+        "additionalProperties": false,
+        "description": "Transferência entre duas contas do usuário."
       }
     }
   },
@@ -1379,56 +1577,18 @@
     },
     "/v1/transactions": {
       "post": {
-        "summary": "Cadastra uma receita ou despesa",
+        "summary": "Cadastra uma receita, despesa ou transferência",
         "tags": ["Transações"],
-        "description": "Receita ou despesa em conta. A categoria é obrigatória e do mesmo tipo da transação; conta e categoria precisam ser do usuário (senão, 422 no campo). Sem `status`, a transação é realizada.",
+        "description": "Receita ou despesa em conta, com categoria obrigatória do mesmo tipo; ou transferência entre duas contas diferentes, sem categoria. Contas e categoria precisam ser do usuário (senão, 422 no campo). Sem `status`, a transação é realizada.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "type": { "type": "string", "enum": ["expense", "income"] },
-                  "description": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 80,
-                    "example": "Mercado do mês"
-                  },
-                  "amount": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 100000000000,
-                    "description": "Centavos inteiros, maior que zero (R$ 1.234,56 → 123456).",
-                    "example": 123456
-                  },
-                  "date": {
-                    "type": "string",
-                    "format": "date",
-                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
-                    "example": "2026-11-05"
-                  },
-                  "accountId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "categoryId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "status": {
-                    "default": "completed",
-                    "type": "string",
-                    "enum": ["completed", "pending"],
-                    "description": "`completed` (realizada, altera o saldo) ou `pending` (pendente, não altera)."
-                  },
-                  "notes": { "anyOf": [{ "type": "string", "maxLength": 500 }, { "type": "null" }] }
-                },
-                "required": ["type", "description", "amount", "date", "accountId", "categoryId"],
-                "additionalProperties": false
+                "oneOf": [
+                  { "$ref": "#/components/schemas/CreateEntryInput" },
+                  { "$ref": "#/components/schemas/CreateTransferInput" }
+                ]
               }
             }
           }

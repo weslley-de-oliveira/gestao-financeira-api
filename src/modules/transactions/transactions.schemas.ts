@@ -68,18 +68,50 @@ const notesSchema = z
   .transform((value) => (value === '' ? null : (value ?? null)));
 
 // `strictObject`: campos desconhecidos (ex.: `userId`, `creditCardId`) são rejeitados com 422.
-export const createTransactionBodySchema = z.strictObject({
-  type: z.enum(['expense', 'income'], 'Selecione despesa ou receita.'),
+/** Campos comuns a todos os tipos que a pessoa cadastra. */
+const commonFields = {
   description: descriptionSchema,
   amount: positiveCentsSchema,
   date: isoDateSchema,
   accountId: z.uuid('Selecione a conta.'),
-  categoryId: z.uuid('Selecione a categoria.'),
   status: transactionStatusSchema.default('completed'),
   notes: notesSchema,
-});
+};
+
+/** Receita ou despesa em conta: categoria obrigatória, do mesmo tipo. */
+const entryBodySchema = z
+  .strictObject({
+    type: z.enum(['expense', 'income']),
+    ...commonFields,
+    categoryId: z.uuid('Selecione a categoria.'),
+  })
+  .meta({ id: 'CreateEntry', description: 'Receita ou despesa em conta.' });
+
+/** Transferência: sai de `accountId` e entra em `destinationAccountId`, sem categoria. */
+const transferBodySchema = z
+  .strictObject({
+    type: z.literal('transfer'),
+    ...commonFields,
+    accountId: z.uuid('Selecione a conta de origem.'),
+    destinationAccountId: z.uuid('Selecione a conta de destino.'),
+  })
+  .refine((body) => body.accountId !== body.destinationAccountId, {
+    path: ['destinationAccountId'],
+    message: 'Escolha uma conta diferente da conta de origem.',
+  })
+  .meta({ id: 'CreateTransfer', description: 'Transferência entre duas contas do usuário.' });
+
+// `strictObject`: campos de outro tipo (ex.: `categoryId` numa transferência) e desconhecidos
+// (ex.: `userId`) são rejeitados com 422.
+export const createTransactionBodySchema = z.discriminatedUnion(
+  'type',
+  [entryBodySchema, transferBodySchema],
+  { error: 'Selecione despesa, receita ou transferência.' },
+);
 
 export type CreateTransactionInput = z.infer<typeof createTransactionBodySchema>;
+export type CreateEntryInput = z.infer<typeof entryBodySchema>;
+export type CreateTransferInput = z.infer<typeof transferBodySchema>;
 
 export function toTransactionDto(transaction: Transaction): TransactionDto {
   return {

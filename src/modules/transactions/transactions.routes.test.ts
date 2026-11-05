@@ -178,7 +178,18 @@ describe('rotas /v1/transactions', () => {
         'body.date',
         'Informe uma data válida no formato aaaa-mm-dd.',
       ],
-      ['tipo desconhecido', { type: 'refund' }, 'body.type', 'Selecione despesa ou receita.'],
+      [
+        'tipo desconhecido',
+        { type: 'refund' },
+        'body.type',
+        'Selecione despesa, receita ou transferência.',
+      ],
+      [
+        'pagamento de fatura (só pelas rotas de faturas)',
+        { type: 'invoice-payment' },
+        'body.type',
+        'Selecione despesa, receita ou transferência.',
+      ],
       ['sem conta', { accountId: undefined }, 'body.accountId', 'Selecione a conta.'],
       ['sem categoria', { categoryId: null }, 'body.categoryId', 'Selecione a categoria.'],
       [
@@ -258,14 +269,110 @@ describe('rotas /v1/transactions', () => {
       expect(response.statusCode).toBe(422);
     });
 
-    it('responde 422 para transferência e pagamento de fatura (ainda não aceitos aqui)', async () => {
-      for (const type of ['transfer', 'invoice-payment']) {
-        expect((await post(ledger, expense(ledger, { type }))).statusCode).toBe(422);
-      }
-    });
-
     it('responde 401 sem sessão', async () => {
       expect((await post(null, expense(ledger))).statusCode).toBe(401);
+    });
+  });
+
+  describe('POST /v1/transactions (transferência)', () => {
+    let ledger: Ledger;
+    let savings: AccountDto;
+
+    beforeAll(async () => {
+      ledger = await createLedger();
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/accounts',
+        cookies: ledger.cookies,
+        payload: { name: 'Poupança', type: 'savings', color: '#2e7d32', icon: 'savings' },
+      });
+      savings = response.json<AccountDto>();
+    });
+
+    /** Transferência válida da conta corrente para a poupança, com qualquer campo trocado. */
+    const transfer = (overrides: Record<string, unknown> = {}) => ({
+      type: 'transfer',
+      description: 'Reserva do mês',
+      amount: 100_000,
+      date: '2026-11-05',
+      accountId: ledger.account.id,
+      destinationAccountId: savings.id,
+      ...overrides,
+    });
+
+    it('cadastra a transferência entre duas contas do usuário, sem categoria', async () => {
+      const response = await post(ledger, transfer({ status: 'pending' }));
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json()).toMatchObject({
+        type: 'transfer',
+        amount: 100_000,
+        accountId: ledger.account.id,
+        destinationAccountId: savings.id,
+        categoryId: null,
+        creditCardId: null,
+        status: 'pending',
+      });
+    });
+
+    it('responde 422 para a mesma conta na origem e no destino', async () => {
+      const response = await post(ledger, transfer({ destinationAccountId: ledger.account.id }));
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json()).toMatchObject({
+        errors: [
+          {
+            field: 'body.destinationAccountId',
+            message: 'Escolha uma conta diferente da conta de origem.',
+          },
+        ],
+      });
+    });
+
+    it.each([
+      ['sem conta de origem', 'accountId', 'Selecione a conta de origem.'],
+      ['sem conta de destino', 'destinationAccountId', 'Selecione a conta de destino.'],
+    ])('responde 422 %s', async (_case, field, message) => {
+      const response = await post(ledger, transfer({ [field]: undefined }));
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json()).toMatchObject({ errors: [{ field: `body.${field}`, message }] });
+    });
+
+    it('responde 422 se a transferência trouxer categoria', async () => {
+      const response = await post(ledger, transfer({ categoryId: ledger.food.id }));
+
+      expect(response.statusCode).toBe(422);
+    });
+
+    it('responde 422 nos dois campos para contas inexistentes ou de outro usuário', async () => {
+      const other = await createLedger();
+
+      const response = await post(
+        ledger,
+        transfer({ accountId: randomUUIDv7(), destinationAccountId: other.account.id }),
+      );
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json()).toMatchObject({
+        errors: [
+          { field: 'body.accountId', message: 'Conta de origem não encontrada.' },
+          { field: 'body.destinationAccountId', message: 'Conta de destino não encontrada.' },
+        ],
+      });
+    });
+
+    it('não transfere para a conta de outro usuário', async () => {
+      const other = await createLedger();
+
+      const response = await post(ledger, transfer({ destinationAccountId: other.account.id }));
+
+      expect(response.statusCode).toBe(422);
+      const othersTransactions = await app.db
+        .select()
+        .from(transactions)
+        .where(eq(transactions.destinationAccountId, other.account.id));
+      expect(othersTransactions).toEqual([]);
     });
   });
 });
