@@ -1,7 +1,8 @@
-import { randomUUID, randomUUIDv7 } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestApp } from '../../../test/helpers/app.ts';
+import { insertCreditCard } from '../../../test/helpers/fixtures.ts';
 import { transactions } from '../../db/schema/index.ts';
 import { SESSION_COOKIE } from '../auth/session-cookie.ts';
 import type { CategoryDto } from '../categories/categories.schemas.ts';
@@ -116,9 +117,9 @@ describe('saldo atual das contas (currentBalance)', () => {
       categoryId: food.id,
       status: 'pending',
     });
-    // Compra no cartão e pagamento de fatura gravados direto no banco: as rotas de cartões e
-    // faturas chegam na Etapa 4.
-    const creditCardId = randomUUIDv7();
+    // Compra no cartão e pagamento de fatura gravados direto no banco, como cenário.
+    const creditCardId = (await insertCreditCard(app.db, { userId, paymentAccountId: checking.id }))
+      .id;
     await app.db.insert(transactions).values([
       {
         userId,

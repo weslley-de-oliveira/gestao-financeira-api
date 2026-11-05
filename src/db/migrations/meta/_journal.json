@@ -43,6 +43,13 @@
       "when": 1793902818169,
       "tag": "0005_habilita-unaccent",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793904645510,
+      "tag": "0006_cria-credit-cards",
+      "breakpoints": true
     }
   ]
 }
