@@ -102,5 +102,30 @@ export const invoicesRoutes: FastifyPluginCallbackZod = (app, _options, done) =>
     },
   );
 
+  app.delete(
+    '/:id/invoices/:month/payment',
+    {
+      schema: {
+        tags: [INVOICES_TAG],
+        summary: 'Desfaz o pagamento da fatura',
+        description:
+          'Apaga a transação `invoice-payment`: o valor volta para a conta, as compras voltam a ocupar o limite e a fatura volta ao status pelas datas. Fatura sem pagamento responde 409. Devolve a fatura.',
+        params: invoiceParamsSchema,
+        response: {
+          200: invoiceSchema,
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          409: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request) => {
+      const { id, month } = request.params;
+      const invoice = await service.undoPayment(currentAuth(request).user.id, id, month);
+      return toInvoiceDto(invoice);
+    },
+  );
+
   done();
 };

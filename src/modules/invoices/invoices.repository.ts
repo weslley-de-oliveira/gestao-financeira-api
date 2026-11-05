@@ -11,6 +11,8 @@ export interface InvoicesRepository {
    * índice único resolve dois pagamentos simultâneos.
    */
   insertPayment(payment: NewTransaction): Promise<Transaction | null>;
+  /** Apaga o pagamento da fatura (cartão e mês) do usuário; devolve se havia pagamento. */
+  deletePayment(userId: string, creditCardId: string, referenceMonth: string): Promise<boolean>;
 }
 
 export function createInvoicesRepository(db: Database): InvoicesRepository {
@@ -38,6 +40,21 @@ export function createInvoicesRepository(db: Database): InvoicesRepository {
         }
         throw error;
       }
+    },
+
+    async deletePayment(userId, creditCardId, referenceMonth) {
+      const deleted = await db
+        .delete(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            eq(transactions.creditCardId, creditCardId),
+            eq(transactions.type, 'invoice-payment'),
+            eq(transactions.invoiceMonth, referenceMonth),
+          ),
+        )
+        .returning({ id: transactions.id });
+      return deleted.length > 0;
     },
   };
 }

@@ -170,4 +170,43 @@ describe('pagamento de fatura', () => {
     ).toBe(409);
     expect((await user.api('DELETE', `/v1/transactions/${payment.id}`)).statusCode).toBe(409);
   });
+
+  describe('desfazer o pagamento', () => {
+    const undo = (month: string, api = user.api) =>
+      api('DELETE', `/v1/credit-cards/${card.id}/invoices/${month}/payment`);
+
+    it('a fatura volta ao status pelas datas, o valor volta para a conta e as compras ao limite', async () => {
+      await pay('2026-11');
+
+      const response = await undo('2026-11');
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ status: 'overdue', total: 35_050, payment: null });
+      const balance = (await user.api('GET', `/v1/accounts/${account.id}`)).json<AccountDto>();
+      const usage = (await user.api('GET', `/v1/credit-cards/${card.id}`)).json<CreditCardDto>();
+      expect(balance.currentBalance).toBe(100_000);
+      expect(usage.usedLimit).toBe(45_040);
+    });
+
+    it('depois de desfeito, a fatura pode ser paga de novo', async () => {
+      await pay('2026-11');
+      await undo('2026-11');
+
+      expect((await pay('2026-11')).statusCode).toBe(201);
+    });
+
+    it('responde 409 para fatura sem pagamento', async () => {
+      expectConflict(await undo('2026-11'), 'Esta fatura não tem pagamento para desfazer.');
+    });
+
+    it('não desfaz o pagamento no cartão de outro usuário', async () => {
+      await pay('2026-11');
+      const other = await signUp(app);
+
+      expect((await undo('2026-11', other.api)).statusCode).toBe(404);
+      expect(
+        (await user.api('GET', `/v1/credit-cards/${card.id}/invoices/2026-11`)).json(),
+      ).toMatchObject({ status: 'paid' });
+    });
+  });
 });

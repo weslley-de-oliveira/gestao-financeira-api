@@ -43,6 +43,11 @@ export interface InvoicesService {
    * vencida, com compras e sem pagamento (senão, `InvoiceNotPayableError`). Devolve a fatura paga.
    */
   pay(userId: string, creditCardId: string, referenceMonth: IsoMonth): Promise<Invoice>;
+  /**
+   * Desfaz o pagamento: o valor volta para a conta, as compras voltam a ocupar o limite e a fatura
+   * volta ao status pelas datas. Sem pagamento → `InvoiceNotPayableError`. Devolve a fatura.
+   */
+  undoPayment(userId: string, creditCardId: string, referenceMonth: IsoMonth): Promise<Invoice>;
 }
 
 export function createInvoicesService({
@@ -112,6 +117,15 @@ export function createInvoicesService({
       if (!payment) {
         // Outro pagamento da mesma fatura entrou entre a consulta e a gravação.
         throw new InvoiceNotPayableError('Esta fatura já foi paga.');
+      }
+      return get(userId, creditCardId, referenceMonth);
+    },
+
+    async undoPayment(userId, creditCardId, referenceMonth) {
+      // Garante que o cartão é do usuário antes de apagar.
+      await load(userId, creditCardId);
+      if (!(await invoices.deletePayment(userId, creditCardId, referenceMonth))) {
+        throw new InvoiceNotPayableError('Esta fatura não tem pagamento para desfazer.');
       }
       return get(userId, creditCardId, referenceMonth);
     },
