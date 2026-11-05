@@ -76,7 +76,10 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(errorsPlugin);
   // Lê e grava cookies (sessão em `__Host-session`); sem assinatura: o token já é opaco e aleatório.
   await app.register(cookie);
-  await app.register(securityPlugin, { corsOrigins: env.CORS_ORIGINS });
+  await app.register(securityPlugin, {
+    corsOrigins: env.CORS_ORIGINS,
+    appOrigin: env.APP_ORIGIN,
+  });
   await app.register(rateLimitPlugin, { enabled: env.RATE_LIMIT_ENABLED });
   await app.register(databasePlugin, {
     url: env.DATABASE_URL,

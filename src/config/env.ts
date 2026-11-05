@@ -27,6 +27,14 @@ const envSchema = z.object({
         .filter(Boolean),
     )
     .pipe(z.array(z.url({ protocol: /^https?$/ }))),
+  // Endereço público do front em produção (ex.: https://app.vercel.app). Requisições que alteram
+  // dados só são aceitas dessa origem, das de CORS_ORIGINS ou da própria API. Vazio = nenhuma extra.
+  APP_ORIGIN: z
+    .string()
+    .trim()
+    .default('')
+    .pipe(z.union([z.literal(''), z.url({ protocol: /^https?$/ })]))
+    .transform((value) => value || null),
 });
 
 export type Env = z.infer<typeof envSchema>;
