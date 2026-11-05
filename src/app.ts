@@ -8,6 +8,7 @@ import Fastify, {
 } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import type { Env } from './config/env.ts';
+import { authRoutes } from './modules/auth/auth.routes.ts';
 import { healthRoutes } from './modules/health/health.routes.ts';
 import { databasePlugin } from './plugins/db.ts';
 import { docsPlugin } from './plugins/docs.ts';
@@ -79,6 +80,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   // A documentação precisa ser registrada antes das rotas, para enxergá-las.
   await app.register(docsPlugin, { enabled: env.DOCS_ENABLED });
   await app.register(healthRoutes);
+  await app.register(authRoutes, { prefix: '/v1/auth' });
 
   return app;
 }

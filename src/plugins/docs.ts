@@ -41,7 +41,10 @@ export const docsPlugin = fp<DocsOptions>(
             'API REST da Gestão Financeira. Erros seguem o formato Problem Details (RFC 9457); valores monetários em centavos inteiros.',
           version: packageJson.version,
         },
-        tags: [{ name: 'Operação', description: 'Saúde e prontidão da API.' }],
+        tags: [
+          { name: 'Operação', description: 'Saúde e prontidão da API.' },
+          { name: 'Autenticação', description: 'Cadastro, login, sessão e logout.' },
+        ],
       },
       transform: jsonSchemaTransform,
       transformObject: jsonSchemaTransformObject,
