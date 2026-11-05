@@ -17,8 +17,13 @@ Conventional Commits, validados pelo commitlint no hook `commit-msg`; o hook `pr
 
 ```bash
 npm install
+cp .env.example .env
 npm run dev
 ```
+
+## Variáveis de ambiente
+
+Copie `.env.example` para `.env` e ajuste os valores. Elas são validadas na inicialização (`src/config/env.ts`): se faltar alguma ou houver valor inválido, a API não sobe e informa quais estão erradas. O `.env` não é versionado.
 
 ## Scripts
 
