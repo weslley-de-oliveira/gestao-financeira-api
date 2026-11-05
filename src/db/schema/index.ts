@@ -3,4 +3,5 @@
 export * from './accounts.ts';
 export * from './categories.ts';
 export * from './sessions.ts';
+export * from './transactions.ts';
 export * from './users.ts';

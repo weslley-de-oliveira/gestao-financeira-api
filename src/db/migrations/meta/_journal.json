@@ -29,6 +29,20 @@
       "when": 1793899466794,
       "tag": "0003_cria-categories",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793901732270,
+      "tag": "0004_cria-transactions",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793902818169,
+      "tag": "0005_habilita-unaccent",
+      "breakpoints": true
     }
   ]
 }

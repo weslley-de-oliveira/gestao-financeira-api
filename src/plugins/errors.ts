@@ -1,7 +1,11 @@
 import sensible from '@fastify/sensible';
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
-import { DomainError, type DomainErrorKind } from '../shared/errors/domain-error.ts';
+import {
+  DomainError,
+  InvalidInputError,
+  type DomainErrorKind,
+} from '../shared/errors/domain-error.ts';
 import {
   PROBLEM_CONTENT_TYPE,
   VALIDATION_PROBLEM_TYPE,
@@ -28,6 +32,7 @@ const DOMAIN_ERROR_STATUS: Readonly<Record<DomainErrorKind, number>> = {
   unauthorized: 401,
   'not-found': 404,
   conflict: 409,
+  invalid: 422,
 };
 
 /**
@@ -50,6 +55,15 @@ export const errorsPlugin = fp(
             field: fieldPath(error.validationContext, issue.instancePath, issue.params),
             message: issue.message ?? 'Valor inválido.',
           })),
+        });
+      }
+
+      if (error instanceof InvalidInputError) {
+        return sendProblem(request, reply, {
+          status: 422,
+          type: VALIDATION_PROBLEM_TYPE,
+          detail: error.message,
+          errors: error.fields.map(({ field, message }) => ({ field: `body.${field}`, message })),
         });
       }
 

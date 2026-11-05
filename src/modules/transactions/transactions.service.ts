@@ -1,0 +1,280 @@
+import type { Transaction } from '../../db/schema/index.ts';
+import type { Page } from '../../shared/http/pagination.ts';
+import {
+  DomainError,
+  InvalidInputError,
+  type InvalidField,
+} from '../../shared/errors/domain-error.ts';
+import type { AccountsRepository } from '../accounts/accounts.repository.ts';
+import type { CategoriesRepository } from '../categories/categories.repository.ts';
+import type { TransactionsRepository } from './transactions.repository.ts';
+import {
+  createTransactionBodySchema,
+  type CreateEntryInput,
+  type CreateTransactionInput,
+  type CreateTransferInput,
+  type ListTransactionsQuery,
+  type UpdateTransactionInput,
+} from './transactions.schemas.ts';
+
+/** Transação inexistente ou de outro usuário: a mesma resposta, para não revelar o que existe. */
+export class TransactionNotFoundError extends DomainError {
+  readonly kind = 'not-found';
+
+  constructor() {
+    super('Transação não encontrada.');
+  }
+}
+
+/** O pagamento de fatura só é feito e desfeito pelas rotas de faturas, que mantêm a fatura certa. */
+export class InvoicePaymentNotEditableError extends DomainError {
+  readonly kind = 'conflict';
+
+  constructor() {
+    super('Pagamentos de fatura não são alterados por aqui: desfaça o pagamento pela fatura.');
+  }
+}
+
+/** Conta ou categoria arquivada numa transação nova (ou trocada na edição). */
+export class ArchivedReferenceError extends DomainError {
+  readonly kind = 'conflict';
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+export interface TransactionsServiceDependencies {
+  transactions: TransactionsRepository;
+  accounts: AccountsRepository;
+  categories: CategoriesRepository;
+}
+
+export interface TransactionsService {
+  /** Uma página das transações do usuário que passam nos filtros, das mais recentes às antigas. */
+  list(userId: string, query: ListTransactionsQuery): Promise<Page<Transaction>>;
+  /** Transação do usuário; inexistente ou de outro usuário → `TransactionNotFoundError`. */
+  get(userId: string, transactionId: string): Promise<Transaction>;
+  /**
+   * Cria a receita, a despesa ou a transferência. Contas e categoria precisam ser do usuário, e a
+   * categoria do mesmo tipo da transação; senão → `InvalidInputError` com os campos. Conta ou
+   * categoria arquivada → `ArchivedReferenceError`.
+   */
+  create(userId: string, input: CreateTransactionInput): Promise<Transaction>;
+  /**
+   * Aplica os campos enviados e valida o resultado com as regras do cadastro. Pagamento de fatura
+   * → `InvoicePaymentNotEditableError`.
+   */
+  update(
+    userId: string,
+    transactionId: string,
+    changes: UpdateTransactionInput,
+  ): Promise<Transaction>;
+  /** Apaga a transação. Pagamento de fatura → `InvoicePaymentNotEditableError`. */
+  remove(userId: string, transactionId: string): Promise<void>;
+}
+
+export function createTransactionsService({
+  transactions,
+  accounts,
+  categories,
+}: TransactionsServiceDependencies): TransactionsService {
+  async function get(userId: string, transactionId: string): Promise<Transaction> {
+    const transaction = await transactions.findTransaction(userId, transactionId);
+    if (!transaction) {
+      throw new TransactionNotFoundError();
+    }
+    return transaction;
+  }
+
+  /** Transação que pode ser alterada ou apagada por aqui. */
+  async function getEditable(userId: string, transactionId: string): Promise<Transaction> {
+    const transaction = await get(userId, transactionId);
+    if (transaction.type === 'invoice-payment') {
+      throw new InvoicePaymentNotEditableError();
+    }
+    return transaction;
+  }
+
+  /**
+   * Problemas das referências de uma transação: as inexistentes (ou de outro usuário, que
+   * respondem igual, sem revelar que existem) e as arquivadas.
+   */
+  interface ReferenceCheck {
+    invalid: InvalidField[];
+    archived: string[];
+  }
+
+  /**
+   * Na edição, as referências que a transação já tinha continuam valendo mesmo se arquivadas
+   * depois (como no front): só uma conta ou categoria *nova* precisa estar ativa.
+   */
+  async function checkAccount(
+    check: ReferenceCheck,
+    userId: string,
+    reference: { id: string; field: string; label: string },
+    previous: Transaction | undefined,
+  ): Promise<void> {
+    const account = await accounts.findAccount(userId, reference.id);
+    const label = reference.label ? `conta ${reference.label}` : 'conta';
+    if (!account) {
+      check.invalid.push({
+        field: reference.field,
+        message: `${capitalize(label)} não encontrada.`,
+      });
+    } else if (
+      account.isArchived &&
+      account.id !== previous?.accountId &&
+      account.id !== previous?.destinationAccountId
+    ) {
+      check.archived.push(
+        `A ${label} "${account.name}" está arquivada. Reative-a para lançar nela.`,
+      );
+    }
+  }
+
+  async function checkEntry(
+    check: ReferenceCheck,
+    userId: string,
+    input: CreateEntryInput,
+    previous: Transaction | undefined,
+  ): Promise<void> {
+    const [category] = await Promise.all([
+      categories.findCategory(userId, input.categoryId),
+      checkAccount(check, userId, { id: input.accountId, field: 'accountId', label: '' }, previous),
+    ]);
+    if (!category) {
+      check.invalid.push({ field: 'categoryId', message: 'Categoria não encontrada.' });
+    } else if (category.type !== input.type) {
+      check.invalid.push({
+        field: 'categoryId',
+        message: `Selecione uma categoria de ${input.type === 'income' ? 'receita' : 'despesa'}.`,
+      });
+    } else if (category.isArchived && category.id !== previous?.categoryId) {
+      check.archived.push(`A categoria "${category.name}" está arquivada. Reative-a para usá-la.`);
+    }
+  }
+
+  async function checkTransfer(
+    check: ReferenceCheck,
+    userId: string,
+    input: CreateTransferInput,
+    previous: Transaction | undefined,
+  ): Promise<void> {
+    await Promise.all([
+      checkAccount(
+        check,
+        userId,
+        { id: input.accountId, field: 'accountId', label: 'de origem' },
+        previous,
+      ),
+      checkAccount(
+        check,
+        userId,
+        { id: input.destinationAccountId, field: 'destinationAccountId', label: 'de destino' },
+        previous,
+      ),
+    ]);
+  }
+
+  /**
+   * Contas e categoria inexistentes → `InvalidInputError` (422, por campo); se todas existem, uma
+   * arquivada → `ArchivedReferenceError` (409).
+   */
+  async function checkReferences(
+    userId: string,
+    input: CreateTransactionInput,
+    previous?: Transaction,
+  ): Promise<void> {
+    const check: ReferenceCheck = { invalid: [], archived: [] };
+    if (input.type === 'transfer') {
+      await checkTransfer(check, userId, input, previous);
+    } else {
+      await checkEntry(check, userId, input, previous);
+    }
+    // Campos na ordem do corpo, independente de qual consulta terminou primeiro.
+    const order = ['accountId', 'destinationAccountId', 'categoryId'];
+    if (check.invalid.length > 0) {
+      throw new InvalidInputError(
+        check.invalid.toSorted((a, b) => order.indexOf(a.field) - order.indexOf(b.field)),
+      );
+    }
+    const [archived] = check.archived;
+    if (archived) {
+      throw new ArchivedReferenceError(archived);
+    }
+  }
+
+  /**
+   * Junta a transação atual com os campos enviados, deixando só os que servem ao tipo final, e
+   * valida com o schema do cadastro (forma, limites, contas diferentes na transferência...).
+   */
+  function mergeChanges(
+    current: Transaction,
+    changes: UpdateTransactionInput,
+  ): CreateTransactionInput {
+    const merged = {
+      type: changes.type ?? current.type,
+      description: changes.description ?? current.description,
+      amount: changes.amount ?? current.amount,
+      date: changes.date ?? current.date,
+      accountId: changes.accountId ?? current.accountId,
+      status: changes.status ?? current.status,
+      notes: changes.notes === undefined ? current.notes : changes.notes,
+    };
+    const candidate =
+      merged.type === 'transfer'
+        ? {
+            ...merged,
+            destinationAccountId: changes.destinationAccountId ?? current.destinationAccountId,
+          }
+        : { ...merged, categoryId: changes.categoryId ?? current.categoryId };
+
+    const result = createTransactionBodySchema.safeParse(candidate);
+    if (!result.success) {
+      throw new InvalidInputError(
+        result.error.issues.map((issue) => ({
+          field: issue.path.map(String).join('.') || 'type',
+          message: issue.message,
+        })),
+      );
+    }
+    return result.data;
+  }
+
+  return {
+    list(userId, query) {
+      return transactions.listTransactions(userId, query);
+    },
+
+    get,
+
+    async create(userId, input) {
+      await checkReferences(userId, input);
+      return transactions.insertTransaction({ ...input, userId });
+    },
+
+    async update(userId, transactionId, changes) {
+      const current = await getEditable(userId, transactionId);
+      const next = mergeChanges(current, changes);
+      await checkReferences(userId, next, current);
+      const updated = await transactions.updateTransaction(userId, transactionId, {
+        // Os campos que o novo tipo não usa voltam a ser nulos.
+        categoryId: null,
+        destinationAccountId: null,
+        ...next,
+      });
+      if (!updated) {
+        throw new TransactionNotFoundError();
+      }
+      return updated;
+    },
+
+    async remove(userId, transactionId) {
+      await getEditable(userId, transactionId);
+      if (!(await transactions.deleteTransaction(userId, transactionId))) {
+        throw new TransactionNotFoundError();
+      }
+    },
+  };
+}
