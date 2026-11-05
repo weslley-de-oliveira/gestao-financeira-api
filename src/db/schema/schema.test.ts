@@ -2,7 +2,16 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { afterAll, describe, expect, inject, it } from 'vitest';
 import { createDatabase } from '../client.ts';
-import { accounts, sessions, users, type NewAccount, type NewUser } from './index.ts';
+import { categoryNameKey } from '../../modules/categories/category-name.ts';
+import {
+  accounts,
+  categories,
+  sessions,
+  users,
+  type NewAccount,
+  type NewCategory,
+  type NewUser,
+} from './index.ts';
 
 // Os arquivos de teste rodam em paralelo no mesmo banco: cada teste usa e-mails próprios em vez
 // de limpar as tabelas.
@@ -175,6 +184,106 @@ describe('tabela accounts', () => {
     await db.delete(users).where(eq(users.id, account.userId));
 
     const remaining = await db.select().from(accounts).where(eq(accounts.userId, account.userId));
+    expect(remaining).toEqual([]);
+  });
+});
+
+describe('tabela categories', () => {
+  /** Categoria com o nome já normalizado, como a API vai gravar. */
+  function category(userId: string, overrides: Partial<NewCategory> = {}): NewCategory {
+    const name = overrides.name ?? 'Alimentação';
+    return {
+      userId,
+      name,
+      nameNormalized: categoryNameKey(name),
+      type: 'expense',
+      icon: 'restaurant',
+      color: '#c62828',
+      ...overrides,
+    };
+  }
+
+  const uniqueViolation = {
+    cause: { code: '23505', constraint: 'categories_user_type_name_unique' },
+  };
+  const violation = (constraint: string) => ({ cause: { code: '23514', constraint } });
+
+  it('grava como categoria do usuário, ativa e não padrão', async () => {
+    const user = await insertUser();
+
+    const [created] = await db.insert(categories).values(category(user.id)).returning();
+
+    expect(created).toMatchObject({
+      nameNormalized: 'alimentacao',
+      isDefault: false,
+      isArchived: false,
+    });
+  });
+
+  it('rejeita nome repetido no mesmo tipo, sem diferenciar acentos, maiúsculas e espaços', async () => {
+    const user = await insertUser();
+    await db.insert(categories).values(category(user.id, { name: 'Alimentação' }));
+
+    await expect(
+      db.insert(categories).values(category(user.id, { name: '  ALIMENTACAO ' })),
+    ).rejects.toMatchObject(uniqueViolation);
+  });
+
+  it('conta as arquivadas na unicidade', async () => {
+    const user = await insertUser();
+    await db.insert(categories).values(category(user.id, { isArchived: true }));
+
+    await expect(db.insert(categories).values(category(user.id))).rejects.toMatchObject(
+      uniqueViolation,
+    );
+  });
+
+  it('aceita o mesmo nome em outro tipo ou para outro usuário', async () => {
+    const user = await insertUser();
+    const other = await insertUser();
+    await db.insert(categories).values(category(user.id, { name: 'Outros' }));
+
+    await db
+      .insert(categories)
+      .values([
+        category(user.id, { name: 'Outros', type: 'income', icon: 'more_horiz' }),
+        category(other.id, { name: 'Outros' }),
+      ]);
+
+    const rows = await db.select().from(categories).where(eq(categories.nameNormalized, 'outros'));
+    expect(rows.filter((row) => [user.id, other.id].includes(row.userId))).toHaveLength(3);
+  });
+
+  it.each([
+    ['nome vazio', { name: '', nameNormalized: 'x' }, 'categories_name_length'],
+    [
+      'nome com mais de 40 caracteres',
+      { name: 'a'.repeat(41), nameNormalized: 'a'.repeat(41) },
+      'categories_name_length',
+    ],
+    ['nome normalizado vazio', { nameNormalized: '' }, 'categories_name_normalized_not_empty'],
+    ['tipo desconhecido', { type: 'transfer' as NewCategory['type'] }, 'categories_type_valid'],
+    ['cor fora da paleta', { color: '#000000' }, 'categories_color_valid'],
+    [
+      'ícone de conta, fora da lista de categorias',
+      { icon: 'account_balance' },
+      'categories_icon_valid',
+    ],
+  ])('rejeita %s', async (_case, overrides, constraint) => {
+    const user = await insertUser();
+
+    await expect(db.insert(categories).values(category(user.id, overrides))).rejects.toMatchObject(
+      violation(constraint),
+    );
+  });
+
+  it('apaga as categorias junto com o usuário', async () => {
+    const user = await insertUser();
+    await db.insert(categories).values(category(user.id));
+
+    await db.delete(users).where(eq(users.id, user.id));
+
+    const remaining = await db.select().from(categories).where(eq(categories.userId, user.id));
     expect(remaining).toEqual([]);
   });
 });

@@ -22,6 +22,13 @@
       "when": 1793897704630,
       "tag": "0002_cria-accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793899466794,
+      "tag": "0003_cria-categories",
+      "breakpoints": true
     }
   ]
 }
