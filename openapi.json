@@ -46,6 +46,73 @@
         },
         "required": ["type", "title", "status", "detail", "instance", "requestId"]
       },
+      "AccountInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["checking", "savings", "cash", "investment", "other"],
+            "description": "Tipo da conta: `checking` (corrente), `savings` (poupança), `cash` (dinheiro), `investment` (investimento) ou `other`."
+          },
+          "institution": { "type": ["string", "null"] },
+          "initialBalance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Saldo inicial em centavos; pode ser negativo."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "#1565c0",
+              "#2e7d32",
+              "#6a1b9a",
+              "#c62828",
+              "#ef6c00",
+              "#00838f",
+              "#ad1457",
+              "#546e7a"
+            ]
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "account_balance",
+              "account_balance_wallet",
+              "savings",
+              "payments",
+              "trending_up",
+              "credit_card",
+              "store",
+              "home"
+            ],
+            "description": "Ícone do Material Symbols."
+          },
+          "isArchived": { "type": "boolean" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "institution",
+          "initialBalance",
+          "color",
+          "icon",
+          "isArchived",
+          "createdAt"
+        ]
+      },
       "UserInput": {
         "type": "object",
         "properties": {
@@ -103,6 +170,74 @@
           }
         },
         "required": ["type", "title", "status", "detail", "instance", "requestId"],
+        "additionalProperties": false
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["checking", "savings", "cash", "investment", "other"],
+            "description": "Tipo da conta: `checking` (corrente), `savings` (poupança), `cash` (dinheiro), `investment` (investimento) ou `other`."
+          },
+          "institution": { "type": ["string", "null"] },
+          "initialBalance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Saldo inicial em centavos; pode ser negativo."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "#1565c0",
+              "#2e7d32",
+              "#6a1b9a",
+              "#c62828",
+              "#ef6c00",
+              "#00838f",
+              "#ad1457",
+              "#546e7a"
+            ]
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "account_balance",
+              "account_balance_wallet",
+              "savings",
+              "payments",
+              "trending_up",
+              "credit_card",
+              "store",
+              "home"
+            ],
+            "description": "Ícone do Material Symbols."
+          },
+          "isArchived": { "type": "boolean" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "institution",
+          "initialBalance",
+          "color",
+          "icon",
+          "isArchived",
+          "createdAt"
+        ],
         "additionalProperties": false
       },
       "User": {
@@ -322,10 +457,94 @@
           }
         }
       }
+    },
+    "/v1/accounts": {
+      "get": {
+        "summary": "Lista as contas",
+        "tags": ["Contas"],
+        "description": "Contas do usuário em ordem alfabética. Por padrão, só as ativas.",
+        "parameters": [
+          {
+            "schema": { "default": "false", "type": "string", "enum": ["true", "false"] },
+            "in": "query",
+            "name": "includeArchived",
+            "required": false,
+            "description": "Inclui as contas arquivadas na lista (padrão: só as ativas)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Account" } }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/accounts/{id}": {
+      "get": {
+        "summary": "Detalha uma conta",
+        "tags": ["Contas"],
+        "description": "Conta inexistente ou de outro usuário responde 404.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Account" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
     }
   },
   "tags": [
     { "name": "Operação", "description": "Saúde e prontidão da API." },
-    { "name": "Autenticação", "description": "Cadastro, login, sessão e logout." }
+    { "name": "Autenticação", "description": "Cadastro, login, sessão e logout." },
+    { "name": "Contas", "description": "Contas bancárias, carteiras e investimentos." }
   ]
 }

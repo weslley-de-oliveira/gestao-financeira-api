@@ -9,6 +9,7 @@ import Fastify, {
 } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import type { Env } from './config/env.ts';
+import { accountsRoutes } from './modules/accounts/accounts.routes.ts';
 import { authRoutes } from './modules/auth/auth.routes.ts';
 import { healthRoutes } from './modules/health/health.routes.ts';
 import { authPlugin } from './plugins/auth.ts';
@@ -91,6 +92,7 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   await app.register(docsPlugin, { enabled: env.DOCS_ENABLED });
   await app.register(healthRoutes);
   await app.register(authRoutes, { prefix: '/v1/auth' });
+  await app.register(accountsRoutes, { prefix: '/v1/accounts' });
 
   return app;
 }

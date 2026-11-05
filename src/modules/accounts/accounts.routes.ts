@@ -1,0 +1,61 @@
+import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
+import { currentAuth, requireSession } from '../../plugins/auth.ts';
+import { problemDetailsSchema } from '../../shared/http/problem.ts';
+import { createAccountsRepository } from './accounts.repository.ts';
+import {
+  accountListSchema,
+  accountParamsSchema,
+  accountSchema,
+  listAccountsQuerySchema,
+  toAccountDto,
+} from './accounts.schemas.ts';
+import { createAccountsService } from './accounts.service.ts';
+
+export const ACCOUNTS_TAG = 'Contas';
+
+/** Rotas de contas, registradas com o prefixo `/v1/accounts`. Todas exigem sessão. */
+export const accountsRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
+  requireSession(app);
+  const service = createAccountsService(createAccountsRepository(app.db));
+
+  app.get(
+    '',
+    {
+      schema: {
+        tags: [ACCOUNTS_TAG],
+        summary: 'Lista as contas',
+        description: 'Contas do usuário em ordem alfabética. Por padrão, só as ativas.',
+        querystring: listAccountsQuerySchema,
+        response: { 200: accountListSchema, 401: problemDetailsSchema, 422: problemDetailsSchema },
+      },
+    },
+    async (request) => {
+      const accounts = await service.list(currentAuth(request).user.id, request.query);
+      return accounts.map(toAccountDto);
+    },
+  );
+
+  app.get(
+    '/:id',
+    {
+      schema: {
+        tags: [ACCOUNTS_TAG],
+        summary: 'Detalha uma conta',
+        description: 'Conta inexistente ou de outro usuário responde 404.',
+        params: accountParamsSchema,
+        response: {
+          200: accountSchema,
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request) => {
+      const account = await service.get(currentAuth(request).user.id, request.params.id);
+      return toAccountDto(account);
+    },
+  );
+
+  done();
+};
