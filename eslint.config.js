@@ -22,6 +22,8 @@ export default defineConfig(
       // Imports de tipo explícitos: exigidos pela execução nativa de TypeScript do Node.
       '@typescript-eslint/consistent-type-imports': 'error',
       '@typescript-eslint/no-floating-promises': 'error',
+      // Handlers e plugins async sem await são o padrão do Fastify (o retorno vira a resposta).
+      '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       eqeqeq: ['error', 'always'],
     },
