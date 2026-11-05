@@ -1,4 +1,5 @@
 import { randomUUID, randomUUIDv7 } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestApp } from '../../../test/helpers/app.ts';
@@ -179,6 +180,279 @@ describe('rotas /v1/categories', () => {
 
     it('responde 401 sem sessão', async () => {
       expect((await get(`/v1/categories/${randomUUIDv7()}`)).statusCode).toBe(401);
+    });
+  });
+
+  const send = (
+    method: 'POST' | 'PATCH',
+    url: string,
+    payload: Record<string, unknown>,
+    token?: string,
+  ) =>
+    app.inject({
+      method,
+      url,
+      payload,
+      ...(token && { cookies: { [SESSION_COOKIE]: token } }),
+    });
+
+  const validCategory = {
+    name: 'Alimentação',
+    type: 'expense',
+    icon: 'restaurant',
+    color: '#c62828',
+  };
+
+  const create = async (token: string, overrides: Record<string, unknown> = {}) =>
+    send('POST', '/v1/categories', { ...validCategory, ...overrides }, token);
+
+  async function storedCategory(id: string) {
+    const [category] = await app.db.select().from(categories).where(eq(categories.id, id));
+    return category;
+  }
+
+  function expectConflict(response: Awaited<ReturnType<typeof get>>, detail: string) {
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ status: 409, title: 'Conflito', detail });
+  }
+
+  describe('POST /v1/categories', () => {
+    it('cadastra a categoria do usuário, não padrão, e grava o nome normalizado', async () => {
+      const { userId, token } = await signUp();
+
+      const response = await create(token, { name: '  Lazer   e  Diversão ' });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<CategoryDto>();
+      expect(body).toMatchObject({
+        ...validCategory,
+        name: 'Lazer e Diversão',
+        isDefault: false,
+        isArchived: false,
+      });
+      expect(await storedCategory(body.id)).toMatchObject({
+        userId,
+        nameNormalized: 'lazer e diversao',
+      });
+    });
+
+    it('responde 409 para nome repetido no tipo, sem diferenciar acentos, maiúsculas e espaços', async () => {
+      const { token } = await signUp();
+      await create(token);
+
+      const response = await create(token, { name: '  ALIMENTACAO ' });
+
+      expectConflict(response, 'Já existe uma categoria de despesa com este nome.');
+    });
+
+    it('sugere reativar quando a categoria com o nome está arquivada', async () => {
+      const { userId, token } = await signUp();
+      await insertCategory(userId, {
+        name: 'Salário',
+        type: 'income',
+        icon: 'work',
+        isArchived: true,
+      });
+
+      const response = await create(token, { name: 'salario', type: 'income', icon: 'work' });
+
+      expectConflict(
+        response,
+        'Já existe uma categoria de receita arquivada com este nome. Reative-a em vez de criar outra.',
+      );
+    });
+
+    it('aceita o mesmo nome no outro tipo e para outro usuário', async () => {
+      const { token } = await signUp();
+      const other = await signUp();
+      await create(token, { name: 'Outros', icon: 'more_horiz' });
+
+      const otherType = await create(token, { name: 'Outros', type: 'income', icon: 'more_horiz' });
+      const otherUser = await create(other.token, { name: 'Outros', icon: 'more_horiz' });
+
+      expect(otherType.statusCode).toBe(201);
+      expect(otherUser.statusCode).toBe(201);
+    });
+
+    it('cadastros simultâneos com o mesmo nome: um entra, o outro recebe 409', async () => {
+      const { token } = await signUp();
+
+      const responses = await Promise.all([create(token), create(token, { name: 'alimentacao' })]);
+
+      expect(responses.map((response) => response.statusCode).sort()).toEqual([201, 409]);
+    });
+
+    it.each([
+      ['nome vazio', { name: '   ' }, 'body.name', 'Informe o nome da categoria.'],
+      [
+        'nome com mais de 40 caracteres',
+        { name: 'a'.repeat(41) },
+        'body.name',
+        'O nome deve ter no máximo 40 caracteres.',
+      ],
+      ['tipo desconhecido', { type: 'transfer' }, 'body.type', 'Selecione despesa ou receita.'],
+      ['cor fora da paleta', { color: '#000000' }, 'body.color', 'Selecione uma cor válida.'],
+      ['ícone de conta', { icon: 'account_balance' }, 'body.icon', 'Selecione um ícone válido.'],
+    ])('responde 422 para %s', async (_case, override, field, message) => {
+      const { token } = await signUp();
+
+      const response = await create(token, override);
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json()).toMatchObject({ errors: [{ field, message }] });
+    });
+
+    it('conta o limite de 40 caracteres depois de remover os espaços extras', async () => {
+      const { token } = await signUp();
+
+      const response = await create(token, { name: `  ${'a'.repeat(20)}    ${'b'.repeat(19)}  ` });
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json<CategoryDto>().name).toHaveLength(40);
+    });
+
+    it.each([['userId'], ['isDefault'], ['isArchived'], ['nameNormalized']])(
+      'responde 422 se o corpo tentar definir %s',
+      async (field) => {
+        const { token } = await signUp();
+
+        const response = await create(token, {
+          [field]: field === 'userId' ? randomUUIDv7() : true,
+        });
+
+        expect(response.statusCode).toBe(422);
+      },
+    );
+
+    it('responde 401 sem sessão', async () => {
+      expect((await send('POST', '/v1/categories', validCategory)).statusCode).toBe(401);
+    });
+  });
+
+  describe('PATCH /v1/categories/:id', () => {
+    async function createdCategory(token: string, name = 'Alimentação'): Promise<CategoryDto> {
+      return (await create(token, { name })).json<CategoryDto>();
+    }
+
+    const patch = (id: string, body: Record<string, unknown>, token?: string) =>
+      send('PATCH', `/v1/categories/${id}`, body, token);
+
+    it('altera nome, ícone e cor, atualizando o nome normalizado', async () => {
+      const { token } = await signUp();
+      const category = await createdCategory(token);
+
+      const response = await patch(
+        category.id,
+        { name: ' Comida  fora ', icon: 'shopping_bag', color: '#2e7d32' },
+        token,
+      );
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({
+        ...category,
+        name: 'Comida fora',
+        icon: 'shopping_bag',
+        color: '#2e7d32',
+      });
+      expect((await storedCategory(category.id))?.nameNormalized).toBe('comida fora');
+    });
+
+    it('permite mudar só a grafia do próprio nome', async () => {
+      const { token } = await signUp();
+      const category = await createdCategory(token, 'alimentacao');
+
+      const response = await patch(category.id, { name: 'Alimentação' }, token);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json<CategoryDto>().name).toBe('Alimentação');
+    });
+
+    it('responde 409 para nome de outra categoria do mesmo tipo, sem alterar nada', async () => {
+      const { token } = await signUp();
+      await createdCategory(token, 'Mercado');
+      const category = await createdCategory(token, 'Alimentação');
+
+      const response = await patch(category.id, { name: 'MERCADO', color: '#2e7d32' }, token);
+
+      expectConflict(response, 'Já existe uma categoria de despesa com este nome.');
+      expect(await storedCategory(category.id)).toMatchObject({
+        name: 'Alimentação',
+        color: '#c62828',
+      });
+    });
+
+    it('sugere reativar quando o nome é de uma categoria arquivada', async () => {
+      const { userId, token } = await signUp();
+      await insertCategory(userId, { name: 'Antiga', isArchived: true });
+      const category = await createdCategory(token);
+
+      const response = await patch(category.id, { name: 'antiga' }, token);
+
+      expectConflict(
+        response,
+        'Já existe uma categoria de despesa arquivada com este nome. Reative-a em vez de criar outra.',
+      );
+    });
+
+    it.each([['income'], ['expense']])(
+      'responde 422 se tentar mudar o tipo (type=%s)',
+      async (type) => {
+        const { token } = await signUp();
+        const category = await createdCategory(token);
+
+        const response = await patch(category.id, { type }, token);
+
+        expect(response.statusCode).toBe(422);
+        expect(response.json()).toMatchObject({
+          errors: [{ field: 'body.type', message: 'O tipo da categoria não pode ser alterado.' }],
+        });
+        expect((await storedCategory(category.id))?.type).toBe('expense');
+      },
+    );
+
+    it('com corpo vazio, devolve a categoria sem alterar', async () => {
+      const { token } = await signUp();
+      const category = await createdCategory(token);
+
+      const response = await patch(category.id, {}, token);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual(category);
+    });
+
+    it.each([
+      ['name', null],
+      ['isDefault', true],
+      ['userId', randomUUIDv7()],
+    ])('responde 422 para %s = %s', async (field, value) => {
+      const { token } = await signUp();
+      const category = await createdCategory(token);
+
+      expect((await patch(category.id, { [field]: value }, token)).statusCode).toBe(422);
+    });
+
+    it('responde 404 para categoria de outro usuário, sem alterá-la', async () => {
+      const owner = await signUp();
+      const category = await createdCategory(owner.token);
+      const { token } = await signUp();
+
+      for (const body of [{ name: 'Invadida' }, {}]) {
+        const response = await patch(category.id, body, token);
+
+        expect(response.statusCode).toBe(404);
+        expect(response.json()).toMatchObject({ detail: 'Categoria não encontrada.' });
+      }
+      expect((await storedCategory(category.id))?.name).toBe('Alimentação');
+    });
+
+    it('responde 404 para categoria inexistente', async () => {
+      const { token } = await signUp();
+
+      expect((await patch(randomUUIDv7(), { name: 'Qualquer' }, token)).statusCode).toBe(404);
+    });
+
+    it('responde 401 sem sessão', async () => {
+      expect((await patch(randomUUIDv7(), { name: 'Qualquer' })).statusCode).toBe(401);
     });
   });
 });

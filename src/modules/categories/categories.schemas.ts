@@ -1,8 +1,13 @@
 import { z } from 'zod';
 import type { Category } from '../../db/schema/index.ts';
 import { APPEARANCE_COLORS } from '../../shared/models/appearance.ts';
+import { collapseWhitespace } from '../../shared/utils/text.ts';
 import { booleanQueryParam } from '../../shared/validation/query.ts';
-import { CATEGORY_ICONS, CATEGORY_TYPES } from './categories.constants.ts';
+import {
+  CATEGORY_ICONS,
+  CATEGORY_NAME_MAX_LENGTH,
+  CATEGORY_TYPES,
+} from './categories.constants.ts';
 
 export const categoryTypeSchema = z
   .enum(CATEGORY_TYPES, 'Selecione despesa ou receita.')
@@ -47,6 +52,40 @@ export const listCategoriesQuerySchema = z.object({
 });
 
 export type ListCategoriesQuery = z.infer<typeof listCategoriesQuerySchema>;
+
+/** Nome com os espaços extras removidos (como no front) antes de checar os limites. */
+const categoryNameSchema = z
+  .string('Informe o nome da categoria.')
+  .overwrite(collapseWhitespace)
+  .min(1, 'Informe o nome da categoria.')
+  .max(
+    CATEGORY_NAME_MAX_LENGTH,
+    `O nome deve ter no máximo ${CATEGORY_NAME_MAX_LENGTH} caracteres.`,
+  )
+  .meta({ example: 'Alimentação' });
+
+// `strictObject`: campos desconhecidos (ex.: `userId`, `isDefault`) são rejeitados com 422.
+export const createCategoryBodySchema = z.strictObject({
+  name: categoryNameSchema,
+  type: categoryTypeSchema,
+  icon: categoryIconSchema,
+  color: categoryColorSchema,
+});
+
+export type CreateCategoryInput = z.infer<typeof createCategoryBodySchema>;
+
+export const updateCategoryBodySchema = z.strictObject({
+  name: categoryNameSchema.optional(),
+  icon: categoryIconSchema.optional(),
+  color: categoryColorSchema.optional(),
+  // O tipo é fixo: as transações da categoria dependem dele. Enviá-lo é erro, com mensagem clara.
+  type: z
+    .never('O tipo da categoria não pode ser alterado.')
+    .optional()
+    .meta({ description: 'Não aceito: o tipo é definido na criação e não muda.' }),
+});
+
+export type UpdateCategoryInput = z.infer<typeof updateCategoryBodySchema>;
 
 export function toCategoryDto(category: Category): CategoryDto {
   return {

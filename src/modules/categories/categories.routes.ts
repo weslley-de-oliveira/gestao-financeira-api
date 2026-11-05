@@ -6,8 +6,10 @@ import {
   categoryListSchema,
   categoryParamsSchema,
   categorySchema,
+  createCategoryBodySchema,
   listCategoriesQuerySchema,
   toCategoryDto,
+  updateCategoryBodySchema,
 } from './categories.schemas.ts';
 import { createCategoriesService } from './categories.service.ts';
 
@@ -54,6 +56,58 @@ export const categoriesRoutes: FastifyPluginCallbackZod = (app, _options, done) 
     },
     async (request) => {
       const category = await service.get(currentAuth(request).user.id, request.params.id);
+      return toCategoryDto(category);
+    },
+  );
+
+  app.post(
+    '',
+    {
+      schema: {
+        tags: [CATEGORIES_TAG],
+        summary: 'Cadastra uma categoria',
+        description:
+          'O nome é único por tipo, sem diferenciar acentos, maiúsculas e espaços extras, contando as arquivadas: repetido responde 409.',
+        body: createCategoryBodySchema,
+        response: {
+          201: categorySchema,
+          401: problemDetailsSchema,
+          409: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const category = await service.create(currentAuth(request).user.id, request.body);
+      return reply.status(201).send(toCategoryDto(category));
+    },
+  );
+
+  app.patch(
+    '/:id',
+    {
+      schema: {
+        tags: [CATEGORIES_TAG],
+        summary: 'Edita uma categoria',
+        description:
+          'Altera só os campos enviados. O tipo não muda (enviá-lo responde 422). Nome já usado por outra categoria do mesmo tipo responde 409; categoria inexistente ou de outro usuário, 404.',
+        params: categoryParamsSchema,
+        body: updateCategoryBodySchema,
+        response: {
+          200: categorySchema,
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          409: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request) => {
+      const category = await service.update(
+        currentAuth(request).user.id,
+        request.params.id,
+        request.body,
+      );
       return toCategoryDto(category);
     },
   );

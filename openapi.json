@@ -919,6 +919,103 @@
             }
           }
         }
+      },
+      "post": {
+        "summary": "Cadastra uma categoria",
+        "tags": ["Categorias"],
+        "description": "O nome é único por tipo, sem diferenciar acentos, maiúsculas e espaços extras, contando as arquivadas: repetido responde 409.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40,
+                    "example": "Alimentação"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["expense", "income"],
+                    "description": "Tipo da categoria: `expense` (despesa) ou `income` (receita)."
+                  },
+                  "icon": {
+                    "type": "string",
+                    "enum": [
+                      "restaurant",
+                      "shopping_cart",
+                      "home",
+                      "directions_car",
+                      "directions_bus",
+                      "local_hospital",
+                      "school",
+                      "sports_esports",
+                      "shopping_bag",
+                      "receipt_long",
+                      "bolt",
+                      "wifi",
+                      "pets",
+                      "flight",
+                      "fitness_center",
+                      "checkroom",
+                      "work",
+                      "laptop",
+                      "trending_up",
+                      "card_giftcard",
+                      "payments",
+                      "more_horiz"
+                    ],
+                    "description": "Ícone do Material Symbols."
+                  },
+                  "color": {
+                    "type": "string",
+                    "enum": [
+                      "#1565c0",
+                      "#2e7d32",
+                      "#6a1b9a",
+                      "#c62828",
+                      "#ef6c00",
+                      "#00838f",
+                      "#ad1457",
+                      "#546e7a"
+                    ]
+                  }
+                },
+                "required": ["name", "type", "icon", "color"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Category" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
       }
     },
     "/v1/categories/{id}": {
@@ -952,6 +1049,119 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edita uma categoria",
+        "tags": ["Categorias"],
+        "description": "Altera só os campos enviados. O tipo não muda (enviá-lo responde 422). Nome já usado por outra categoria do mesmo tipo responde 409; categoria inexistente ou de outro usuário, 404.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40,
+                    "example": "Alimentação"
+                  },
+                  "icon": {
+                    "type": "string",
+                    "enum": [
+                      "restaurant",
+                      "shopping_cart",
+                      "home",
+                      "directions_car",
+                      "directions_bus",
+                      "local_hospital",
+                      "school",
+                      "sports_esports",
+                      "shopping_bag",
+                      "receipt_long",
+                      "bolt",
+                      "wifi",
+                      "pets",
+                      "flight",
+                      "fitness_center",
+                      "checkroom",
+                      "work",
+                      "laptop",
+                      "trending_up",
+                      "card_giftcard",
+                      "payments",
+                      "more_horiz"
+                    ],
+                    "description": "Ícone do Material Symbols."
+                  },
+                  "color": {
+                    "type": "string",
+                    "enum": [
+                      "#1565c0",
+                      "#2e7d32",
+                      "#6a1b9a",
+                      "#c62828",
+                      "#ef6c00",
+                      "#00838f",
+                      "#ad1457",
+                      "#546e7a"
+                    ]
+                  },
+                  "type": {
+                    "description": "Não aceito: o tipo é definido na criação e não muda.",
+                    "not": {}
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Category" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
             "description": "Default Response",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
