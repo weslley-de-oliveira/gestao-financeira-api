@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { Env } from './config/env.ts';
+import { databasePlugin } from './plugins/db.ts';
 import { errorsPlugin } from './plugins/errors.ts';
 import { securityPlugin } from './plugins/security.ts';
 import { REQUEST_ID_HEADER } from './shared/http/headers.ts';
@@ -46,6 +47,10 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
 
   await app.register(errorsPlugin);
   await app.register(securityPlugin, { corsOrigins: env.CORS_ORIGINS });
+  await app.register(databasePlugin, {
+    url: env.DATABASE_URL,
+    maxConnections: env.DATABASE_POOL_MAX,
+  });
 
   return app;
 }

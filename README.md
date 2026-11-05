@@ -12,12 +12,14 @@ Conventional Commits, validados pelo commitlint no hook `commit-msg`; o hook `pr
 
 - Node.js 26 (definido em `.nvmrc`)
 - npm 11
+- Docker (Postgres local via Docker Compose)
 
 ## Como executar
 
 ```bash
 npm install
 cp .env.example .env
+npm run db:up      # Postgres 17 na porta 5433
 npm run dev
 ```
 
@@ -33,6 +35,11 @@ Copie `.env.example` para `.env` e ajuste os valores. Elas são validadas na ini
 | `npm run build`        | Compila para `dist/`                                             |
 | `npm start`            | Executa a versão compilada                                       |
 | `npm run typecheck`    | Verifica os tipos sem gerar arquivos                             |
+| `npm run db:up`        | Sobe o Postgres local (Docker Compose) e espera ficar pronto     |
+| `npm run db:down`      | Para o Postgres local (os dados ficam no volume)                 |
+| `npm run db:generate`  | Gera uma migração SQL a partir das mudanças no schema            |
+| `npm run db:migrate`   | Aplica as migrações pendentes                                    |
+| `npm run db:studio`    | Abre o Drizzle Studio para inspecionar o banco                   |
 | `npm run lint`         | Executa o ESLint (com regras que usam os tipos)                  |
 | `npm run format`       | Formata o código com Prettier                                    |
 | `npm run format:check` | Verifica a formatação sem alterar arquivos                       |
