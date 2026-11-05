@@ -1,6 +1,9 @@
 import type { CreditCard } from '../../db/schema/index.ts';
 import { DomainError, InvalidInputError } from '../../shared/errors/domain-error.ts';
+import type { IsoDate } from '../../shared/utils/date.ts';
+import { invoiceCycleFor } from '../../shared/utils/invoice-cycle.ts';
 import type { AccountsRepository } from '../accounts/accounts.repository.ts';
+import type { CardUsage } from './card-usage.ts';
 import type { CreditCardsRepository } from './credit-cards.repository.ts';
 import {
   createCreditCardBodySchema,
@@ -29,32 +32,71 @@ export class ArchivedPaymentAccountError extends DomainError {
   }
 }
 
+/** Cartão com o uso do limite e a próxima fatura, calculados (não são guardados). */
+export type CreditCardWithUsage = CreditCard & CardUsage;
+
 export interface CreditCardsServiceDependencies {
   creditCards: CreditCardsRepository;
   accounts: AccountsRepository;
+  /** Data de hoje (`yyyy-MM-dd`): define qual é a fatura aberta. */
+  today: () => IsoDate;
 }
 
 export interface CreditCardsService {
-  list(userId: string, query: ListCreditCardsQuery): Promise<CreditCard[]>;
+  list(userId: string, query: ListCreditCardsQuery): Promise<CreditCardWithUsage[]>;
   /** Cartão do usuário; inexistente ou de outro usuário → `CreditCardNotFoundError`. */
-  get(userId: string, creditCardId: string): Promise<CreditCard>;
+  get(userId: string, creditCardId: string): Promise<CreditCardWithUsage>;
   /**
    * Cria o cartão. A conta de pagamento precisa ser do usuário (senão, `InvalidInputError`) e
    * estar ativa (senão, `ArchivedPaymentAccountError`).
    */
-  create(userId: string, input: CreateCreditCardInput): Promise<CreditCard>;
+  create(userId: string, input: CreateCreditCardInput): Promise<CreditCardWithUsage>;
   /**
    * Aplica os campos enviados e valida o resultado com as regras do cadastro. A conta de
    * pagamento que o cartão já tinha continua aceita mesmo se arquivada depois.
    */
-  update(userId: string, creditCardId: string, changes: UpdateCreditCardInput): Promise<CreditCard>;
+  update(
+    userId: string,
+    creditCardId: string,
+    changes: UpdateCreditCardInput,
+  ): Promise<CreditCardWithUsage>;
 }
 
 export function createCreditCardsService({
   creditCards,
   accounts,
+  today,
 }: CreditCardsServiceDependencies): CreditCardsService {
-  async function get(userId: string, creditCardId: string): Promise<CreditCard> {
+  /**
+   * Uso do limite com a regra de `calculateCardUsage`: utilizado = compras − faturas pagas (nunca
+   * negativo); próxima fatura = a aberta hoje, com as compras já lançadas nela.
+   */
+  async function withUsage(userId: string, cards: CreditCard[]): Promise<CreditCardWithUsage[]> {
+    const date = today();
+    const cycles = new Map(cards.map((card) => [card.id, invoiceCycleFor(card, date)]));
+    const totals = await creditCards.usageTotals(
+      userId,
+      [...cycles].map(([creditCardId, { start, end }]) => ({ creditCardId, start, end })),
+    );
+    return cards.map((card) => {
+      const cardTotals = totals.get(card.id) ?? { purchases: 0, payments: 0, cyclePurchases: 0 };
+      const usedLimit = Math.max(0, cardTotals.purchases - cardTotals.payments);
+      return {
+        ...card,
+        usedLimit,
+        availableLimit: card.creditLimit - usedLimit,
+        nextInvoice: { ...cycles.get(card.id)!, amount: cardTotals.cyclePurchases },
+      };
+    });
+  }
+
+  async function withOneUsage(userId: string, card: CreditCard): Promise<CreditCardWithUsage> {
+    const [result] = await withUsage(userId, [card]);
+    if (!result) throw new Error('Uso do cartão não calculado.');
+    return result;
+  }
+
+  async function find(userId: string, creditCardId: string): Promise<CreditCard> {
     const card = await creditCards.findCreditCard(userId, creditCardId);
     if (!card) {
       throw new CreditCardNotFoundError();
@@ -80,19 +122,21 @@ export function createCreditCardsService({
   }
 
   return {
-    list(userId, query) {
-      return creditCards.listCreditCards(userId, query);
+    async list(userId, query) {
+      return withUsage(userId, await creditCards.listCreditCards(userId, query));
     },
 
-    get,
+    async get(userId, creditCardId) {
+      return withOneUsage(userId, await find(userId, creditCardId));
+    },
 
     async create(userId, input) {
       await checkPaymentAccount(userId, input.paymentAccountId);
-      return creditCards.insertCreditCard({ ...input, userId });
+      return withOneUsage(userId, await creditCards.insertCreditCard({ ...input, userId }));
     },
 
     async update(userId, creditCardId, { isArchived, ...changes }) {
-      const current = await get(userId, creditCardId);
+      const current = await find(userId, creditCardId);
       // O resultado da edição precisa valer como um cadastro (ex.: dias diferentes).
       const result = createCreditCardBodySchema.safeParse({
         name: changes.name ?? current.name,
@@ -121,7 +165,7 @@ export function createCreditCardsService({
       if (!updated) {
         throw new CreditCardNotFoundError();
       }
-      return updated;
+      return withOneUsage(userId, updated);
     },
   };
 }

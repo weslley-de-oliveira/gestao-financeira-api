@@ -71,6 +71,10 @@ describe('rotas /v1/credit-cards', () => {
         id: expect.any(String) as unknown,
         isArchived: false,
         createdAt: expect.any(String) as unknown,
+        // Sem compras: nada usado e a próxima fatura vazia.
+        usedLimit: 0,
+        availableLimit: 500_000,
+        nextInvoice: expect.objectContaining({ amount: 0 }) as unknown,
       });
       expect((await stored(body.id))?.userId).toBe(user.userId);
     });
@@ -236,12 +240,20 @@ describe('rotas /v1/credit-cards', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      expect(response.json()).toEqual({
-        ...card,
+      const body = response.json<CreditCardDto>();
+      expect(body).toMatchObject({
+        id: card.id,
+        brand: card.brand,
+        lastFourDigits: card.lastFourDigits,
+        closingDay: card.closingDay,
+        paymentAccountId: card.paymentAccountId,
         name: 'Roxinho Black',
         creditLimit: 1_000_000,
         dueDay: 20,
+        availableLimit: 1_000_000,
       });
+      // A próxima fatura passa a vencer no novo dia.
+      expect(body.nextInvoice.dueDate.slice(8)).toBe('20');
     });
 
     it('não deixa o vencimento cair no dia do fechamento, mesmo trocando só um', async () => {

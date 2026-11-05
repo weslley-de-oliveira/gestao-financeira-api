@@ -22,6 +22,7 @@ export const creditCardsRoutes: FastifyPluginCallbackZod = (app, _options, done)
   const service = createCreditCardsService({
     creditCards: createCreditCardsRepository(app.db),
     accounts: createAccountsRepository(app.db),
+    today: () => app.today(),
   });
 
   app.get(

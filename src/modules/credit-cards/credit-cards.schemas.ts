@@ -4,6 +4,7 @@ import { APPEARANCE_COLORS } from '../../shared/models/appearance.ts';
 import { MAX_MONEY_CENTS } from '../../shared/utils/money.ts';
 import { collapseWhitespace } from '../../shared/utils/text.ts';
 import { booleanQueryParam } from '../../shared/validation/query.ts';
+import type { CardUsage } from './card-usage.ts';
 import {
   CARD_BRANDS,
   CREDIT_CARD_NAME_MAX_LENGTH,
@@ -22,6 +23,18 @@ function cardDaySchema(requiredMessage: string) {
     .max(MAX_CARD_DAY, `Informe um dia entre ${MIN_CARD_DAY} e ${MAX_CARD_DAY}.`);
 }
 
+/** Período de uma fatura: compras de `start` a `end`, fechamento e vencimento. */
+export const invoiceCycleSchema = z.object({
+  referenceMonth: z.string().meta({
+    description: 'Mês do vencimento (`yyyy-MM`): a "fatura de dezembro" vence em dezembro.',
+    example: '2026-12',
+  }),
+  start: z.iso.date().meta({ description: 'Primeiro dia de compras (o fechamento anterior).' }),
+  end: z.iso.date().meta({ description: 'Último dia de compras (a véspera do fechamento).' }),
+  closingDate: z.iso.date(),
+  dueDate: z.iso.date(),
+});
+
 /** Cartão como a API devolve. Só os quatro últimos dígitos existem: nunca o número completo. */
 export const creditCardSchema = z
   .object({
@@ -36,6 +49,17 @@ export const creditCardSchema = z
     color: colorSchema,
     isArchived: z.boolean(),
     createdAt: z.iso.datetime(),
+    usedLimit: z.int().meta({
+      description: 'Compras ainda não pagas, em centavos: compras menos faturas pagas.',
+    }),
+    availableLimit: z.int().meta({
+      description: 'Limite menos o utilizado; negativo quando o limite foi ultrapassado.',
+    }),
+    nextInvoice: invoiceCycleSchema
+      .extend({
+        amount: z.int().meta({ description: 'Compras já lançadas nesta fatura, em centavos.' }),
+      })
+      .meta({ id: 'NextInvoice', description: 'A fatura aberta hoje.' }),
   })
   .meta({ id: 'CreditCard' });
 
@@ -108,7 +132,7 @@ export const updateCreditCardBodySchema = z
 
 export type UpdateCreditCardInput = z.infer<typeof updateCreditCardBodySchema>;
 
-export function toCreditCardDto(card: CreditCard): CreditCardDto {
+export function toCreditCardDto(card: CreditCard & CardUsage): CreditCardDto {
   return {
     id: card.id,
     name: card.name,
@@ -122,5 +146,8 @@ export function toCreditCardDto(card: CreditCard): CreditCardDto {
     color: card.color as CreditCardDto['color'],
     isArchived: card.isArchived,
     createdAt: card.createdAt.toISOString(),
+    usedLimit: card.usedLimit,
+    availableLimit: card.availableLimit,
+    nextInvoice: card.nextInvoice,
   };
 }

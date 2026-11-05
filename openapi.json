@@ -206,6 +206,46 @@
         },
         "required": ["id", "name", "type", "icon", "color", "isDefault", "isArchived", "createdAt"]
       },
+      "NextInvoiceInput": {
+        "type": "object",
+        "properties": {
+          "referenceMonth": {
+            "type": "string",
+            "description": "Mês do vencimento (`yyyy-MM`): a \"fatura de dezembro\" vence em dezembro.",
+            "example": "2026-12"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Primeiro dia de compras (o fechamento anterior)."
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Último dia de compras (a véspera do fechamento)."
+          },
+          "closingDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Compras já lançadas nesta fatura, em centavos."
+          }
+        },
+        "required": ["referenceMonth", "start", "end", "closingDate", "dueDate", "amount"],
+        "description": "A fatura aberta hoje."
+      },
       "CreditCardInput": {
         "type": "object",
         "properties": {
@@ -262,7 +302,20 @@
             "type": "string",
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          }
+          },
+          "usedLimit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Compras ainda não pagas, em centavos: compras menos faturas pagas."
+          },
+          "availableLimit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite menos o utilizado; negativo quando o limite foi ultrapassado."
+          },
+          "nextInvoice": { "$ref": "#/components/schemas/NextInvoiceInput" }
         },
         "required": [
           "id",
@@ -275,7 +328,10 @@
           "paymentAccountId",
           "color",
           "isArchived",
-          "createdAt"
+          "createdAt",
+          "usedLimit",
+          "availableLimit",
+          "nextInvoice"
         ]
       },
       "TransactionInput": {
@@ -691,6 +747,47 @@
         "required": ["id", "name", "type", "icon", "color", "isDefault", "isArchived", "createdAt"],
         "additionalProperties": false
       },
+      "NextInvoice": {
+        "type": "object",
+        "properties": {
+          "referenceMonth": {
+            "type": "string",
+            "description": "Mês do vencimento (`yyyy-MM`): a \"fatura de dezembro\" vence em dezembro.",
+            "example": "2026-12"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Primeiro dia de compras (o fechamento anterior)."
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Último dia de compras (a véspera do fechamento)."
+          },
+          "closingDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Compras já lançadas nesta fatura, em centavos."
+          }
+        },
+        "required": ["referenceMonth", "start", "end", "closingDate", "dueDate", "amount"],
+        "additionalProperties": false,
+        "description": "A fatura aberta hoje."
+      },
       "CreditCard": {
         "type": "object",
         "properties": {
@@ -747,7 +844,20 @@
             "type": "string",
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          }
+          },
+          "usedLimit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Compras ainda não pagas, em centavos: compras menos faturas pagas."
+          },
+          "availableLimit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite menos o utilizado; negativo quando o limite foi ultrapassado."
+          },
+          "nextInvoice": { "$ref": "#/components/schemas/NextInvoice" }
         },
         "required": [
           "id",
@@ -760,7 +870,10 @@
           "paymentAccountId",
           "color",
           "isArchived",
-          "createdAt"
+          "createdAt",
+          "usedLimit",
+          "availableLimit",
+          "nextInvoice"
         ],
         "additionalProperties": false
       },
