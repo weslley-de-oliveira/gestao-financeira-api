@@ -5,7 +5,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  { ignores: ['dist/', 'coverage/', 'src/db/migrations/'] },
+  { ignores: ['dist/', 'coverage/', 'tmp/', 'src/db/migrations/'] },
   eslint.configs.recommended,
   // Regras com informação de tipos: pegam promessas esquecidas, `any` inseguro etc.
   tseslint.configs.recommendedTypeChecked,
