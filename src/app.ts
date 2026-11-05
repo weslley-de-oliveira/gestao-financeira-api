@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { Env } from './config/env.ts';
+import { healthRoutes } from './modules/health/health.routes.ts';
 import { databasePlugin } from './plugins/db.ts';
 import { errorsPlugin } from './plugins/errors.ts';
 import { securityPlugin } from './plugins/security.ts';
@@ -51,6 +52,8 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
     url: env.DATABASE_URL,
     maxConnections: env.DATABASE_POOL_MAX,
   });
+
+  await app.register(healthRoutes);
 
   return app;
 }
