@@ -138,6 +138,110 @@
         },
         "required": ["id", "name", "email", "createdAt"]
       },
+      "BudgetProgressInput": {
+        "type": "object",
+        "properties": {
+          "month": { "type": "string", "description": "Mês consultado (`yyyy-MM`)." },
+          "limit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite em vigor no mês, em centavos."
+          },
+          "spent": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Despesas realizadas da categoria no mês, incluindo compras no cartão."
+          },
+          "pending": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Despesas pendentes da categoria no mês, à parte (previstas)."
+          },
+          "available": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite − gasto; negativo quando excedido."
+          },
+          "percent": {
+            "type": "number",
+            "description": "Percentual gasto, sem arredondamento nem teto."
+          },
+          "state": {
+            "type": "string",
+            "enum": ["ok", "warning", "exceeded"],
+            "description": "`ok` (dentro do limite), `warning` (a partir do percentual de alerta) ou `exceeded` (acima de 100%)."
+          }
+        },
+        "required": ["month", "limit", "spent", "pending", "available", "percent", "state"]
+      },
+      "BudgetInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Categoria de despesa; não muda."
+          },
+          "alertThreshold": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "limitAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite atual (o da vigência mais recente)."
+          },
+          "limits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "month": {
+                  "type": "string",
+                  "description": "Mês (`yyyy-MM`) a partir do qual o valor vale."
+                },
+                "amount": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["month", "amount"]
+            },
+            "description": "Vigências do limite, em ordem crescente de mês: o histórico dos limites."
+          },
+          "progress": {
+            "anyOf": [{ "$ref": "#/components/schemas/BudgetProgressInput" }, { "type": "null" }],
+            "description": "Consumo do mês consultado; `null` se o orçamento ainda não valia nele."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "categoryId",
+          "alertThreshold",
+          "limitAmount",
+          "limits",
+          "progress",
+          "createdAt"
+        ]
+      },
       "CategoryInput": {
         "type": "object",
         "properties": {
@@ -332,6 +436,175 @@
           "usedLimit",
           "availableLimit",
           "nextInvoice"
+        ]
+      },
+      "GoalContributionInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["deposit", "withdrawal"],
+            "description": "`deposit` (aporte) ou `withdrawal` (retirada)."
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Centavos, sempre positivo: o tipo define se soma ou subtrai."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "note": { "type": ["string", "null"] },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": ["id", "type", "amount", "date", "note", "createdAt"]
+      },
+      "GoalInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "targetAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Valor-alvo em centavos."
+          },
+          "initialAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Valor já guardado quando a meta foi criada, em centavos."
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              { "type": "null" }
+            ],
+            "description": "Data-limite, se houver."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "#1565c0",
+              "#2e7d32",
+              "#6a1b9a",
+              "#c62828",
+              "#ef6c00",
+              "#00838f",
+              "#ad1457",
+              "#546e7a"
+            ]
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "savings",
+              "flight",
+              "home",
+              "directions_car",
+              "school",
+              "health_and_safety",
+              "devices",
+              "celebration"
+            ],
+            "description": "Ícone do Material Symbols."
+          },
+          "isPaused": {
+            "type": "boolean",
+            "description": "Pausada: não fica atrasada enquanto pausada."
+          },
+          "isArchived": { "type": "boolean" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "contributions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/GoalContributionInput" },
+            "description": "Aportes e retiradas, dos mais recentes para os mais antigos."
+          },
+          "currentAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Acumulado: inicial + aportes − retiradas."
+          },
+          "remainingAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Quanto falta para o alvo; zero se atingido."
+          },
+          "excessAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Quanto passou do alvo; zero se não atingido."
+          },
+          "percent": { "type": "number", "description": "Percentual atingido, sem teto em 100." },
+          "status": {
+            "type": "string",
+            "enum": ["in-progress", "completed", "paused", "overdue"],
+            "description": "Pela regra concluída > pausada > atrasada > em andamento: `completed`, `paused`, `overdue` ou `in-progress`."
+          },
+          "monthsLeft": {
+            "anyOf": [
+              { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+              { "type": "null" }
+            ],
+            "description": "Meses até o prazo, contando o atual; `null` sem prazo, concluída ou vencida."
+          },
+          "monthlyPace": {
+            "anyOf": [
+              { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+              { "type": "null" }
+            ],
+            "description": "Aporte mensal para atingir o alvo no prazo, arredondado para cima; mesmo critério de `monthsLeft`."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "targetAmount",
+          "initialAmount",
+          "deadline",
+          "color",
+          "icon",
+          "isPaused",
+          "isArchived",
+          "createdAt",
+          "contributions",
+          "currentAmount",
+          "remainingAmount",
+          "excessAmount",
+          "percent",
+          "status",
+          "monthsLeft",
+          "monthlyPace"
         ]
       },
       "TransactionInput": {
@@ -815,6 +1088,113 @@
         "required": ["id", "name", "email", "createdAt"],
         "additionalProperties": false
       },
+      "BudgetProgress": {
+        "type": "object",
+        "properties": {
+          "month": { "type": "string", "description": "Mês consultado (`yyyy-MM`)." },
+          "limit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite em vigor no mês, em centavos."
+          },
+          "spent": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Despesas realizadas da categoria no mês, incluindo compras no cartão."
+          },
+          "pending": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Despesas pendentes da categoria no mês, à parte (previstas)."
+          },
+          "available": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite − gasto; negativo quando excedido."
+          },
+          "percent": {
+            "type": "number",
+            "description": "Percentual gasto, sem arredondamento nem teto."
+          },
+          "state": {
+            "type": "string",
+            "enum": ["ok", "warning", "exceeded"],
+            "description": "`ok` (dentro do limite), `warning` (a partir do percentual de alerta) ou `exceeded` (acima de 100%)."
+          }
+        },
+        "required": ["month", "limit", "spent", "pending", "available", "percent", "state"],
+        "additionalProperties": false
+      },
+      "Budget": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Categoria de despesa; não muda."
+          },
+          "alertThreshold": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "limitAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Limite atual (o da vigência mais recente)."
+          },
+          "limits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "month": {
+                  "type": "string",
+                  "description": "Mês (`yyyy-MM`) a partir do qual o valor vale."
+                },
+                "amount": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["month", "amount"],
+              "additionalProperties": false
+            },
+            "description": "Vigências do limite, em ordem crescente de mês: o histórico dos limites."
+          },
+          "progress": {
+            "anyOf": [{ "$ref": "#/components/schemas/BudgetProgress" }, { "type": "null" }],
+            "description": "Consumo do mês consultado; `null` se o orçamento ainda não valia nele."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "categoryId",
+          "alertThreshold",
+          "limitAmount",
+          "limits",
+          "progress",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
       "Category": {
         "type": "object",
         "properties": {
@@ -1011,6 +1391,177 @@
           "usedLimit",
           "availableLimit",
           "nextInvoice"
+        ],
+        "additionalProperties": false
+      },
+      "GoalContribution": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["deposit", "withdrawal"],
+            "description": "`deposit` (aporte) ou `withdrawal` (retirada)."
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Centavos, sempre positivo: o tipo define se soma ou subtrai."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "note": { "type": ["string", "null"] },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": ["id", "type", "amount", "date", "note", "createdAt"],
+        "additionalProperties": false
+      },
+      "Goal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "targetAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Valor-alvo em centavos."
+          },
+          "initialAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Valor já guardado quando a meta foi criada, em centavos."
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              { "type": "null" }
+            ],
+            "description": "Data-limite, se houver."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "#1565c0",
+              "#2e7d32",
+              "#6a1b9a",
+              "#c62828",
+              "#ef6c00",
+              "#00838f",
+              "#ad1457",
+              "#546e7a"
+            ]
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "savings",
+              "flight",
+              "home",
+              "directions_car",
+              "school",
+              "health_and_safety",
+              "devices",
+              "celebration"
+            ],
+            "description": "Ícone do Material Symbols."
+          },
+          "isPaused": {
+            "type": "boolean",
+            "description": "Pausada: não fica atrasada enquanto pausada."
+          },
+          "isArchived": { "type": "boolean" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "contributions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/GoalContribution" },
+            "description": "Aportes e retiradas, dos mais recentes para os mais antigos."
+          },
+          "currentAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Acumulado: inicial + aportes − retiradas."
+          },
+          "remainingAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Quanto falta para o alvo; zero se atingido."
+          },
+          "excessAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Quanto passou do alvo; zero se não atingido."
+          },
+          "percent": { "type": "number", "description": "Percentual atingido, sem teto em 100." },
+          "status": {
+            "type": "string",
+            "enum": ["in-progress", "completed", "paused", "overdue"],
+            "description": "Pela regra concluída > pausada > atrasada > em andamento: `completed`, `paused`, `overdue` ou `in-progress`."
+          },
+          "monthsLeft": {
+            "anyOf": [
+              { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+              { "type": "null" }
+            ],
+            "description": "Meses até o prazo, contando o atual; `null` sem prazo, concluída ou vencida."
+          },
+          "monthlyPace": {
+            "anyOf": [
+              { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+              { "type": "null" }
+            ],
+            "description": "Aporte mensal para atingir o alvo no prazo, arredondado para cima; mesmo critério de `monthsLeft`."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "targetAmount",
+          "initialAmount",
+          "deadline",
+          "color",
+          "icon",
+          "isPaused",
+          "isArchived",
+          "createdAt",
+          "contributions",
+          "currentAmount",
+          "remainingAmount",
+          "excessAmount",
+          "percent",
+          "status",
+          "monthsLeft",
+          "monthlyPace"
         ],
         "additionalProperties": false
       },
@@ -3036,6 +3587,733 @@
           }
         }
       }
+    },
+    "/v1/budgets": {
+      "get": {
+        "summary": "Lista os orçamentos com o consumo do mês",
+        "tags": ["Orçamentos"],
+        "description": "Orçamentos que valem no mês (padrão: o atual), em ordem alfabética da categoria, com o consumo: só despesas realizadas contam (compras no cartão incluídas, pela data da compra); as pendentes aparecem à parte.",
+        "parameters": [
+          {
+            "schema": {
+              "example": "2026-11",
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            },
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "description": "Mês do consumo (`yyyy-MM`); padrão: o mês atual."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Budget" } }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Cadastra o orçamento de uma categoria",
+        "tags": ["Orçamentos"],
+        "description": "Limite mensal recorrente de gastos de uma categoria de despesa, valendo do mês atual em diante. Um orçamento por categoria (repetido responde 409). Categoria de receita responde 422; arquivada, 409. Sem `alertThreshold`, o alerta é em 80%.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "categoryId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "limitAmount": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000000000,
+                    "description": "Limite mensal em centavos.",
+                    "example": 80000
+                  },
+                  "alertThreshold": {
+                    "default": 80,
+                    "anyOf": [
+                      { "type": "number", "enum": [50] },
+                      { "type": "number", "enum": [60] },
+                      { "type": "number", "enum": [70] },
+                      { "type": "number", "enum": [75] },
+                      { "type": "number", "enum": [80] },
+                      { "type": "number", "enum": [85] },
+                      { "type": "number", "enum": [90] },
+                      { "type": "number", "enum": [95] },
+                      { "type": "number", "enum": [100] }
+                    ],
+                    "description": "Percentual do limite a partir do qual o orçamento fica em alerta: 50, 60, 70, 75, 80, 85, 90, 95, 100."
+                  }
+                },
+                "required": ["categoryId", "limitAmount"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Budget" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/budgets/{id}": {
+      "get": {
+        "summary": "Detalha um orçamento",
+        "tags": ["Orçamentos"],
+        "description": "Com o consumo do mês (padrão: o atual; `progress` nulo se o orçamento ainda não valia nele). Orçamento inexistente ou de outro usuário responde 404.",
+        "parameters": [
+          {
+            "schema": {
+              "example": "2026-11",
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            },
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "description": "Mês do consumo (`yyyy-MM`); padrão: o mês atual."
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Budget" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Altera o limite ou o alerta de um orçamento",
+        "tags": ["Orçamentos"],
+        "description": "O novo limite vale do mês atual em diante: os meses anteriores mantêm o limite que tinham (vigências). A categoria não muda (enviá-la responde 422). Orçamento inexistente ou de outro usuário responde 404.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "limitAmount": {
+                    "description": "Novo limite mensal: vale do mês atual em diante; os meses anteriores mantêm o limite que tinham.",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000000000,
+                    "example": 80000
+                  },
+                  "alertThreshold": {
+                    "anyOf": [
+                      { "type": "number", "enum": [50] },
+                      { "type": "number", "enum": [60] },
+                      { "type": "number", "enum": [70] },
+                      { "type": "number", "enum": [75] },
+                      { "type": "number", "enum": [80] },
+                      { "type": "number", "enum": [85] },
+                      { "type": "number", "enum": [90] },
+                      { "type": "number", "enum": [95] },
+                      { "type": "number", "enum": [100] }
+                    ],
+                    "description": "Percentual do limite a partir do qual o orçamento fica em alerta: 50, 60, 70, 75, 80, 85, 90, 95, 100."
+                  },
+                  "categoryId": {
+                    "description": "Não aceito: a categoria é definida na criação e não muda.",
+                    "not": {}
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Budget" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Exclui um orçamento",
+        "tags": ["Orçamentos"],
+        "description": "Remove o orçamento e o histórico de limites; as transações da categoria não mudam. A categoria fica livre para um orçamento novo. Orçamento inexistente ou de outro usuário responde 404.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": { "description": "Default Response" },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/goals": {
+      "get": {
+        "summary": "Lista as metas",
+        "tags": ["Metas"],
+        "description": "Metas do usuário, com progresso, status e ritmo mensal, o que pede ação primeiro: atrasadas, em andamento, pausadas e concluídas; depois o prazo mais próximo e o nome. Por padrão, só as ativas (não arquivadas).",
+        "parameters": [
+          {
+            "schema": { "default": "false", "type": "string", "enum": ["true", "false"] },
+            "in": "query",
+            "name": "includeArchived",
+            "required": false,
+            "description": "Inclui as metas arquivadas na lista (padrão: só as ativas)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Goal" } }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Cadastra uma meta",
+        "tags": ["Metas"],
+        "description": "Sem `initialAmount`, a meta começa do zero. A data-limite é opcional, mas não pode estar no passado (422).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "example": "Viagem ao Japão"
+                  },
+                  "description": {
+                    "anyOf": [{ "type": "string", "maxLength": 300 }, { "type": "null" }]
+                  },
+                  "targetAmount": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000000000,
+                    "description": "Valor-alvo em centavos.",
+                    "example": 1000000
+                  },
+                  "initialAmount": {
+                    "default": 0,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000000000,
+                    "description": "Valor já guardado, em centavos (pode ser zero)."
+                  },
+                  "deadline": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                      },
+                      { "type": "null" }
+                    ],
+                    "description": "Data-limite: hoje ou uma data futura."
+                  },
+                  "color": {
+                    "type": "string",
+                    "enum": [
+                      "#1565c0",
+                      "#2e7d32",
+                      "#6a1b9a",
+                      "#c62828",
+                      "#ef6c00",
+                      "#00838f",
+                      "#ad1457",
+                      "#546e7a"
+                    ]
+                  },
+                  "icon": {
+                    "type": "string",
+                    "enum": [
+                      "savings",
+                      "flight",
+                      "home",
+                      "directions_car",
+                      "school",
+                      "health_and_safety",
+                      "devices",
+                      "celebration"
+                    ],
+                    "description": "Ícone do Material Symbols."
+                  }
+                },
+                "required": ["name", "targetAmount", "color", "icon"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Goal" } } }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/goals/{id}": {
+      "get": {
+        "summary": "Detalha uma meta",
+        "tags": ["Metas"],
+        "description": "Meta inexistente ou de outro usuário responde 404.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Goal" } } }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edita, pausa, arquiva ou reativa uma meta",
+        "tags": ["Metas"],
+        "description": "Altera só os campos enviados; `description: null` e `deadline: null` removem os valores. Uma data-limite já vencida pode ser mantida, mas não definida de novo. `isPaused` pausa ou retoma e `isArchived` arquiva ou reativa: metas não são excluídas. Meta inexistente ou de outro usuário responde 404.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "example": "Viagem ao Japão"
+                  },
+                  "description": {
+                    "anyOf": [{ "type": "string", "maxLength": 300 }, { "type": "null" }]
+                  },
+                  "targetAmount": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000000000,
+                    "description": "Valor-alvo em centavos.",
+                    "example": 1000000
+                  },
+                  "initialAmount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000000000,
+                    "description": "Valor já guardado, em centavos (pode ser zero)."
+                  },
+                  "deadline": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                      },
+                      { "type": "null" }
+                    ],
+                    "description": "Data-limite: hoje ou uma data futura."
+                  },
+                  "color": {
+                    "type": "string",
+                    "enum": [
+                      "#1565c0",
+                      "#2e7d32",
+                      "#6a1b9a",
+                      "#c62828",
+                      "#ef6c00",
+                      "#00838f",
+                      "#ad1457",
+                      "#546e7a"
+                    ]
+                  },
+                  "icon": {
+                    "type": "string",
+                    "enum": [
+                      "savings",
+                      "flight",
+                      "home",
+                      "directions_car",
+                      "school",
+                      "health_and_safety",
+                      "devices",
+                      "celebration"
+                    ],
+                    "description": "Ícone do Material Symbols."
+                  },
+                  "isPaused": {
+                    "type": "boolean",
+                    "description": "true pausa a meta (não fica atrasada enquanto pausada); false a retoma."
+                  },
+                  "isArchived": {
+                    "type": "boolean",
+                    "description": "true arquiva a meta (some da lista padrão); false a reativa."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Goal" } } }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/goals/{id}/contributions": {
+      "post": {
+        "summary": "Registra um aporte ou uma retirada",
+        "tags": ["Metas"],
+        "description": "Movimentação manual da meta, com data de hoje ou anterior. Uma retirada maior que o valor acumulado responde 409. Devolve a meta atualizada.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "enum": ["deposit", "withdrawal"] },
+                  "amount": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000000000,
+                    "description": "Centavos inteiros, maior que zero (R$ 1.234,56 → 123456).",
+                    "example": 123456
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "description": "Data da movimentação: hoje ou antes."
+                  },
+                  "note": { "anyOf": [{ "type": "string", "maxLength": 120 }, { "type": "null" }] }
+                },
+                "required": ["type", "amount", "date"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Goal" } } }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/goals/{id}/contributions/{contributionId}": {
+      "delete": {
+        "summary": "Exclui um aporte ou uma retirada",
+        "tags": ["Metas"],
+        "description": "O acumulado é recalculado. Excluir um aporte que deixaria o acumulado negativo responde 409. Devolve a meta atualizada.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "contributionId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Goal" } } }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
     }
   },
   "tags": [
@@ -3045,6 +4323,8 @@
     { "name": "Categorias", "description": "Categorias de receitas e despesas." },
     { "name": "Transações", "description": "Receitas, despesas e transferências." },
     { "name": "Cartões", "description": "Cartões de crédito, limite e próxima fatura." },
-    { "name": "Faturas", "description": "Faturas calculadas dos cartões e o pagamento." }
+    { "name": "Faturas", "description": "Faturas calculadas dos cartões e o pagamento." },
+    { "name": "Orçamentos", "description": "Limites mensais de gastos por categoria." },
+    { "name": "Metas", "description": "Metas de economia, aportes e retiradas." }
   ]
 }

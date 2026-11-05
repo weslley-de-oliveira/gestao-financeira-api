@@ -113,6 +113,34 @@ const RESOURCES: Resource[] = [
     archivable: true,
     deletable: false,
   },
+  {
+    name: 'orçamentos',
+    path: '/v1/budgets',
+    listQueries: [''],
+    async create(api) {
+      const categories = await api('GET', '/v1/categories?type=expense');
+      return { categoryId: categories.json<{ id: string }[]>()[0]?.id, limitAmount: 80_000 };
+    },
+    edit: { limitAmount: 1, alertThreshold: 50 },
+    archivable: false,
+    deletable: true,
+  },
+  {
+    name: 'metas',
+    path: '/v1/goals',
+    listQueries: ['', '?includeArchived=true'],
+    create: () =>
+      Promise.resolve({
+        name: 'Meta da dona',
+        targetAmount: 1_000_000,
+        initialAmount: 50_000,
+        color: '#2e7d32',
+        icon: 'flight',
+      }),
+    edit: { name: 'Invadida', isPaused: true },
+    archivable: true,
+    deletable: false,
+  },
 ];
 
 describe.each(RESOURCES)('isolamento entre usuários: $name', (resource) => {

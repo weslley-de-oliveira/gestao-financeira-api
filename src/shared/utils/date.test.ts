@@ -3,6 +3,7 @@ import {
   dayOfMonth,
   formatIsoDate,
   monthLabel,
+  monthRange,
   parseIsoDate,
   parseIsoMonth,
   toIsoDate,
@@ -29,6 +30,12 @@ describe('datas sem horário', () => {
     expect(toIsoDate(dayOfMonth(2027, 1, 31))).toBe('2027-02-28');
     expect(toIsoDate(dayOfMonth(2026, 12, 5))).toBe('2027-01-05');
     expect(toIsoDate(dayOfMonth(2027, -1, 31))).toBe('2026-12-31');
+  });
+
+  it('dá o primeiro e o último dia do mês', () => {
+    expect(monthRange('2026-11')).toEqual({ start: '2026-11-01', end: '2026-11-30' });
+    expect(monthRange('2028-02')).toEqual({ start: '2028-02-01', end: '2028-02-29' });
+    expect(() => monthRange('2026-13')).toThrow(RangeError);
   });
 
   it('formata o mês e a data como no front', () => {

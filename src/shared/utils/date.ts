@@ -54,6 +54,18 @@ export function dayOfMonth(year: number, month: number, day: number): Date {
   return new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), Math.min(day, lastDay)));
 }
 
+/** "2026-11" → { start: "2026-11-01", end: "2026-11-30" }. */
+export function monthRange(month: IsoMonth): { start: IsoDate; end: IsoDate } {
+  const parsed = parseIsoMonth(month);
+  if (!parsed) {
+    throw new RangeError(`Invalid month: ${month}`);
+  }
+  return {
+    start: toIsoDate(dayOfMonth(parsed.year, parsed.month, 1)),
+    end: toIsoDate(dayOfMonth(parsed.year, parsed.month, 31)),
+  };
+}
+
 /** "2026-11-04" → "04/11/2026". */
 export function formatIsoDate(date: IsoDate): string {
   const [year, month, day] = date.split('-');
