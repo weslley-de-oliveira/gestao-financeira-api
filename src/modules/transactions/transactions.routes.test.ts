@@ -375,4 +375,321 @@ describe('rotas /v1/transactions', () => {
       expect(othersTransactions).toEqual([]);
     });
   });
+
+  describe('GET, PATCH e DELETE /v1/transactions/:id', () => {
+    let ledger: Ledger;
+    let savings: AccountDto;
+
+    beforeAll(async () => {
+      ledger = await createLedger();
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/accounts',
+        cookies: ledger.cookies,
+        payload: { name: 'Poupança', type: 'savings', color: '#2e7d32', icon: 'savings' },
+      });
+      savings = response.json<AccountDto>();
+    });
+
+    const call = (
+      method: 'GET' | 'PATCH' | 'DELETE',
+      id: string,
+      payload?: Record<string, unknown>,
+      session: Pick<Ledger, 'cookies'> | null = ledger,
+    ) =>
+      app.inject({
+        method,
+        url: `/v1/transactions/${id}`,
+        ...(payload && { payload }),
+        ...(session && { cookies: session.cookies }),
+      });
+
+    async function createdExpense(overrides: Record<string, unknown> = {}) {
+      const response = await post(ledger, expense(ledger, { notes: 'Feira', ...overrides }));
+      return response.json<TransactionDto>();
+    }
+
+    /** Pagamento de fatura gravado direto no banco: as rotas de faturas chegam na Etapa 4. */
+    async function insertInvoicePayment() {
+      const [payment] = await app.db
+        .insert(transactions)
+        .values({
+          userId: ledger.userId,
+          type: 'invoice-payment',
+          description: 'Fatura de outubro',
+          amount: 80_000,
+          date: '2026-11-05',
+          accountId: ledger.account.id,
+          creditCardId: randomUUIDv7(),
+          invoiceMonth: '2026-10',
+        })
+        .returning();
+      if (!payment) throw new Error('pagamento não inserido');
+      return payment;
+    }
+
+    function expectInvalid(
+      response: Awaited<ReturnType<typeof call>>,
+      field: string,
+      message: string,
+    ) {
+      expect(response.statusCode).toBe(422);
+      expect(response.json()).toMatchObject({
+        type: '/problems/validation-error',
+        errors: [{ field, message }],
+      });
+    }
+
+    describe('GET', () => {
+      it('detalha a transação', async () => {
+        const created = await createdExpense();
+
+        const response = await call('GET', created.id);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(created);
+      });
+
+      it('detalha também pagamento de fatura', async () => {
+        const payment = await insertInvoicePayment();
+
+        const response = await call('GET', payment.id);
+
+        expect(response.json()).toMatchObject({ type: 'invoice-payment', invoiceMonth: '2026-10' });
+      });
+
+      it('responde 404 igual para transação de outro usuário e inexistente', async () => {
+        const created = await createdExpense();
+        const other = await createLedger();
+
+        for (const id of [created.id, randomUUIDv7()]) {
+          const response = await call('GET', id, undefined, other);
+
+          expect(response.statusCode).toBe(404);
+          expect(response.json()).toMatchObject({ detail: 'Transação não encontrada.' });
+        }
+      });
+
+      it('responde 422 para id que não é UUID e 401 sem sessão', async () => {
+        expect((await call('GET', 'abc')).statusCode).toBe(422);
+        expect((await call('GET', randomUUIDv7(), undefined, null)).statusCode).toBe(401);
+      });
+    });
+
+    describe('PATCH', () => {
+      it('altera só os campos enviados', async () => {
+        const created = await createdExpense();
+
+        const response = await call('PATCH', created.id, {
+          description: ' Feira  da semana ',
+          amount: 12_000,
+          status: 'pending',
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual({
+          ...created,
+          description: 'Feira da semana',
+          amount: 12_000,
+          status: 'pending',
+        });
+      });
+
+      it('remove as observações com null', async () => {
+        const created = await createdExpense();
+
+        const response = await call('PATCH', created.id, { notes: null });
+
+        expect(response.json<TransactionDto>().notes).toBeNull();
+      });
+
+      it('com corpo vazio, devolve a transação sem alterar', async () => {
+        const created = await createdExpense();
+
+        const response = await call('PATCH', created.id, {});
+
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(created);
+      });
+
+      it('troca despesa por receita junto com a categoria', async () => {
+        const created = await createdExpense();
+
+        const response = await call('PATCH', created.id, {
+          type: 'income',
+          categoryId: ledger.salary.id,
+        });
+
+        expect(response.json()).toMatchObject({ type: 'income', categoryId: ledger.salary.id });
+      });
+
+      it('não troca o tipo mantendo a categoria do tipo antigo', async () => {
+        const created = await createdExpense();
+
+        const response = await call('PATCH', created.id, { type: 'income' });
+
+        expectInvalid(response, 'body.categoryId', 'Selecione uma categoria de receita.');
+      });
+
+      it('vira transferência descartando a categoria', async () => {
+        const created = await createdExpense();
+
+        const response = await call('PATCH', created.id, {
+          type: 'transfer',
+          destinationAccountId: savings.id,
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toMatchObject({
+          type: 'transfer',
+          accountId: ledger.account.id,
+          destinationAccountId: savings.id,
+          categoryId: null,
+        });
+      });
+
+      it('transferência volta a ser despesa descartando o destino', async () => {
+        const created = await createdExpense();
+        await call('PATCH', created.id, { type: 'transfer', destinationAccountId: savings.id });
+
+        const response = await call('PATCH', created.id, {
+          type: 'expense',
+          categoryId: ledger.food.id,
+        });
+
+        expect(response.json()).toMatchObject({
+          type: 'expense',
+          categoryId: ledger.food.id,
+          destinationAccountId: null,
+        });
+      });
+
+      it('exige o destino ao virar transferência', async () => {
+        const created = await createdExpense();
+
+        const response = await call('PATCH', created.id, { type: 'transfer' });
+
+        expectInvalid(response, 'body.destinationAccountId', 'Selecione a conta de destino.');
+      });
+
+      it('não deixa a transferência com origem igual ao destino', async () => {
+        const created = await createdExpense();
+        await call('PATCH', created.id, { type: 'transfer', destinationAccountId: savings.id });
+
+        const response = await call('PATCH', created.id, { accountId: savings.id });
+
+        expectInvalid(
+          response,
+          'body.destinationAccountId',
+          'Escolha uma conta diferente da conta de origem.',
+        );
+      });
+
+      it.each([
+        ['descrição vazia', { description: ' ' }, 'body.description', 'Informe a descrição.'],
+        ['valor zero', { amount: 0 }, 'body.amount', 'O valor deve ser maior que zero.'],
+        [
+          'data inexistente',
+          { date: '2026-04-31' },
+          'body.date',
+          'Informe uma data válida no formato aaaa-mm-dd.',
+        ],
+        [
+          'tipo pagamento de fatura',
+          { type: 'invoice-payment' },
+          'body.type',
+          'Selecione despesa, receita ou transferência.',
+        ],
+      ])('responde 422 para %s', async (_case, body, field, message) => {
+        const created = await createdExpense();
+
+        expectInvalid(await call('PATCH', created.id, body), field, message);
+      });
+
+      it('responde 422 para conta ou categoria de outro usuário, sem alterar nada', async () => {
+        const created = await createdExpense();
+        const other = await createLedger();
+
+        const response = await call('PATCH', created.id, {
+          accountId: other.account.id,
+          categoryId: other.food.id,
+        });
+
+        expect(response.statusCode).toBe(422);
+        expect((await call('GET', created.id)).json()).toEqual(created);
+      });
+
+      it.each([['userId'], ['creditCardId'], ['invoiceMonth']])(
+        'responde 422 se o corpo trouxer %s',
+        async (field) => {
+          const created = await createdExpense();
+
+          const value = field === 'invoiceMonth' ? '2026-10' : randomUUIDv7();
+          expect((await call('PATCH', created.id, { [field]: value })).statusCode).toBe(422);
+        },
+      );
+
+      it('responde 409 para pagamento de fatura, sem alterá-lo', async () => {
+        const payment = await insertInvoicePayment();
+
+        const response = await call('PATCH', payment.id, { amount: 1 });
+
+        expect(response.statusCode).toBe(409);
+        expect(response.json()).toMatchObject({
+          detail:
+            'Pagamentos de fatura não são alterados por aqui: desfaça o pagamento pela fatura.',
+        });
+        expect((await stored(payment.id))?.amount).toBe(80_000);
+      });
+
+      it('responde 404 para transação de outro usuário, sem alterá-la', async () => {
+        const created = await createdExpense();
+        const other = await createLedger();
+
+        const response = await call('PATCH', created.id, { amount: 1 }, other);
+
+        expect(response.statusCode).toBe(404);
+        expect((await stored(created.id))?.amount).toBe(created.amount);
+      });
+    });
+
+    describe('DELETE', () => {
+      it('exclui a transação e responde 204', async () => {
+        const created = await createdExpense();
+
+        const response = await call('DELETE', created.id);
+
+        expect(response.statusCode).toBe(204);
+        expect(response.body).toBe('');
+        expect(await stored(created.id)).toBeUndefined();
+        expect((await call('GET', created.id)).statusCode).toBe(404);
+      });
+
+      it('responde 404 ao excluir de novo', async () => {
+        const created = await createdExpense();
+        await call('DELETE', created.id);
+
+        expect((await call('DELETE', created.id)).statusCode).toBe(404);
+      });
+
+      it('responde 409 para pagamento de fatura, sem excluí-lo', async () => {
+        const payment = await insertInvoicePayment();
+
+        expect((await call('DELETE', payment.id)).statusCode).toBe(409);
+        expect(await stored(payment.id)).toBeDefined();
+      });
+
+      it('responde 404 para transação de outro usuário, sem excluí-la', async () => {
+        const created = await createdExpense();
+        const other = await createLedger();
+
+        expect((await call('DELETE', created.id, undefined, other)).statusCode).toBe(404);
+        expect(await stored(created.id)).toBeDefined();
+      });
+
+      it('responde 401 sem sessão', async () => {
+        expect((await call('DELETE', randomUUIDv7(), undefined, null)).statusCode).toBe(401);
+      });
+    });
+  });
 });

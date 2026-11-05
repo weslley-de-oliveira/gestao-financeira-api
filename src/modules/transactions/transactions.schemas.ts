@@ -67,7 +67,6 @@ const notesSchema = z
   .optional()
   .transform((value) => (value === '' ? null : (value ?? null)));
 
-// `strictObject`: campos desconhecidos (ex.: `userId`, `creditCardId`) são rejeitados com 422.
 /** Campos comuns a todos os tipos que a pessoa cadastra. */
 const commonFields = {
   description: descriptionSchema,
@@ -112,6 +111,31 @@ export const createTransactionBodySchema = z.discriminatedUnion(
 export type CreateTransactionInput = z.infer<typeof createTransactionBodySchema>;
 export type CreateEntryInput = z.infer<typeof entryBodySchema>;
 export type CreateTransferInput = z.infer<typeof transferBodySchema>;
+
+/**
+ * Edição parcial. Os campos enviados são aplicados sobre a transação atual e o resultado passa
+ * pelas mesmas regras do cadastro. Ao trocar o tipo, os campos que não servem ao novo tipo são
+ * descartados (ex.: a categoria, ao virar transferência), como no formulário do front.
+ */
+export const updateTransactionBodySchema = z
+  .strictObject({
+    type: z.enum(['expense', 'income', 'transfer'], 'Selecione despesa, receita ou transferência.'),
+    description: descriptionSchema,
+    amount: positiveCentsSchema,
+    date: isoDateSchema,
+    accountId: z.uuid('Selecione a conta.'),
+    destinationAccountId: z.uuid('Selecione a conta de destino.'),
+    categoryId: z.uuid('Selecione a categoria.'),
+    status: transactionStatusSchema,
+    notes: notesSchema,
+  })
+  .partial();
+
+export type UpdateTransactionInput = z.infer<typeof updateTransactionBodySchema>;
+
+export const transactionParamsSchema = z.object({
+  id: z.uuid('Identificador de transação inválido.'),
+});
 
 export function toTransactionDto(transaction: Transaction): TransactionDto {
   return {
