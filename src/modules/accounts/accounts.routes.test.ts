@@ -1,4 +1,5 @@
 import { randomUUID, randomUUIDv7 } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestApp } from '../../../test/helpers/app.ts';
@@ -6,7 +7,7 @@ import { accounts, type NewAccount } from '../../db/schema/index.ts';
 import { SESSION_COOKIE } from '../auth/session-cookie.ts';
 import type { AccountDto } from './accounts.schemas.ts';
 
-describe('GET /v1/accounts', () => {
+describe('rotas /v1/accounts', () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
@@ -176,6 +177,280 @@ describe('GET /v1/accounts', () => {
 
     it('responde 401 sem sessão', async () => {
       expect((await get(`/v1/accounts/${randomUUIDv7()}`)).statusCode).toBe(401);
+    });
+  });
+
+  const send = (
+    method: 'POST' | 'PATCH',
+    url: string,
+    payload: Record<string, unknown>,
+    token?: string,
+  ) =>
+    app.inject({
+      method,
+      url,
+      payload,
+      ...(token && { cookies: { [SESSION_COOKIE]: token } }),
+    });
+
+  const validAccount = {
+    name: 'Conta corrente',
+    type: 'checking',
+    institution: 'Banco Exemplo',
+    initialBalance: 123_456,
+    color: '#1565c0',
+    icon: 'account_balance',
+  };
+
+  async function storedAccount(id: string) {
+    const [account] = await app.db.select().from(accounts).where(eq(accounts.id, id));
+    return account;
+  }
+
+  describe('POST /v1/accounts', () => {
+    it('cadastra a conta do usuário da sessão e responde 201', async () => {
+      const { userId, token } = await signUp();
+
+      const response = await send('POST', '/v1/accounts', validAccount, token);
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<AccountDto>();
+      expect(body).toMatchObject({ ...validAccount, isArchived: false });
+      expect((await storedAccount(body.id))?.userId).toBe(userId);
+      expect(names(await get('/v1/accounts', token))).toEqual(['Conta corrente']);
+    });
+
+    it('apara o nome, grava instituição vazia como null e assume saldo inicial zero', async () => {
+      const { token } = await signUp();
+      const withoutBalance: Record<string, unknown> = { ...validAccount };
+      delete withoutBalance['initialBalance'];
+
+      const response = await send(
+        'POST',
+        '/v1/accounts',
+        { ...withoutBalance, name: '  Carteira  ', institution: '   ' },
+        token,
+      );
+
+      expect(response.json()).toMatchObject({
+        name: 'Carteira',
+        institution: null,
+        initialBalance: 0,
+      });
+    });
+
+    it('aceita conta sem instituição e com saldo negativo', async () => {
+      const { token } = await signUp();
+      const withoutInstitution: Record<string, unknown> = { ...validAccount };
+      delete withoutInstitution['institution'];
+
+      const response = await send(
+        'POST',
+        '/v1/accounts',
+        { ...withoutInstitution, initialBalance: -50_000 },
+        token,
+      );
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json()).toMatchObject({ institution: null, initialBalance: -50_000 });
+    });
+
+    it.each([
+      ['nome vazio', { name: '   ' }, 'body.name', 'Informe o nome da conta.'],
+      [
+        'nome com mais de 60 caracteres',
+        { name: 'a'.repeat(61) },
+        'body.name',
+        'O nome deve ter no máximo 60 caracteres.',
+      ],
+      [
+        'instituição com mais de 60 caracteres',
+        { institution: 'a'.repeat(61) },
+        'body.institution',
+        'A instituição deve ter no máximo 60 caracteres.',
+      ],
+      ['tipo desconhecido', { type: 'credit' }, 'body.type', 'Selecione um tipo de conta válido.'],
+      ['cor fora da paleta', { color: '#000000' }, 'body.color', 'Selecione uma cor válida.'],
+      ['ícone fora da lista', { icon: 'rocket' }, 'body.icon', 'Selecione um ícone válido.'],
+      [
+        'saldo com centavos fracionados',
+        { initialBalance: 10.5 },
+        'body.initialBalance',
+        'Informe o valor em centavos inteiros.',
+      ],
+      [
+        'saldo em texto',
+        { initialBalance: '1.234,56' },
+        'body.initialBalance',
+        'Informe o valor em centavos inteiros.',
+      ],
+      [
+        'saldo acima de R$ 1 bilhão',
+        { initialBalance: 100_000_000_001 },
+        'body.initialBalance',
+        'O valor deve ser de até R$ 1 bilhão.',
+      ],
+    ])('responde 422 para %s', async (_case, override, field, message) => {
+      const { token } = await signUp();
+
+      const response = await send('POST', '/v1/accounts', { ...validAccount, ...override }, token);
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json()).toMatchObject({ errors: [{ field, message }] });
+    });
+
+    it.each([
+      ['userId', () => randomUUIDv7()],
+      ['id', () => randomUUIDv7()],
+      ['isArchived', () => true],
+    ])('responde 422 se o corpo tentar definir %s', async (field, value) => {
+      const { token } = await signUp();
+
+      const response = await send(
+        'POST',
+        '/v1/accounts',
+        { ...validAccount, [field]: value() },
+        token,
+      );
+
+      expect(response.statusCode).toBe(422);
+      expect(names(await get('/v1/accounts?includeArchived=true', token))).toEqual([]);
+    });
+
+    it('responde 422 listando os campos obrigatórios ausentes', async () => {
+      const { token } = await signUp();
+
+      const response = await send('POST', '/v1/accounts', {}, token);
+
+      expect(response.statusCode).toBe(422);
+      const fields = response.json<{ errors: { field: string }[] }>().errors.map((e) => e.field);
+      expect(fields.sort()).toEqual(['body.color', 'body.icon', 'body.name', 'body.type']);
+    });
+
+    it('responde 401 sem sessão', async () => {
+      expect((await send('POST', '/v1/accounts', validAccount)).statusCode).toBe(401);
+    });
+  });
+
+  describe('PATCH /v1/accounts/:id', () => {
+    async function createdAccount(token: string): Promise<AccountDto> {
+      const response = await send('POST', '/v1/accounts', validAccount, token);
+      return response.json<AccountDto>();
+    }
+
+    it('altera só os campos enviados', async () => {
+      const { token } = await signUp();
+      const account = await createdAccount(token);
+
+      const response = await send(
+        'PATCH',
+        `/v1/accounts/${account.id}`,
+        { name: ' Conta salário ', type: 'other', initialBalance: -1 },
+        token,
+      );
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({
+        ...account,
+        name: 'Conta salário',
+        type: 'other',
+        initialBalance: -1,
+      });
+      const stored = await storedAccount(account.id);
+      expect(stored?.updatedAt.getTime()).toBeGreaterThan(stored?.createdAt.getTime() ?? 0);
+    });
+
+    it('remove a instituição com null ou texto vazio', async () => {
+      const { token } = await signUp();
+      const first = await createdAccount(token);
+      const second = await createdAccount(token);
+
+      const withNull = await send(
+        'PATCH',
+        `/v1/accounts/${first.id}`,
+        { institution: null },
+        token,
+      );
+      const withBlank = await send(
+        'PATCH',
+        `/v1/accounts/${second.id}`,
+        { institution: ' ' },
+        token,
+      );
+
+      expect(withNull.json<AccountDto>().institution).toBeNull();
+      expect(withBlank.json<AccountDto>().institution).toBeNull();
+    });
+
+    it('com corpo vazio, devolve a conta sem alterar', async () => {
+      const { token } = await signUp();
+      const account = await createdAccount(token);
+
+      const response = await send('PATCH', `/v1/accounts/${account.id}`, {}, token);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual(account);
+    });
+
+    it('responde 422 para campo inválido, sem alterar nada', async () => {
+      const { token } = await signUp();
+      const account = await createdAccount(token);
+
+      const response = await send(
+        'PATCH',
+        `/v1/accounts/${account.id}`,
+        { name: 'Novo nome', color: '#000000' },
+        token,
+      );
+
+      expect(response.statusCode).toBe(422);
+      expect((await storedAccount(account.id))?.name).toBe('Conta corrente');
+    });
+
+    it.each([
+      ['name', null],
+      ['initialBalance', null],
+      ['userId', randomUUIDv7()],
+    ])('responde 422 para %s = %s', async (field, value) => {
+      const { token } = await signUp();
+      const account = await createdAccount(token);
+
+      const response = await send('PATCH', `/v1/accounts/${account.id}`, { [field]: value }, token);
+
+      expect(response.statusCode).toBe(422);
+    });
+
+    it('responde 404 para conta de outro usuário, sem alterá-la', async () => {
+      const owner = await signUp();
+      const account = await createdAccount(owner.token);
+      const { token } = await signUp();
+
+      for (const body of [{ name: 'Invadida' }, {}]) {
+        const response = await send('PATCH', `/v1/accounts/${account.id}`, body, token);
+
+        expect(response.statusCode).toBe(404);
+        expect(response.json()).toMatchObject({ detail: 'Conta não encontrada.' });
+      }
+      expect((await storedAccount(account.id))?.name).toBe('Conta corrente');
+    });
+
+    it('responde 404 para conta inexistente', async () => {
+      const { token } = await signUp();
+
+      const response = await send(
+        'PATCH',
+        `/v1/accounts/${randomUUIDv7()}`,
+        { name: 'Qualquer' },
+        token,
+      );
+
+      expect(response.statusCode).toBe(404);
+    });
+
+    it('responde 401 sem sessão', async () => {
+      const response = await send('PATCH', `/v1/accounts/${randomUUIDv7()}`, { name: 'Qualquer' });
+
+      expect(response.statusCode).toBe(401);
     });
   });
 });

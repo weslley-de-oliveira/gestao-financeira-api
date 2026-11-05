@@ -6,8 +6,10 @@ import {
   accountListSchema,
   accountParamsSchema,
   accountSchema,
+  createAccountBodySchema,
   listAccountsQuerySchema,
   toAccountDto,
+  updateAccountBodySchema,
 } from './accounts.schemas.ts';
 import { createAccountsService } from './accounts.service.ts';
 
@@ -53,6 +55,52 @@ export const accountsRoutes: FastifyPluginCallbackZod = (app, _options, done) =>
     },
     async (request) => {
       const account = await service.get(currentAuth(request).user.id, request.params.id);
+      return toAccountDto(account);
+    },
+  );
+
+  app.post(
+    '',
+    {
+      schema: {
+        tags: [ACCOUNTS_TAG],
+        summary: 'Cadastra uma conta',
+        description:
+          'A conta pertence ao usuário da sessão. Instituição vazia é gravada como `null`; sem `initialBalance`, o saldo inicial é zero.',
+        body: createAccountBodySchema,
+        response: { 201: accountSchema, 401: problemDetailsSchema, 422: problemDetailsSchema },
+      },
+    },
+    async (request, reply) => {
+      const account = await service.create(currentAuth(request).user.id, request.body);
+      return reply.status(201).send(toAccountDto(account));
+    },
+  );
+
+  app.patch(
+    '/:id',
+    {
+      schema: {
+        tags: [ACCOUNTS_TAG],
+        summary: 'Edita uma conta',
+        description:
+          'Altera só os campos enviados; `institution: null` remove a instituição. Conta inexistente ou de outro usuário responde 404.',
+        params: accountParamsSchema,
+        body: updateAccountBodySchema,
+        response: {
+          200: accountSchema,
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request) => {
+      const account = await service.update(
+        currentAuth(request).user.id,
+        request.params.id,
+        request.body,
+      );
       return toAccountDto(account);
     },
   );

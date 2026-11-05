@@ -494,6 +494,95 @@
             }
           }
         }
+      },
+      "post": {
+        "summary": "Cadastra uma conta",
+        "tags": ["Contas"],
+        "description": "A conta pertence ao usuário da sessão. Instituição vazia é gravada como `null`; sem `initialBalance`, o saldo inicial é zero.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "example": "Conta corrente"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["checking", "savings", "cash", "investment", "other"],
+                    "description": "Tipo da conta: `checking` (corrente), `savings` (poupança), `cash` (dinheiro), `investment` (investimento) ou `other`."
+                  },
+                  "institution": {
+                    "example": "Banco Exemplo",
+                    "anyOf": [{ "type": "string", "maxLength": 60 }, { "type": "null" }]
+                  },
+                  "initialBalance": {
+                    "default": 0,
+                    "type": "integer",
+                    "minimum": -100000000000,
+                    "maximum": 100000000000,
+                    "description": "Saldo inicial em centavos; pode ser negativo.",
+                    "example": 123456
+                  },
+                  "color": {
+                    "type": "string",
+                    "enum": [
+                      "#1565c0",
+                      "#2e7d32",
+                      "#6a1b9a",
+                      "#c62828",
+                      "#ef6c00",
+                      "#00838f",
+                      "#ad1457",
+                      "#546e7a"
+                    ]
+                  },
+                  "icon": {
+                    "type": "string",
+                    "enum": [
+                      "account_balance",
+                      "account_balance_wallet",
+                      "savings",
+                      "payments",
+                      "trending_up",
+                      "credit_card",
+                      "store",
+                      "home"
+                    ],
+                    "description": "Ícone do Material Symbols."
+                  }
+                },
+                "required": ["name", "type", "color", "icon"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Account" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
       }
     },
     "/v1/accounts/{id}": {
@@ -501,6 +590,111 @@
         "summary": "Detalha uma conta",
         "tags": ["Contas"],
         "description": "Conta inexistente ou de outro usuário responde 404.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Account" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edita uma conta",
+        "tags": ["Contas"],
+        "description": "Altera só os campos enviados; `institution: null` remove a instituição. Conta inexistente ou de outro usuário responde 404.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "example": "Conta corrente"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["checking", "savings", "cash", "investment", "other"],
+                    "description": "Tipo da conta: `checking` (corrente), `savings` (poupança), `cash` (dinheiro), `investment` (investimento) ou `other`."
+                  },
+                  "institution": {
+                    "example": "Banco Exemplo",
+                    "anyOf": [{ "type": "string", "maxLength": 60 }, { "type": "null" }]
+                  },
+                  "initialBalance": {
+                    "type": "integer",
+                    "minimum": -100000000000,
+                    "maximum": 100000000000,
+                    "description": "Saldo inicial em centavos; pode ser negativo.",
+                    "example": 123456
+                  },
+                  "color": {
+                    "type": "string",
+                    "enum": [
+                      "#1565c0",
+                      "#2e7d32",
+                      "#6a1b9a",
+                      "#c62828",
+                      "#ef6c00",
+                      "#00838f",
+                      "#ad1457",
+                      "#546e7a"
+                    ]
+                  },
+                  "icon": {
+                    "type": "string",
+                    "enum": [
+                      "account_balance",
+                      "account_balance_wallet",
+                      "savings",
+                      "payments",
+                      "trending_up",
+                      "credit_card",
+                      "store",
+                      "home"
+                    ],
+                    "description": "Ícone do Material Symbols."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {

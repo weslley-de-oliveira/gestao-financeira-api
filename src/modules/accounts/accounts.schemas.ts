@@ -1,12 +1,69 @@
 import { z } from 'zod';
 import type { Account } from '../../db/schema/index.ts';
 import { APPEARANCE_COLORS } from '../../shared/models/appearance.ts';
-import { ACCOUNT_ICONS, ACCOUNT_TYPES } from './accounts.constants.ts';
+import { signedCentsSchema } from '../../shared/validation/money.ts';
+import {
+  ACCOUNT_ICONS,
+  ACCOUNT_INSTITUTION_MAX_LENGTH,
+  ACCOUNT_NAME_MAX_LENGTH,
+  ACCOUNT_TYPES,
+} from './accounts.constants.ts';
 
-export const accountTypeSchema = z.enum(ACCOUNT_TYPES).meta({
+export const accountTypeSchema = z.enum(ACCOUNT_TYPES, 'Selecione um tipo de conta válido.').meta({
   description:
     'Tipo da conta: `checking` (corrente), `savings` (poupança), `cash` (dinheiro), `investment` (investimento) ou `other`.',
 });
+
+const accountColorSchema = z.enum(APPEARANCE_COLORS, 'Selecione uma cor válida.');
+const accountIconSchema = z
+  .enum(ACCOUNT_ICONS, 'Selecione um ícone válido.')
+  .meta({ description: 'Ícone do Material Symbols.' });
+
+/**
+ * Campos editáveis, com as mesmas regras do formulário do front. Sem `default` aqui: no `PATCH`,
+ * campo ausente significa "não alterar".
+ */
+const accountFields = {
+  name: z
+    .string('Informe o nome da conta.')
+    .trim()
+    .min(1, 'Informe o nome da conta.')
+    .max(
+      ACCOUNT_NAME_MAX_LENGTH,
+      `O nome deve ter no máximo ${ACCOUNT_NAME_MAX_LENGTH} caracteres.`,
+    )
+    .meta({ example: 'Conta corrente' }),
+  type: accountTypeSchema,
+  /** Vazio ou só espaços vira `null` (sem instituição). */
+  institution: z
+    .string('Informe a instituição como texto.')
+    .trim()
+    .max(
+      ACCOUNT_INSTITUTION_MAX_LENGTH,
+      `A instituição deve ter no máximo ${ACCOUNT_INSTITUTION_MAX_LENGTH} caracteres.`,
+    )
+    .nullable()
+    .transform((value) => (value === '' ? null : value))
+    .meta({ example: 'Banco Exemplo' }),
+  initialBalance: signedCentsSchema.meta({
+    description: 'Saldo inicial em centavos; pode ser negativo.',
+  }),
+  color: accountColorSchema,
+  icon: accountIconSchema,
+};
+
+// `strictObject`: campos desconhecidos (ex.: `userId`, `id`) são rejeitados com 422.
+export const createAccountBodySchema = z.strictObject({
+  ...accountFields,
+  institution: accountFields.institution.optional().transform((value) => value ?? null),
+  initialBalance: accountFields.initialBalance.default(0),
+});
+
+export type CreateAccountInput = z.infer<typeof createAccountBodySchema>;
+
+export const updateAccountBodySchema = z.strictObject(accountFields).partial();
+
+export type UpdateAccountInput = z.infer<typeof updateAccountBodySchema>;
 
 /** Conta como a API devolve. O dono sai da sessão e não aparece na resposta. */
 export const accountSchema = z
@@ -16,8 +73,8 @@ export const accountSchema = z
     type: accountTypeSchema,
     institution: z.string().nullable(),
     initialBalance: z.int().meta({ description: 'Saldo inicial em centavos; pode ser negativo.' }),
-    color: z.enum(APPEARANCE_COLORS),
-    icon: z.enum(ACCOUNT_ICONS).meta({ description: 'Ícone do Material Symbols.' }),
+    color: accountColorSchema,
+    icon: accountIconSchema,
     isArchived: z.boolean(),
     createdAt: z.iso.datetime(),
   })
