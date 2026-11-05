@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { dayOfMonth, monthLabel, parseIsoDate, parseIsoMonth, toIsoDate } from './date.ts';
+import {
+  dayOfMonth,
+  formatIsoDate,
+  monthLabel,
+  parseIsoDate,
+  parseIsoMonth,
+  toIsoDate,
+} from './date.ts';
 
 describe('datas sem horário', () => {
   it.each(['2026-11-05', '2028-02-29', '2026-12-31'])('aceita %s', (value) => {
@@ -24,7 +31,8 @@ describe('datas sem horário', () => {
     expect(toIsoDate(dayOfMonth(2027, -1, 31))).toBe('2026-12-31');
   });
 
-  it('formata o mês como no front', () => {
+  it('formata o mês e a data como no front', () => {
     expect(monthLabel('2026-12')).toBe('12/2026');
+    expect(formatIsoDate('2026-11-04')).toBe('04/11/2026');
   });
 });

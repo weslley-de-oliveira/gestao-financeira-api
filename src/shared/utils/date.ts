@@ -54,6 +54,12 @@ export function dayOfMonth(year: number, month: number, day: number): Date {
   return new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), Math.min(day, lastDay)));
 }
 
+/** "2026-11-04" → "04/11/2026". */
+export function formatIsoDate(date: IsoDate): string {
+  const [year, month, day] = date.split('-');
+  return `${day}/${month}/${year}`;
+}
+
 /** "2026-12" → "12/2026". */
 export function monthLabel(month: IsoMonth): string {
   const [year, number] = month.split('-');

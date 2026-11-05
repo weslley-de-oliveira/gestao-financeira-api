@@ -1,6 +1,7 @@
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
+import { createAccountsRepository } from '../accounts/accounts.repository.ts';
 import { createCreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
 import { createInvoicesRepository } from './invoices.repository.ts';
 import {
@@ -25,6 +26,7 @@ export const invoicesRoutes: FastifyPluginCallbackZod = (app, _options, done) =>
   const service = createInvoicesService({
     invoices: createInvoicesRepository(app.db),
     creditCards,
+    accounts: createAccountsRepository(app.db),
     today: () => app.today(),
   });
 
@@ -72,6 +74,31 @@ export const invoicesRoutes: FastifyPluginCallbackZod = (app, _options, done) =>
       const { id, month } = request.params;
       const invoice = await service.get(currentAuth(request).user.id, id, month);
       return toInvoiceDto(invoice);
+    },
+  );
+
+  app.post(
+    '/:id/invoices/:month/payment',
+    {
+      schema: {
+        tags: [INVOICES_TAG],
+        summary: 'Paga a fatura',
+        description:
+          'Paga o valor total da fatura, com a data de hoje, debitando a conta de pagamento do cartão (cria a transação `invoice-payment`). Só fatura fechada ou vencida, com compras e ainda sem pagamento; senão, ou com a conta de pagamento arquivada, responde 409. Devolve a fatura paga.',
+        params: invoiceParamsSchema,
+        response: {
+          201: invoiceSchema,
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          409: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const { id, month } = request.params;
+      const invoice = await service.pay(currentAuth(request).user.id, id, month);
+      return reply.status(201).send(toInvoiceDto(invoice));
     },
   );
 
