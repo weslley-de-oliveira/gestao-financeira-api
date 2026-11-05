@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { Account } from '../../db/schema/index.ts';
 import { APPEARANCE_COLORS } from '../../shared/models/appearance.ts';
 import { signedCentsSchema } from '../../shared/validation/money.ts';
+import { booleanQueryParam } from '../../shared/validation/query.ts';
 import {
   ACCOUNT_ICONS,
   ACCOUNT_INSTITUTION_MAX_LENGTH,
@@ -97,11 +98,9 @@ export const accountParamsSchema = z.object({
 });
 
 export const listAccountsQuerySchema = z.object({
-  includeArchived: z
-    .enum(['true', 'false'], 'Use true ou false.')
-    .default('false')
-    .meta({ description: 'Inclui as contas arquivadas na lista (padrão: só as ativas).' })
-    .transform((value) => value === 'true'),
+  includeArchived: booleanQueryParam(
+    'Inclui as contas arquivadas na lista (padrão: só as ativas).',
+  ),
 });
 
 export type ListAccountsQuery = z.infer<typeof listAccountsQuerySchema>;

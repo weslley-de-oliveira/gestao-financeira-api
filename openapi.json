@@ -131,6 +131,74 @@
         },
         "required": ["id", "name", "email", "createdAt"]
       },
+      "CategoryInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["expense", "income"],
+            "description": "Tipo da categoria: `expense` (despesa) ou `income` (receita)."
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "restaurant",
+              "shopping_cart",
+              "home",
+              "directions_car",
+              "directions_bus",
+              "local_hospital",
+              "school",
+              "sports_esports",
+              "shopping_bag",
+              "receipt_long",
+              "bolt",
+              "wifi",
+              "pets",
+              "flight",
+              "fitness_center",
+              "checkroom",
+              "work",
+              "laptop",
+              "trending_up",
+              "card_giftcard",
+              "payments",
+              "more_horiz"
+            ],
+            "description": "Ícone do Material Symbols."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "#1565c0",
+              "#2e7d32",
+              "#6a1b9a",
+              "#c62828",
+              "#ef6c00",
+              "#00838f",
+              "#ad1457",
+              "#546e7a"
+            ]
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "Criada com o conjunto inicial do cadastro; `false` nas criadas pelo usuário."
+          },
+          "isArchived": { "type": "boolean" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": ["id", "name", "type", "icon", "color", "isDefault", "isArchived", "createdAt"]
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -257,6 +325,75 @@
           }
         },
         "required": ["id", "name", "email", "createdAt"],
+        "additionalProperties": false
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["expense", "income"],
+            "description": "Tipo da categoria: `expense` (despesa) ou `income` (receita)."
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "restaurant",
+              "shopping_cart",
+              "home",
+              "directions_car",
+              "directions_bus",
+              "local_hospital",
+              "school",
+              "sports_esports",
+              "shopping_bag",
+              "receipt_long",
+              "bolt",
+              "wifi",
+              "pets",
+              "flight",
+              "fitness_center",
+              "checkroom",
+              "work",
+              "laptop",
+              "trending_up",
+              "card_giftcard",
+              "payments",
+              "more_horiz"
+            ],
+            "description": "Ícone do Material Symbols."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "#1565c0",
+              "#2e7d32",
+              "#6a1b9a",
+              "#c62828",
+              "#ef6c00",
+              "#00838f",
+              "#ad1457",
+              "#546e7a"
+            ]
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "Criada com o conjunto inicial do cadastro; `false` nas criadas pelo usuário."
+          },
+          "isArchived": { "type": "boolean" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": ["id", "name", "type", "icon", "color", "isDefault", "isArchived", "createdAt"],
         "additionalProperties": false
       }
     }
@@ -738,11 +875,102 @@
           }
         }
       }
+    },
+    "/v1/categories": {
+      "get": {
+        "summary": "Lista as categorias",
+        "tags": ["Categorias"],
+        "description": "Categorias do usuário em ordem alfabética, de um tipo ou dos dois. Por padrão, só as ativas.",
+        "parameters": [
+          {
+            "schema": { "type": "string", "enum": ["expense", "income"] },
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "description": "Só as categorias deste tipo (padrão: as dos dois tipos)."
+          },
+          {
+            "schema": { "default": "false", "type": "string", "enum": ["true", "false"] },
+            "in": "query",
+            "name": "includeArchived",
+            "required": false,
+            "description": "Inclui as categorias arquivadas na lista (padrão: só as ativas)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Category" } }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/categories/{id}": {
+      "get": {
+        "summary": "Detalha uma categoria",
+        "tags": ["Categorias"],
+        "description": "Categoria inexistente ou de outro usuário responde 404.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Category" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
     }
   },
   "tags": [
     { "name": "Operação", "description": "Saúde e prontidão da API." },
     { "name": "Autenticação", "description": "Cadastro, login, sessão e logout." },
-    { "name": "Contas", "description": "Contas bancárias, carteiras e investimentos." }
+    { "name": "Contas", "description": "Contas bancárias, carteiras e investimentos." },
+    { "name": "Categorias", "description": "Categorias de receitas e despesas." }
   ]
 }

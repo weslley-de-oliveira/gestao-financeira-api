@@ -45,6 +45,7 @@ export const docsPlugin = fp<DocsOptions>(
           { name: 'Operação', description: 'Saúde e prontidão da API.' },
           { name: 'Autenticação', description: 'Cadastro, login, sessão e logout.' },
           { name: 'Contas', description: 'Contas bancárias, carteiras e investimentos.' },
+          { name: 'Categorias', description: 'Categorias de receitas e despesas.' },
         ],
       },
       transform: jsonSchemaTransform,

@@ -1,5 +1,6 @@
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import type { Database } from '../../db/client.ts';
+import { alphabetical } from '../../db/order.ts';
 import { accounts, type Account, type NewAccount } from '../../db/schema/index.ts';
 
 /** Campos que o usuário pode alterar: nunca o dono, o id ou as datas. */
@@ -30,19 +31,16 @@ export function createAccountsRepository(db: Database): AccountsRepository {
 
   return {
     async listAccounts(userId, { includeArchived }) {
-      return (
-        db
-          .select()
-          .from(accounts)
-          .where(
-            and(
-              eq(accounts.userId, userId),
-              includeArchived ? undefined : eq(accounts.isArchived, false),
-            ),
-          )
-          // Collation ICU: ordena como o `localeCompare` do front ("Álvaro" antes de "banco").
-          .orderBy(asc(sql`${accounts.name} collate "und-x-icu"`), asc(accounts.id))
-      );
+      return db
+        .select()
+        .from(accounts)
+        .where(
+          and(
+            eq(accounts.userId, userId),
+            includeArchived ? undefined : eq(accounts.isArchived, false),
+          ),
+        )
+        .orderBy(alphabetical(accounts.name), asc(accounts.id));
     },
 
     async findAccount(userId, accountId) {
