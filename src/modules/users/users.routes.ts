@@ -1,9 +1,12 @@
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
+import { AUTH_RATE_LIMITS } from '../../plugins/rate-limit.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
 import { toUserDto, userSchema } from '../auth/auth.schemas.ts';
+import { clearSessionCookie } from '../auth/session-cookie.ts';
 import { createUsersRepository } from './users.repository.ts';
-import { updateProfileBodySchema } from './users.schemas.ts';
+import { deleteAccountBodySchema, updateProfileBodySchema } from './users.schemas.ts';
 import { createUsersService } from './users.service.ts';
 
 export const PROFILE_TAG = 'Perfil';
@@ -28,6 +31,31 @@ export const usersRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
     async (request) => {
       const user = await service.updateProfile(currentAuth(request).user.id, request.body);
       return toUserDto(user);
+    },
+  );
+
+  app.delete(
+    '',
+    {
+      config: { rateLimit: AUTH_RATE_LIMITS.deleteAccount },
+      schema: {
+        tags: [PROFILE_TAG],
+        summary: 'Exclui a conta e todos os dados',
+        description:
+          'Confirma com a senha atual (errada responde 422) e apaga de vez a pessoa e tudo o que é dela: contas, categorias, transações, cartões, orçamentos e metas. Todas as sessões são encerradas, inclusive em outros aparelhos, e o cookie é apagado. Não há como desfazer.',
+        body: deleteAccountBodySchema,
+        response: {
+          204: z.null(),
+          401: problemDetailsSchema,
+          422: problemDetailsSchema,
+          429: problemDetailsSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      await service.deleteAccount(currentAuth(request).user.id, request.body);
+      clearSessionCookie(reply);
+      return reply.status(204).send(null);
     },
   );
 
