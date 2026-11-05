@@ -1,0 +1,21 @@
+{
+  "name": "gestao-financeira-api",
+  "version": "0.0.0",
+  "description": "API REST da Gestão Financeira (Fastify, Zod, Drizzle e PostgreSQL).",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
+  "packageManager": "npm@11.20.0",
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=.env src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "typescript": "6.0.3"
+  }
+}

@@ -1,0 +1,16 @@
+# Dependências e build
+/node_modules
+/dist
+/coverage
+
+# Variáveis de ambiente locais (o modelo versionado é .env.example)
+.env
+.env.*
+!.env.example
+
+# Sistema e editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
