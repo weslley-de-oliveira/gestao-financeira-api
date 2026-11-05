@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
+import cookie from '@fastify/cookie';
 import Fastify, {
   LogController,
   type FastifyInstance,
@@ -8,10 +9,13 @@ import Fastify, {
 } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import type { Env } from './config/env.ts';
+import { authRoutes } from './modules/auth/auth.routes.ts';
 import { healthRoutes } from './modules/health/health.routes.ts';
+import { authPlugin } from './plugins/auth.ts';
 import { databasePlugin } from './plugins/db.ts';
 import { docsPlugin } from './plugins/docs.ts';
 import { errorsPlugin } from './plugins/errors.ts';
+import { rateLimitPlugin } from './plugins/rate-limit.ts';
 import { securityPlugin } from './plugins/security.ts';
 import { REQUEST_ID_HEADER } from './shared/http/headers.ts';
 import './shared/validation/zod.ts';
@@ -70,15 +74,23 @@ export async function buildApp(env: Env): Promise<FastifyInstance> {
   });
 
   await app.register(errorsPlugin);
-  await app.register(securityPlugin, { corsOrigins: env.CORS_ORIGINS });
+  // Lê e grava cookies (sessão em `__Host-session`); sem assinatura: o token já é opaco e aleatório.
+  await app.register(cookie);
+  await app.register(securityPlugin, {
+    corsOrigins: env.CORS_ORIGINS,
+    appOrigin: env.APP_ORIGIN,
+  });
+  await app.register(rateLimitPlugin, { enabled: env.RATE_LIMIT_ENABLED });
   await app.register(databasePlugin, {
     url: env.DATABASE_URL,
     maxConnections: env.DATABASE_POOL_MAX,
   });
+  await app.register(authPlugin);
 
   // A documentação precisa ser registrada antes das rotas, para enxergá-las.
   await app.register(docsPlugin, { enabled: env.DOCS_ENABLED });
   await app.register(healthRoutes);
+  await app.register(authRoutes, { prefix: '/v1/auth' });
 
   return app;
 }

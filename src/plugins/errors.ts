@@ -1,6 +1,7 @@
 import sensible from '@fastify/sensible';
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
+import { DomainError, type DomainErrorKind } from '../shared/errors/domain-error.ts';
 import {
   PROBLEM_CONTENT_TYPE,
   VALIDATION_PROBLEM_TYPE,
@@ -23,11 +24,17 @@ const TITLES: Readonly<Record<number, string>> = {
   503: 'Serviço indisponível',
 };
 
+const DOMAIN_ERROR_STATUS: Readonly<Record<DomainErrorKind, number>> = {
+  unauthorized: 401,
+  'not-found': 404,
+  conflict: 409,
+};
+
 /**
- * Padroniza todas as respostas de erro em Problem Details: validação → 422 com `errors[]`,
- * erros HTTP conhecidos mantêm o status e a mensagem, e erros inesperados viram 500 sem detalhes
- * internos (o erro completo vai só para o log). Também registra o `@fastify/sensible`, cujos
- * `httpErrors` (ex.: `app.httpErrors.conflict('...')`) os serviços usam para erros de regra.
+ * Padroniza todas as respostas de erro em Problem Details: validação → 422 com `errors[]`, erros
+ * de regra dos serviços (`DomainError`) → status do seu tipo, erros HTTP conhecidos mantêm o
+ * status e a mensagem, e erros inesperados viram 500 sem detalhes internos (o erro completo vai
+ * só para o log). Também registra o `@fastify/sensible` (`app.httpErrors`), usado pelas rotas.
  */
 export const errorsPlugin = fp(
   async (app) => {
@@ -43,6 +50,13 @@ export const errorsPlugin = fp(
             field: fieldPath(error.validationContext, issue.instancePath, issue.params),
             message: issue.message ?? 'Valor inválido.',
           })),
+        });
+      }
+
+      if (error instanceof DomainError) {
+        return sendProblem(request, reply, {
+          status: DOMAIN_ERROR_STATUS[error.kind],
+          detail: error.message,
         });
       }
 

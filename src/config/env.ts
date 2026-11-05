@@ -11,6 +11,8 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   // Referência interativa da API em /docs. Desligue em produção se não quiser expô-la.
   DOCS_ENABLED: z.stringbool().default(true),
+  // Limite de requisições por IP (e de tentativas de login). Só os testes o desligam.
+  RATE_LIMIT_ENABLED: z.stringbool().default(true),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
   // Origens com CORS liberado, separadas por vírgula (ex.: o front no ng serve). Vazio = sem CORS:
@@ -25,6 +27,14 @@ const envSchema = z.object({
         .filter(Boolean),
     )
     .pipe(z.array(z.url({ protocol: /^https?$/ }))),
+  // Endereço público do front em produção (ex.: https://app.vercel.app). Requisições que alteram
+  // dados só são aceitas dessa origem, das de CORS_ORIGINS ou da própria API. Vazio = nenhuma extra.
+  APP_ORIGIN: z
+    .string()
+    .trim()
+    .default('')
+    .pipe(z.union([z.literal(''), z.url({ protocol: /^https?$/ })]))
+    .transform((value) => value || null),
 });
 
 export type Env = z.infer<typeof envSchema>;
