@@ -19,6 +19,7 @@ interface OwnerIds {
   budget: string;
   goal: string;
   contribution: string;
+  installmentPurchase: string;
 }
 
 interface Case {
@@ -56,6 +57,11 @@ const CASES: Case[] = [
     body: { amount: 1 },
   },
   { method: 'DELETE', path: '/v1/transactions/{id}', params: (ids) => ({ id: ids.transaction }) },
+  {
+    method: 'GET',
+    path: '/v1/installment-purchases/{id}',
+    params: (ids) => ({ id: ids.installmentPurchase }),
+  },
   { method: 'GET', path: '/v1/credit-cards/{id}', params: (ids) => ({ id: ids.card }) },
   {
     method: 'PATCH',
@@ -168,6 +174,16 @@ describe('isolamento entre usuários: matriz rota × método', () => {
     expect(
       (await api('POST', `/v1/credit-cards/${card.id}/invoices/${MONTH}/payment`)).statusCode,
     ).toBe(201);
+    const installmentPurchase = (
+      await api('POST', '/v1/installment-purchases', {
+        description: 'Parcelada da dona',
+        amount: 30_000,
+        date: '2026-11-10',
+        creditCardId: card.id,
+        categoryId: category.id,
+        installmentCount: 3,
+      })
+    ).json<{ id: string }>();
     const budget = (
       await api('POST', '/v1/budgets', { categoryId: category.id, limitAmount: 50_000 })
     ).json<{ id: string }>();
@@ -195,6 +211,7 @@ describe('isolamento entre usuários: matriz rota × método', () => {
       budget: budget.id,
       goal: goal.id,
       contribution: withContribution.contributions[0]!.id,
+      installmentPurchase: installmentPurchase.id,
     };
     snapshot = await ownerView(api);
   });
@@ -226,6 +243,7 @@ describe('isolamento entre usuários: matriz rota × método', () => {
     budget: randomUUIDv7(),
     goal: randomUUIDv7(),
     contribution: randomUUIDv7(),
+    installmentPurchase: randomUUIDv7(),
   });
 
   it.each(CASES.map((item) => [`${item.method} ${item.path}`, item] as const))(
