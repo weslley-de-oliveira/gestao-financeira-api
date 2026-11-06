@@ -115,6 +115,9 @@ describe('rotas /v1/transactions', () => {
         categoryId: ledger.food.id,
         status: 'completed',
         notes: null,
+        installmentGroupId: null,
+        installmentNumber: null,
+        installmentCount: null,
         createdAt: expect.any(String) as unknown,
         updatedAt: expect.any(String) as unknown,
       });

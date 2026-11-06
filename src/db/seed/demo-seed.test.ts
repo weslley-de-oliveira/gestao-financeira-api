@@ -85,6 +85,34 @@ describe('seed da demo', () => {
     expect(await get<unknown[]>('/v1/goals')).toHaveLength(4);
   });
 
+  it('traz as compras parceladas da demo, com parcelas futuras', async () => {
+    const parcels = (
+      await get<{ items: TransactionDto[] }>('/v1/transactions?limit=100&q=notebook')
+    ).items.concat(
+      (await get<{ items: TransactionDto[] }>('/v1/transactions?limit=100&q=passagens')).items,
+    );
+    const groups = [...new Set(parcels.map((parcel) => parcel.installmentGroupId))];
+
+    const purchases = await Promise.all(
+      groups.map((id) =>
+        get<{ description: string; amount: number; installmentCount: number }>(
+          `/v1/installment-purchases/${id}`,
+        ),
+      ),
+    );
+
+    expect(
+      purchases
+        .map(({ description, amount, installmentCount }) => [description, amount, installmentCount])
+        .toSorted(),
+    ).toEqual([
+      ['Notebook', 420_000, 10],
+      ['Passagens aéreas', 186_090, 6],
+    ]);
+    // Com hoje em 15/01/2027, as parcelas vão até julho.
+    expect(parcels.some((parcel) => parcel.date > '2027-01-15')).toBe(true);
+  });
+
   it('avança as datas até o mês atual', async () => {
     const rows = await app.db.select({ date: transactions.date }).from(transactions);
     const demoDates = (
@@ -95,10 +123,11 @@ describe('seed da demo', () => {
         .where(eq(users.email, DEMO_CREDENTIALS.email))
     ).map(({ date }) => date);
 
-    expect(rows.length).toBeGreaterThanOrEqual(164);
-    // No seed original, de 02/06/2026 a 25/11/2026; dois meses depois.
+    expect(rows.length).toBeGreaterThanOrEqual(180);
+    // No seed original, de 02/06/2026 a 12/05/2027 (a última parcela do notebook); dois meses
+    // depois.
     expect(demoDates.toSorted()[0]).toBe('2026-08-02');
-    expect(demoDates.toSorted().at(-1)).toBe('2027-01-25');
+    expect(demoDates.toSorted().at(-1)).toBe('2027-07-12');
   });
 
   it('os saldos da API batem com a regra do front sobre as transações da demo', async () => {
@@ -113,7 +142,7 @@ describe('seed da demo', () => {
       cursor = page.nextCursor;
     } while (cursor);
 
-    expect(all).toHaveLength(164);
+    expect(all).toHaveLength(180);
     for (const account of accounts) {
       expect(account.currentBalance).toBe(calculateBalance(account, all));
     }
@@ -137,6 +166,6 @@ describe('seed da demo', () => {
       .select()
       .from(transactions)
       .where(eq(transactions.userId, demo[0]!.id));
-    expect(count).toHaveLength(164);
+    expect(count).toHaveLength(180);
   });
 });

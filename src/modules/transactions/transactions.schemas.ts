@@ -41,6 +41,15 @@ export const transactionSchema = z
     categoryId: z.uuid().nullable(),
     status: transactionStatusSchema,
     notes: z.string().nullable(),
+    installmentGroupId: z.uuid().nullable().meta({
+      description:
+        'Compra parcelada a que a parcela pertence (`/v1/installment-purchases/{id}`); `null` fora de parcelamento.',
+    }),
+    installmentNumber: z
+      .int()
+      .nullable()
+      .meta({ description: 'Número da parcela (1 a `installmentCount`).' }),
+    installmentCount: z.int().nullable().meta({ description: 'Total de parcelas da compra.' }),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime().meta({
       description: 'Versão do registro: a ETag é derivada dela (use a ETag no `If-Match`).',
@@ -51,7 +60,7 @@ export const transactionSchema = z
 export type TransactionDto = z.infer<typeof transactionSchema>;
 
 /** Descrição com os espaços extras removidos (como no front) antes de checar os limites. */
-const descriptionSchema = z
+export const descriptionSchema = z
   .string('Informe a descrição.')
   .overwrite(collapseWhitespace)
   .min(1, 'Informe a descrição.')
@@ -62,7 +71,7 @@ const descriptionSchema = z
   .meta({ example: 'Mercado do mês' });
 
 /** Observações opcionais; vazio ou só espaços vira `null`. */
-const notesSchema = z
+export const notesSchema = z
   .string('Informe as observações como texto.')
   .trim()
   .max(
@@ -293,6 +302,9 @@ export function toTransactionDto(transaction: Transaction): TransactionDto {
     categoryId: transaction.categoryId,
     status: transaction.status,
     notes: transaction.notes,
+    installmentGroupId: transaction.installmentGroupId,
+    installmentNumber: transaction.installmentNumber,
+    installmentCount: transaction.installmentCount,
     createdAt: transaction.createdAt.toISOString(),
     updatedAt: transaction.updatedAt.toISOString(),
   };

@@ -13,7 +13,7 @@ export const problemDetailsSchema = z
   .object({
     type: z.string().meta({
       description:
-        'Tipo do problema: `/problems/validation-error` (422 com `errors`), `/problems/paid-invoice` (409: compra de fatura já paga), `/problems/archived-reference` (409: conta, cartão ou categoria arquivada); `about:blank` quando o status já basta.',
+        'Tipo do problema: `/problems/validation-error` (422 com `errors`), `/problems/paid-invoice` (409: compra de fatura já paga), `/problems/archived-reference` (409: conta, cartão ou categoria arquivada), `/problems/installment` (409: parcela alterada sozinha; use a compra parcelada); `about:blank` quando o status já basta.',
       example: 'about:blank',
     }),
     title: z.string().meta({ example: 'Recurso não encontrado' }),
@@ -37,3 +37,4 @@ export type FieldError = z.infer<typeof fieldErrorSchema>;
  */
 export const PAID_INVOICE_PROBLEM_TYPE = '/problems/paid-invoice';
 export const ARCHIVED_REFERENCE_PROBLEM_TYPE = '/problems/archived-reference';
+export const INSTALLMENT_PROBLEM_TYPE = '/problems/installment';

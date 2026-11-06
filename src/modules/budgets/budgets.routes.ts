@@ -34,7 +34,7 @@ export const budgetsRoutes: FastifyPluginCallbackZod = (app, _options, done) => 
         tags: [BUDGETS_TAG],
         summary: 'Lista os orçamentos com o consumo do mês',
         description:
-          'Orçamentos que valem no mês (padrão: o atual), em ordem alfabética da categoria, com o consumo: só despesas realizadas contam (compras no cartão incluídas, pela data da compra); as pendentes aparecem à parte.',
+          'Orçamentos que valem no mês (padrão: o atual), em ordem alfabética da categoria, com o consumo: só despesas realizadas contam (compras no cartão incluídas, pela data da compra; numa compra parcelada, cada parcela no mês dela); as pendentes aparecem à parte.',
         querystring: budgetMonthQuerySchema,
         response: { 200: budgetListSchema, 401: problemDetailsSchema, 422: problemDetailsSchema },
       },

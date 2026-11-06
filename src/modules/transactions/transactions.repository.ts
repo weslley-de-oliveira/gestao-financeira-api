@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lte, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '../../db/client.ts';
 import { transactions, type NewTransaction, type Transaction } from '../../db/schema/index.ts';
 import { toPage, type Page } from '../../shared/http/pagination.ts';
@@ -40,6 +40,24 @@ export interface TransactionsRepository {
   ): Promise<Transaction | null>;
   /** Apaga a transação só se for do usuário; devolve se apagou. */
   deleteTransaction(userId: string, transactionId: string): Promise<boolean>;
+  /** Grava várias transações numa instrução só: entram todas ou nenhuma. */
+  insertTransactions(rows: NewTransaction[]): Promise<Transaction[]>;
+  /** Parcelas de uma compra parcelada do usuário, da 1ª à última; vazio se não existir. */
+  listInstallments(userId: string, groupId: string): Promise<Transaction[]>;
+  /** Altera os mesmos campos em todas as parcelas da compra; devolve as parcelas alteradas. */
+  updateInstallments(
+    userId: string,
+    groupId: string,
+    changes: Partial<Pick<NewTransaction, 'description' | 'categoryId' | 'notes'>>,
+  ): Promise<Transaction[]>;
+  /** Apaga todas as parcelas da compra; devolve quantas apagou. */
+  deleteInstallments(userId: string, groupId: string): Promise<number>;
+  /** O primeiro destes meses de referência do cartão cuja fatura já tem pagamento, ou `null`. */
+  firstPaidInvoiceMonth(
+    userId: string,
+    creditCardId: string,
+    invoiceMonths: readonly string[],
+  ): Promise<string | null>;
   /** Se a fatura (cartão e mês de referência) do usuário já tem pagamento. */
   hasInvoicePayment(userId: string, creditCardId: string, invoiceMonth: string): Promise<boolean>;
 }
@@ -130,6 +148,55 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
         .where(ownedBy(userId, transactionId))
         .returning({ id: transactions.id });
       return deleted.length > 0;
+    },
+
+    async insertTransactions(rows) {
+      return rows.length === 0 ? [] : db.insert(transactions).values(rows).returning();
+    },
+
+    async listInstallments(userId, groupId) {
+      return db
+        .select()
+        .from(transactions)
+        .where(and(eq(transactions.userId, userId), eq(transactions.installmentGroupId, groupId)))
+        .orderBy(asc(transactions.installmentNumber));
+    },
+
+    async updateInstallments(userId, groupId, changes) {
+      const updated = await db
+        .update(transactions)
+        .set(changes)
+        .where(and(eq(transactions.userId, userId), eq(transactions.installmentGroupId, groupId)))
+        .returning();
+      return updated.toSorted((a, b) => (a.installmentNumber ?? 0) - (b.installmentNumber ?? 0));
+    },
+
+    async deleteInstallments(userId, groupId) {
+      const deleted = await db
+        .delete(transactions)
+        .where(and(eq(transactions.userId, userId), eq(transactions.installmentGroupId, groupId)))
+        .returning({ id: transactions.id });
+      return deleted.length;
+    },
+
+    async firstPaidInvoiceMonth(userId, creditCardId, invoiceMonths) {
+      if (invoiceMonths.length === 0) {
+        return null;
+      }
+      const [payment] = await db
+        .select({ invoiceMonth: transactions.invoiceMonth })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            eq(transactions.creditCardId, creditCardId),
+            eq(transactions.type, 'invoice-payment'),
+            inArray(transactions.invoiceMonth, [...invoiceMonths]),
+          ),
+        )
+        .orderBy(asc(transactions.invoiceMonth))
+        .limit(1);
+      return payment?.invoiceMonth ?? null;
     },
 
     async hasInvoicePayment(userId, creditCardId, invoiceMonth) {

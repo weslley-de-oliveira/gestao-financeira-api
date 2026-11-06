@@ -17,6 +17,7 @@ import { creditCardsRoutes } from './modules/credit-cards/credit-cards.routes.ts
 import { dashboardRoutes } from './modules/dashboard/dashboard.routes.ts';
 import { goalsRoutes } from './modules/goals/goals.routes.ts';
 import { invoicesRoutes } from './modules/invoices/invoices.routes.ts';
+import { installmentsRoutes } from './modules/installments/installments.routes.ts';
 import { transactionsRoutes } from './modules/transactions/transactions.routes.ts';
 import { healthRoutes } from './modules/health/health.routes.ts';
 import { usersRoutes } from './modules/users/users.routes.ts';
@@ -112,6 +113,7 @@ export async function buildApp(env: Env, { now }: BuildAppOptions = {}): Promise
   await app.register(accountsRoutes, { prefix: '/v1/accounts' });
   await app.register(categoriesRoutes, { prefix: '/v1/categories' });
   await app.register(transactionsRoutes, { prefix: '/v1/transactions' });
+  await app.register(installmentsRoutes, { prefix: '/v1/installment-purchases' });
   await app.register(creditCardsRoutes, { prefix: '/v1/credit-cards' });
   await app.register(invoicesRoutes, { prefix: '/v1/credit-cards' });
   await app.register(budgetsRoutes, { prefix: '/v1/budgets' });

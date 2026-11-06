@@ -686,7 +686,7 @@
       "date": "2026-07-10"
     },
     {
-      "id": "69eb3d99-fb80-49a0-859c-1d213fb88d27",
+      "id": "ba123ab7-ae82-4c4d-b0db-a55972259789",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-07-10T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -990,7 +990,7 @@
       "date": "2026-07-27"
     },
     {
-      "id": "a17b80cc-c7ab-402c-9bc0-621769dc1faf",
+      "id": "c6c7ea7e-922b-4774-b4f8-61f4e9259512",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-07-27T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -1198,7 +1198,7 @@
       "date": "2026-08-10"
     },
     {
-      "id": "98f61797-7adf-41ff-ac61-7d02012920a6",
+      "id": "6e8d28cb-4814-4589-b37b-bd73cf6fec08",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-08-10T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -1228,6 +1228,25 @@
       "description": "Energia elétrica",
       "amount": 14763,
       "date": "2026-08-12"
+    },
+    {
+      "id": "98f61797-7adf-41ff-ac61-7d02012920a6",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2026-08-12T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "a8de8d22-0669-46d2-af53-d7b6c6a76eee",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "4d736fcd-835c-4fbd-8928-9284eef9cea0",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Notebook",
+      "amount": 42000,
+      "date": "2026-08-12",
+      "installmentGroupId": "69eb3d99-fb80-49a0-859c-1d213fb88d27",
+      "installmentNumber": 1,
+      "installmentCount": 10
     },
     {
       "id": "f4ba9049-50f9-4e2e-b0f5-fb9c8c9ca1eb",
@@ -1470,7 +1489,7 @@
       "date": "2026-08-27"
     },
     {
-      "id": "2e0e1b06-1725-4af4-9136-2246120fde86",
+      "id": "0ee09e1a-ce4f-40c3-a20e-697e652e7484",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-08-27T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -1598,7 +1617,7 @@
       "date": "2026-09-10"
     },
     {
-      "id": "ef893a43-b295-4340-b32b-0adcf9c750c7",
+      "id": "c862631b-e3fe-4f55-bccb-755c55f8d08a",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-09-10T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -1610,7 +1629,7 @@
       "notes": null,
       "type": "invoice-payment",
       "description": "Fatura Cartão principal",
-      "amount": 212225,
+      "amount": 254225,
       "date": "2026-09-10"
     },
     {
@@ -1628,6 +1647,25 @@
       "description": "Energia elétrica",
       "amount": 20877,
       "date": "2026-09-12"
+    },
+    {
+      "id": "ef893a43-b295-4340-b32b-0adcf9c750c7",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2026-09-12T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "a8de8d22-0669-46d2-af53-d7b6c6a76eee",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "4d736fcd-835c-4fbd-8928-9284eef9cea0",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Notebook",
+      "amount": 42000,
+      "date": "2026-09-12",
+      "installmentGroupId": "69eb3d99-fb80-49a0-859c-1d213fb88d27",
+      "installmentNumber": 2,
+      "installmentCount": 10
     },
     {
       "id": "a99409c3-c622-40bf-872c-ad0556cb70f2",
@@ -1950,7 +1988,7 @@
       "date": "2026-09-27"
     },
     {
-      "id": "523c7767-addc-41d4-aa10-bfa11bbf9c43",
+      "id": "58e913bd-c861-46bb-89a8-fd77ef507379",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-09-27T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -2126,6 +2164,25 @@
       "date": "2026-10-08"
     },
     {
+      "id": "a766611c-40ba-4b0b-a289-f4940a94afb0",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2026-10-08T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "59ef3b23-f02a-41e9-986a-a8e475166463",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "552e5027-6887-4b7d-b470-676265ed9390",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Passagens aéreas",
+      "amount": 31015,
+      "date": "2026-10-08",
+      "installmentGroupId": "91b99e63-1e5c-4a44-ac99-5524d73c36da",
+      "installmentNumber": 1,
+      "installmentCount": 6
+    },
+    {
       "id": "d91f35c9-9030-4d06-a469-be155f2d9bd5",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-10-10T12:00:00.000Z",
@@ -2158,7 +2215,7 @@
       "date": "2026-10-10"
     },
     {
-      "id": "2f6eaddf-b0f2-4dd6-8e2d-7001b7ab6f35",
+      "id": "cfd27eb6-c93e-441f-b307-074436f4d427",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-10-10T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -2170,7 +2227,7 @@
       "notes": null,
       "type": "invoice-payment",
       "description": "Fatura Cartão principal",
-      "amount": 304375,
+      "amount": 346375,
       "date": "2026-10-10"
     },
     {
@@ -2220,6 +2277,25 @@
       "description": "Estacionamento",
       "amount": 4507,
       "date": "2026-10-12"
+    },
+    {
+      "id": "2f6eaddf-b0f2-4dd6-8e2d-7001b7ab6f35",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2026-10-12T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "a8de8d22-0669-46d2-af53-d7b6c6a76eee",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "4d736fcd-835c-4fbd-8928-9284eef9cea0",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Notebook",
+      "amount": 42000,
+      "date": "2026-10-12",
+      "installmentGroupId": "69eb3d99-fb80-49a0-859c-1d213fb88d27",
+      "installmentNumber": 3,
+      "installmentCount": 10
     },
     {
       "id": "a6ae9334-a7ea-4893-9e8e-3b01ad4bdcc9",
@@ -2414,7 +2490,7 @@
       "date": "2026-10-25"
     },
     {
-      "id": "94f37818-42f8-427e-a53f-518a637440ac",
+      "id": "b00c0eec-6ada-4d08-b962-f0c0a6416b69",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-10-27T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -2426,7 +2502,7 @@
       "notes": null,
       "type": "invoice-payment",
       "description": "Fatura Cartão viagens",
-      "amount": 27861,
+      "amount": 58876,
       "date": "2026-10-27"
     },
     {
@@ -2606,6 +2682,25 @@
       "date": "2026-11-06"
     },
     {
+      "id": "595f48e5-b91b-4f81-bb91-c2e467796a56",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2026-11-08T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "59ef3b23-f02a-41e9-986a-a8e475166463",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "552e5027-6887-4b7d-b470-676265ed9390",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Passagens aéreas",
+      "amount": 31015,
+      "date": "2026-11-08",
+      "installmentGroupId": "91b99e63-1e5c-4a44-ac99-5524d73c36da",
+      "installmentNumber": 2,
+      "installmentCount": 6
+    },
+    {
       "id": "c81960ff-8009-4a2d-86dc-840c8abc03ad",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-11-10T12:00:00.000Z",
@@ -2636,6 +2731,25 @@
       "description": "Energia elétrica",
       "amount": 21631,
       "date": "2026-11-12"
+    },
+    {
+      "id": "a17b80cc-c7ab-402c-9bc0-621769dc1faf",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2026-11-12T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "a8de8d22-0669-46d2-af53-d7b6c6a76eee",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "4d736fcd-835c-4fbd-8928-9284eef9cea0",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Notebook",
+      "amount": 42000,
+      "date": "2026-11-12",
+      "installmentGroupId": "69eb3d99-fb80-49a0-859c-1d213fb88d27",
+      "installmentNumber": 4,
+      "installmentCount": 10
     },
     {
       "id": "6b06b958-2b97-4cb9-a958-cf3243e0f6bc",
@@ -2684,6 +2798,196 @@
       "description": "Rendimento",
       "amount": 8159,
       "date": "2026-11-25"
+    },
+    {
+      "id": "7e2ad7bb-f398-4902-9fc7-55b148428632",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2026-12-08T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "59ef3b23-f02a-41e9-986a-a8e475166463",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "552e5027-6887-4b7d-b470-676265ed9390",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Passagens aéreas",
+      "amount": 31015,
+      "date": "2026-12-08",
+      "installmentGroupId": "91b99e63-1e5c-4a44-ac99-5524d73c36da",
+      "installmentNumber": 3,
+      "installmentCount": 6
+    },
+    {
+      "id": "2e0e1b06-1725-4af4-9136-2246120fde86",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2026-12-12T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "a8de8d22-0669-46d2-af53-d7b6c6a76eee",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "4d736fcd-835c-4fbd-8928-9284eef9cea0",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Notebook",
+      "amount": 42000,
+      "date": "2026-12-12",
+      "installmentGroupId": "69eb3d99-fb80-49a0-859c-1d213fb88d27",
+      "installmentNumber": 5,
+      "installmentCount": 10
+    },
+    {
+      "id": "a8906f33-a1d4-4459-b8e9-b79c46530474",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2027-01-08T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "59ef3b23-f02a-41e9-986a-a8e475166463",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "552e5027-6887-4b7d-b470-676265ed9390",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Passagens aéreas",
+      "amount": 31015,
+      "date": "2027-01-08",
+      "installmentGroupId": "91b99e63-1e5c-4a44-ac99-5524d73c36da",
+      "installmentNumber": 4,
+      "installmentCount": 6
+    },
+    {
+      "id": "523c7767-addc-41d4-aa10-bfa11bbf9c43",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2027-01-12T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "a8de8d22-0669-46d2-af53-d7b6c6a76eee",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "4d736fcd-835c-4fbd-8928-9284eef9cea0",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Notebook",
+      "amount": 42000,
+      "date": "2027-01-12",
+      "installmentGroupId": "69eb3d99-fb80-49a0-859c-1d213fb88d27",
+      "installmentNumber": 6,
+      "installmentCount": 10
+    },
+    {
+      "id": "11048095-f891-4871-a378-cc2fcb939294",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2027-02-08T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "59ef3b23-f02a-41e9-986a-a8e475166463",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "552e5027-6887-4b7d-b470-676265ed9390",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Passagens aéreas",
+      "amount": 31015,
+      "date": "2027-02-08",
+      "installmentGroupId": "91b99e63-1e5c-4a44-ac99-5524d73c36da",
+      "installmentNumber": 5,
+      "installmentCount": 6
+    },
+    {
+      "id": "94f37818-42f8-427e-a53f-518a637440ac",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2027-02-12T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "a8de8d22-0669-46d2-af53-d7b6c6a76eee",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "4d736fcd-835c-4fbd-8928-9284eef9cea0",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Notebook",
+      "amount": 42000,
+      "date": "2027-02-12",
+      "installmentGroupId": "69eb3d99-fb80-49a0-859c-1d213fb88d27",
+      "installmentNumber": 7,
+      "installmentCount": 10
+    },
+    {
+      "id": "add505f5-1c72-4d4e-84e5-a4b14d40a4c3",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2027-03-08T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "59ef3b23-f02a-41e9-986a-a8e475166463",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "552e5027-6887-4b7d-b470-676265ed9390",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Passagens aéreas",
+      "amount": 31015,
+      "date": "2027-03-08",
+      "installmentGroupId": "91b99e63-1e5c-4a44-ac99-5524d73c36da",
+      "installmentNumber": 6,
+      "installmentCount": 6
+    },
+    {
+      "id": "6283c821-94c3-47ff-bac2-eb196bfcdb2a",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2027-03-12T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "a8de8d22-0669-46d2-af53-d7b6c6a76eee",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "4d736fcd-835c-4fbd-8928-9284eef9cea0",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Notebook",
+      "amount": 42000,
+      "date": "2027-03-12",
+      "installmentGroupId": "69eb3d99-fb80-49a0-859c-1d213fb88d27",
+      "installmentNumber": 8,
+      "installmentCount": 10
+    },
+    {
+      "id": "bfc884c7-2d1f-4d1c-8f52-02e0167f04db",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2027-04-12T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "a8de8d22-0669-46d2-af53-d7b6c6a76eee",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "4d736fcd-835c-4fbd-8928-9284eef9cea0",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Notebook",
+      "amount": 42000,
+      "date": "2027-04-12",
+      "installmentGroupId": "69eb3d99-fb80-49a0-859c-1d213fb88d27",
+      "installmentNumber": 9,
+      "installmentCount": 10
+    },
+    {
+      "id": "05804a4d-f235-4abc-a249-baefec152c9c",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2027-05-12T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "a8de8d22-0669-46d2-af53-d7b6c6a76eee",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": "4d736fcd-835c-4fbd-8928-9284eef9cea0",
+      "status": "completed",
+      "notes": null,
+      "type": "expense",
+      "description": "Notebook",
+      "amount": 42000,
+      "date": "2027-05-12",
+      "installmentGroupId": "69eb3d99-fb80-49a0-859c-1d213fb88d27",
+      "installmentNumber": 10,
+      "installmentCount": 10
     }
   ],
   "categories": [
@@ -2844,7 +3148,7 @@
   ],
   "budgets": [
     {
-      "id": "6283c821-94c3-47ff-bac2-eb196bfcdb2a",
+      "id": "853ed678-ba22-42e0-b41a-aec0caf0ab3f",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "categoryId": "d310f713-304d-4030-8ed3-cd9983176714",
@@ -2861,7 +3165,7 @@
       "alertThreshold": 80
     },
     {
-      "id": "bfc884c7-2d1f-4d1c-8f52-02e0167f04db",
+      "id": "daa44655-bdfd-47d3-9626-e6c35c4c3aae",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "categoryId": "bbd56c6d-9f2d-4505-a867-ca69283e0e63",
@@ -2874,7 +3178,7 @@
       "alertThreshold": 90
     },
     {
-      "id": "05804a4d-f235-4abc-a249-baefec152c9c",
+      "id": "661edf1e-b42e-4ede-b3c8-0201174273c4",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "categoryId": "552e5027-6887-4b7d-b470-676265ed9390",
@@ -2887,7 +3191,7 @@
       "alertThreshold": 80
     },
     {
-      "id": "91b99e63-1e5c-4a44-ac99-5524d73c36da",
+      "id": "3ebe70b0-fa3e-4f9f-8f9f-ddb60c8e9d68",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "categoryId": "4d736fcd-835c-4fbd-8928-9284eef9cea0",
@@ -2932,7 +3236,7 @@
   ],
   "goals": [
     {
-      "id": "add505f5-1c72-4d4e-84e5-a4b14d40a4c3",
+      "id": "55c1e21e-b91d-4e34-ac3b-9afd511b257a",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "description": "Seis meses de despesas guardados.",
@@ -2943,7 +3247,7 @@
       "initialAmount": 800000,
       "contributions": [
         {
-          "id": "a766611c-40ba-4b0b-a289-f4940a94afb0",
+          "id": "c1611355-073d-4586-878f-781a0cd9e94a",
           "type": "deposit",
           "amount": 50000,
           "date": "2026-06-07",
@@ -2951,7 +3255,7 @@
           "createdAt": "2026-06-07T12:00:00.000Z"
         },
         {
-          "id": "595f48e5-b91b-4f81-bb91-c2e467796a56",
+          "id": "bc3ea2a3-13eb-4194-a4a5-cfceb4eacb77",
           "type": "deposit",
           "amount": 50000,
           "date": "2026-07-07",
@@ -2959,7 +3263,7 @@
           "createdAt": "2026-07-07T12:00:00.000Z"
         },
         {
-          "id": "7e2ad7bb-f398-4902-9fc7-55b148428632",
+          "id": "7c1afaf6-772b-4c6e-8c3b-5a7cb4148f00",
           "type": "deposit",
           "amount": 50000,
           "date": "2026-08-07",
@@ -2967,7 +3271,7 @@
           "createdAt": "2026-08-07T12:00:00.000Z"
         },
         {
-          "id": "a8906f33-a1d4-4459-b8e9-b79c46530474",
+          "id": "4e89368b-8de5-42ac-81c5-86a6672ed3d9",
           "type": "deposit",
           "amount": 50000,
           "date": "2026-09-07",
@@ -2975,7 +3279,7 @@
           "createdAt": "2026-09-07T12:00:00.000Z"
         },
         {
-          "id": "11048095-f891-4871-a378-cc2fcb939294",
+          "id": "8381159b-5eae-4824-bce7-b65187ef82dc",
           "type": "deposit",
           "amount": 50000,
           "date": "2026-10-07",
@@ -2988,7 +3292,7 @@
       "icon": "health_and_safety"
     },
     {
-      "id": "0ee09e1a-ce4f-40c3-a20e-697e652e7484",
+      "id": "0102d0ee-ac06-41c8-a253-85a539aca443",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "description": null,
@@ -2999,7 +3303,7 @@
       "initialAmount": 100000,
       "contributions": [
         {
-          "id": "ba123ab7-ae82-4c4d-b0db-a55972259789",
+          "id": "7cb72408-fc38-4c31-ba0f-0702079eadcb",
           "type": "deposit",
           "amount": 100000,
           "date": "2026-07-08",
@@ -3007,7 +3311,7 @@
           "createdAt": "2026-07-08T12:00:00.000Z"
         },
         {
-          "id": "6e8d28cb-4814-4589-b37b-bd73cf6fec08",
+          "id": "9f19d37a-e883-4556-93bd-ead276f574b0",
           "type": "deposit",
           "amount": 100000,
           "date": "2026-08-08",
@@ -3015,7 +3319,7 @@
           "createdAt": "2026-08-08T12:00:00.000Z"
         },
         {
-          "id": "c862631b-e3fe-4f55-bccb-755c55f8d08a",
+          "id": "c34a9737-6801-4397-bd74-81816937d412",
           "type": "deposit",
           "amount": 100000,
           "date": "2026-09-08",
@@ -3023,7 +3327,7 @@
           "createdAt": "2026-09-08T12:00:00.000Z"
         },
         {
-          "id": "cfd27eb6-c93e-441f-b307-074436f4d427",
+          "id": "35fbe9db-2eec-4289-9243-239678b539cb",
           "type": "deposit",
           "amount": 100000,
           "date": "2026-10-08",
@@ -3031,7 +3335,7 @@
           "createdAt": "2026-10-08T12:00:00.000Z"
         },
         {
-          "id": "c6c7ea7e-922b-4774-b4f8-61f4e9259512",
+          "id": "9a35a4b1-d573-42be-8f64-53edffdf8516",
           "type": "withdrawal",
           "amount": 40000,
           "date": "2026-09-20",
@@ -3044,7 +3348,7 @@
       "icon": "flight"
     },
     {
-      "id": "daa44655-bdfd-47d3-9626-e6c35c4c3aae",
+      "id": "4f07589d-94e0-4c53-8552-e8492fd73775",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "description": null,
@@ -3055,7 +3359,7 @@
       "initialAmount": 150000,
       "contributions": [
         {
-          "id": "58e913bd-c861-46bb-89a8-fd77ef507379",
+          "id": "2d485a53-7a1f-4b6e-9ad3-87094793def6",
           "type": "deposit",
           "amount": 30000,
           "date": "2026-06-09",
@@ -3063,7 +3367,7 @@
           "createdAt": "2026-06-09T12:00:00.000Z"
         },
         {
-          "id": "b00c0eec-6ada-4d08-b962-f0c0a6416b69",
+          "id": "04744b93-e7f7-48b3-a30a-242a0a6c7d1e",
           "type": "deposit",
           "amount": 30000,
           "date": "2026-07-09",
@@ -3071,7 +3375,7 @@
           "createdAt": "2026-07-09T12:00:00.000Z"
         },
         {
-          "id": "853ed678-ba22-42e0-b41a-aec0caf0ab3f",
+          "id": "0bad2872-1a74-4fb0-9df3-119af8789abe",
           "type": "deposit",
           "amount": 30000,
           "date": "2026-08-09",
@@ -3084,7 +3388,7 @@
       "icon": "devices"
     },
     {
-      "id": "4e89368b-8de5-42ac-81c5-86a6672ed3d9",
+      "id": "9d7381ee-6ec8-4e71-ae78-717961fde55c",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "description": null,
@@ -3095,7 +3399,7 @@
       "initialAmount": 0,
       "contributions": [
         {
-          "id": "661edf1e-b42e-4ede-b3c8-0201174273c4",
+          "id": "82f9fc28-6e4f-4b17-8ffb-2efed5bff1ad",
           "type": "deposit",
           "amount": 90000,
           "date": "2026-06-09",
@@ -3103,7 +3407,7 @@
           "createdAt": "2026-06-09T12:00:00.000Z"
         },
         {
-          "id": "3ebe70b0-fa3e-4f9f-8f9f-ddb60c8e9d68",
+          "id": "396b37f6-b185-4489-bd09-525e2b740af2",
           "type": "deposit",
           "amount": 90000,
           "date": "2026-07-09",
@@ -3111,7 +3415,7 @@
           "createdAt": "2026-07-09T12:00:00.000Z"
         },
         {
-          "id": "c1611355-073d-4586-878f-781a0cd9e94a",
+          "id": "33d5baa2-4df9-4200-8e69-4b35cc5206ed",
           "type": "deposit",
           "amount": 90000,
           "date": "2026-08-09",
@@ -3119,7 +3423,7 @@
           "createdAt": "2026-08-09T12:00:00.000Z"
         },
         {
-          "id": "bc3ea2a3-13eb-4194-a4a5-cfceb4eacb77",
+          "id": "81219f2b-9586-405f-a475-4bccd0e79070",
           "type": "deposit",
           "amount": 90000,
           "date": "2026-09-09",
@@ -3127,7 +3431,7 @@
           "createdAt": "2026-09-09T12:00:00.000Z"
         },
         {
-          "id": "7c1afaf6-772b-4c6e-8c3b-5a7cb4148f00",
+          "id": "eb09ba9e-551b-40ff-8af7-ee5ab66b2722",
           "type": "deposit",
           "amount": 90000,
           "date": "2026-10-09",

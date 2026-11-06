@@ -1,3 +1,4 @@
+import { randomUUIDv7 } from 'node:crypto';
 import type { Transaction } from '../../db/schema/index.ts';
 import type { Page } from '../../shared/http/pagination.ts';
 import {
@@ -7,6 +8,7 @@ import {
 } from '../../shared/errors/domain-error.ts';
 import {
   ARCHIVED_REFERENCE_PROBLEM_TYPE,
+  INSTALLMENT_PROBLEM_TYPE,
   PAID_INVOICE_PROBLEM_TYPE,
 } from '../../shared/http/problem.ts';
 import { monthLabel } from '../../shared/utils/date.ts';
@@ -14,6 +16,11 @@ import { invoiceCycleFor } from '../../shared/utils/invoice-cycle.ts';
 import type { AccountsRepository } from '../accounts/accounts.repository.ts';
 import type { CategoriesRepository } from '../categories/categories.repository.ts';
 import type { CreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
+import { planInstallments } from '../installments/installment-plan.ts';
+import type {
+  CreateInstallmentPurchaseInput,
+  UpdateInstallmentPurchaseInput,
+} from '../installments/installments.schemas.ts';
 import type { TransactionsRepository } from './transactions.repository.ts';
 import {
   createTransactionBodySchema,
@@ -61,6 +68,27 @@ export class PaidInvoiceError extends DomainError {
 }
 
 /** Conta ou categoria arquivada numa transação nova (ou trocada na edição). */
+/** Parcela alterada ou excluída sozinha: as parcelas só mudam pela compra parcelada. */
+export class InstallmentNotEditableError extends DomainError {
+  readonly kind = 'conflict';
+  override readonly problemType = INSTALLMENT_PROBLEM_TYPE;
+
+  constructor() {
+    super(
+      'Esta transação é uma parcela: altere ou exclua a compra parcelada inteira (/v1/installment-purchases).',
+    );
+  }
+}
+
+/** Compra parcelada inexistente ou de outro usuário. */
+export class InstallmentPurchaseNotFoundError extends DomainError {
+  readonly kind = 'not-found';
+
+  constructor() {
+    super('Compra parcelada não encontrada.');
+  }
+}
+
 export class ArchivedReferenceError extends DomainError {
   readonly kind = 'conflict';
   override readonly problemType = ARCHIVED_REFERENCE_PROBLEM_TYPE;
@@ -112,6 +140,28 @@ export interface TransactionsService {
   ): Promise<Transaction>;
   /** Apaga a transação. Pagamento de fatura → `InvoicePaymentNotEditableError`. */
   remove(userId: string, transactionId: string): Promise<void>;
+  /**
+   * Registra a compra no cartão em parcelas, uma por fatura (`planInstallments`), com as regras
+   * de uma compra comum: cartão e categoria de despesa do usuário e ativos. Se alguma parcela
+   * cairia numa fatura já paga → `PaidInvoiceError`. Devolve as parcelas, da 1ª à última.
+   */
+  createInstallmentPurchase(
+    userId: string,
+    input: CreateInstallmentPurchaseInput,
+  ): Promise<Transaction[]>;
+  /** Parcelas da compra; inexistente ou de outro usuário → `InstallmentPurchaseNotFoundError`. */
+  getInstallmentPurchase(userId: string, groupId: string): Promise<Transaction[]>;
+  /**
+   * Altera descrição, categoria e observações de todas as parcelas. Vale mesmo com faturas pagas:
+   * esses campos não mudam os valores. Categoria nova precisa ser de despesa, do usuário e ativa.
+   */
+  updateInstallmentPurchase(
+    userId: string,
+    groupId: string,
+    changes: UpdateInstallmentPurchaseInput,
+  ): Promise<Transaction[]>;
+  /** Apaga todas as parcelas; alguma numa fatura já paga → `PaidInvoiceError`. */
+  removeInstallmentPurchase(userId: string, groupId: string): Promise<void>;
 }
 
 export function createTransactionsService({
@@ -129,18 +179,41 @@ export function createTransactionsService({
   }
 
   /**
-   * Transação que pode ser alterada ou apagada por aqui: não é pagamento de fatura nem compra de
-   * uma fatura já paga.
+   * Transação que pode ser alterada ou apagada por aqui: não é pagamento de fatura, parcela de
+   * compra parcelada (muda pela compra) nem compra de uma fatura já paga.
    */
   async function getEditable(userId: string, transactionId: string): Promise<Transaction> {
     const transaction = await get(userId, transactionId);
     if (transaction.type === 'invoice-payment') {
       throw new InvoicePaymentNotEditableError();
     }
+    if (transaction.installmentGroupId) {
+      throw new InstallmentNotEditableError();
+    }
     if (transaction.creditCardId) {
       await assertInvoiceNotPaid(userId, transaction.creditCardId, transaction.date);
     }
     return transaction;
+  }
+
+  async function getInstallments(userId: string, groupId: string): Promise<Transaction[]> {
+    const installments = await transactions.listInstallments(userId, groupId);
+    if (installments.length === 0) {
+      throw new InstallmentPurchaseNotFoundError();
+    }
+    return installments;
+  }
+
+  /** Nenhuma destas faturas do cartão pode estar paga; a primeira paga → `PaidInvoiceError`. */
+  async function assertInvoicesNotPaid(
+    userId: string,
+    card: { id: string; name: string },
+    invoiceMonths: readonly string[],
+  ): Promise<void> {
+    const paid = await transactions.firstPaidInvoiceMonth(userId, card.id, invoiceMonths);
+    if (paid) {
+      throw new PaidInvoiceError(card.name, paid);
+    }
   }
 
   /** A fatura em que cai uma compra do cartão nesta data não pode estar paga. */
@@ -401,6 +474,98 @@ export function createTransactionsService({
       await getEditable(userId, transactionId);
       if (!(await transactions.deleteTransaction(userId, transactionId))) {
         throw new TransactionNotFoundError();
+      }
+    },
+
+    async createInstallmentPurchase(userId, input) {
+      const { description, amount, date, creditCardId, categoryId, notes } = input;
+      await checkReferences(userId, {
+        type: 'expense',
+        description,
+        amount,
+        date,
+        creditCardId,
+        categoryId,
+        status: 'completed',
+        notes,
+      });
+      const card = await creditCards.findCreditCard(userId, creditCardId);
+      if (!card) {
+        throw new InvalidInputError([{ field: 'creditCardId', message: 'Cartão não encontrado.' }]);
+      }
+      const plan = planInstallments(card, { amount, date }, input.installmentCount);
+      await assertInvoicesNotPaid(
+        userId,
+        card,
+        plan.map((installment) => installment.referenceMonth),
+      );
+      const installmentGroupId = randomUUIDv7();
+      return transactions.insertTransactions(
+        plan.map((installment) => ({
+          userId,
+          type: 'expense',
+          description,
+          amount: installment.amount,
+          date: installment.date,
+          creditCardId,
+          categoryId,
+          status: 'completed',
+          notes,
+          installmentGroupId,
+          installmentNumber: installment.installmentNumber,
+          installmentCount: input.installmentCount,
+        })),
+      );
+    },
+
+    getInstallmentPurchase: getInstallments,
+
+    async updateInstallmentPurchase(userId, groupId, { description, categoryId, notes }) {
+      const installments = await getInstallments(userId, groupId);
+      const current = installments[0];
+      if (categoryId !== undefined && categoryId !== current?.categoryId) {
+        const category = await categories.findCategory(userId, categoryId);
+        if (category?.type !== 'expense') {
+          throw new InvalidInputError([
+            {
+              field: 'categoryId',
+              message: category
+                ? 'Selecione uma categoria de despesa.'
+                : 'Categoria não encontrada.',
+            },
+          ]);
+        }
+        if (category.isArchived) {
+          throw new ArchivedReferenceError(
+            `A categoria "${category.name}" está arquivada. Reative-a para usá-la.`,
+          );
+        }
+      }
+      const changes = {
+        ...(description !== undefined && { description }),
+        ...(categoryId !== undefined && { categoryId }),
+        ...(notes !== undefined && { notes }),
+      };
+      // Corpo vazio: nada a gravar (nem uma versão nova).
+      if (Object.keys(changes).length === 0) {
+        return installments;
+      }
+      return transactions.updateInstallments(userId, groupId, changes);
+    },
+
+    async removeInstallmentPurchase(userId, groupId) {
+      const installments = await getInstallments(userId, groupId);
+      const cardId = installments[0]?.creditCardId;
+      const card = cardId ? await creditCards.findCreditCard(userId, cardId) : null;
+      if (card) {
+        await assertInvoicesNotPaid(
+          userId,
+          card,
+          installments.map((installment) => invoiceCycleFor(card, installment.date).referenceMonth),
+        );
+      }
+      if ((await transactions.deleteInstallments(userId, groupId)) === 0) {
+        throw new InstallmentPurchaseNotFoundError();
       }
     },
   };

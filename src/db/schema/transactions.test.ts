@@ -168,6 +168,57 @@ describe('tabela transactions', () => {
     await expect(insert(values())).rejects.toMatchObject(shapeViolation);
   });
 
+  describe('parcelas', () => {
+    const installmentViolation = violation('23514', 'transactions_installment_shape');
+    const parcel = (overrides: Partial<NewTransaction> = {}): NewTransaction => ({
+      ...cardPurchase,
+      installmentGroupId: randomUUIDv7(),
+      installmentNumber: 1,
+      installmentCount: 3,
+      ...overrides,
+    });
+
+    it('aceita as parcelas de uma compra no cartão', async () => {
+      const group = randomUUIDv7();
+      for (const installmentNumber of [1, 2, 3]) {
+        await expect(
+          insert(parcel({ installmentGroupId: group, installmentNumber })),
+        ).resolves.toHaveLength(1);
+      }
+    });
+
+    it.each([
+      [
+        'grupo sem número e total',
+        () => parcel({ installmentNumber: null, installmentCount: null }),
+      ],
+      ['número sem grupo', () => parcel({ installmentGroupId: null })],
+      ['número maior que o total', () => parcel({ installmentNumber: 4 })],
+      ['número zero', () => parcel({ installmentNumber: 0 })],
+      ['uma parcela só', () => parcel({ installmentCount: 1 })],
+      ['mais de 24 parcelas', () => parcel({ installmentCount: 25 })],
+      [
+        'parcela de despesa em conta',
+        () => ({
+          ...expense,
+          ...parcel(),
+          ...{ creditCardId: null, accountId: owner.checking.id },
+        }),
+      ],
+    ])('rejeita %s', async (_case, values) => {
+      await expect(insert(values())).rejects.toMatchObject(installmentViolation);
+    });
+
+    it('rejeita o mesmo número de parcela duas vezes na compra', async () => {
+      const group = randomUUIDv7();
+      await insert(parcel({ installmentGroupId: group }));
+
+      await expect(insert(parcel({ installmentGroupId: group }))).rejects.toMatchObject(
+        violation('23505', 'transactions_installment_unique'),
+      );
+    });
+  });
+
   it('rejeita transferência com categoria', async () => {
     await expect(insert({ ...transfer, categoryId: owner.food.id })).rejects.toMatchObject(
       shapeViolation,

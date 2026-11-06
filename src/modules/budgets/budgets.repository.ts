@@ -21,7 +21,7 @@ export interface BudgetsRepository {
   listBudgets(userId: string): Promise<BudgetWithLimits[]>;
   /**
    * Despesas do usuário no período, somadas por categoria: realizadas (`spent`) e pendentes
-   * (`pending`). Compras no cartão entram pela data da compra. Mesma regra de `budgetProgress`.
+   * (`pending`). Compras no cartão entram pela data da compra (parcelas, pela data de cada parcela). Mesma regra de `budgetProgress`.
    */
   spendingByCategory(
     userId: string,
