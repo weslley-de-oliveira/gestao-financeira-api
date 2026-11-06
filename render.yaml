@@ -1,0 +1,33 @@
+# Blueprint do Render: a API como serviço web a partir da imagem publicada no GitHub Container
+# Registry (workflow "Imagem Docker"). O banco é o Postgres do Neon, informado como segredo.
+# Criação: Render → New → Blueprint → este repositório. Passo a passo no README (seção Deploy).
+services:
+  - type: web
+    name: gestao-financeira-api
+    runtime: image
+    image:
+      url: ghcr.io/weslley-de-oliveira/gestao-financeira-api:latest
+    plan: free
+    # Mesma região do banco no Neon (AWS us-east-1): cada consulta atravessa essa distância.
+    region: virginia
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      # Conexão do Neon (endpoint com pooling, sslmode=require). Definida no painel, nunca no git.
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_POOL_MAX
+        value: '5'
+      # O front chama a API pela própria origem (rewrite /api da Vercel): só ela altera dados.
+      - key: APP_ORIGIN
+        value: https://gestao-financeira-tau-five.vercel.app
+      # Vercel + balanceador do Render na frente da API.
+      - key: TRUST_PROXY
+        value: '2'
+      - key: RATE_LIMIT_ENABLED
+        value: 'true'
+      - key: TIME_ZONE
+        value: America/Sao_Paulo

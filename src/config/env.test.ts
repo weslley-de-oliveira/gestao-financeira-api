@@ -16,3 +16,17 @@ describe('TIME_ZONE', () => {
     expect(() => loadEnv({ ...required, TIME_ZONE: 'Brasil/Sao_Paulo' })).toThrow(InvalidEnvError);
   });
 });
+
+describe('TRUST_PROXY', () => {
+  it('não confia em proxies por padrão', () => {
+    expect(loadEnv(required).TRUST_PROXY).toBe(0);
+  });
+
+  it('aceita o número de proxies na frente da API', () => {
+    expect(loadEnv({ ...required, TRUST_PROXY: '2' }).TRUST_PROXY).toBe(2);
+  });
+
+  it('impede a API de subir com valor inválido', () => {
+    expect(() => loadEnv({ ...required, TRUST_PROXY: 'true' })).toThrow(InvalidEnvError);
+  });
+});

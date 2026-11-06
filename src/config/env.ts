@@ -11,6 +11,9 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   // Referência interativa da API em /docs. Desligue em produção se não quiser expô-la.
   DOCS_ENABLED: z.stringbool().default(true),
+  // Quantos proxies confiáveis ficam na frente da API (ex.: 2 = Vercel + Render). O IP do cliente
+  // (rate limit, sessões) vem do X-Forwarded-For só por esses saltos; 0 = conexão direta.
+  TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
   // Limite de requisições por IP (e de tentativas de login). Só os testes o desligam.
   RATE_LIMIT_ENABLED: z.stringbool().default(true),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
