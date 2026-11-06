@@ -1,6 +1,7 @@
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
+import { ifMatchHeadersSchema, parseIfMatch, setEntityTag } from '../../shared/http/etag.ts';
 import { createAccountsRepository } from '../accounts/accounts.repository.ts';
 import { createCreditCardsRepository } from './credit-cards.repository.ts';
 import {
@@ -62,8 +63,9 @@ export const creditCardsRoutes: FastifyPluginCallbackZod = (app, _options, done)
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const card = await service.get(currentAuth(request).user.id, request.params.id);
+      setEntityTag(reply, card);
       return toCreditCardDto(card);
     },
   );
@@ -87,6 +89,7 @@ export const creditCardsRoutes: FastifyPluginCallbackZod = (app, _options, done)
     },
     async (request, reply) => {
       const card = await service.create(currentAuth(request).user.id, request.body);
+      setEntityTag(reply, card);
       return reply.status(201).send(toCreditCardDto(card));
     },
   );
@@ -100,22 +103,26 @@ export const creditCardsRoutes: FastifyPluginCallbackZod = (app, _options, done)
         description:
           'Altera só os campos enviados; o resultado segue as regras do cadastro. Arquivar é `{ "isArchived": true }` e reativar, `false`: cartões não são excluídos, para preservar as compras e as faturas. A conta de pagamento que o cartão já tinha continua aceita mesmo se arquivada; trocar por uma arquivada responde 409.',
         params: creditCardParamsSchema,
+        headers: ifMatchHeadersSchema,
         body: updateCreditCardBodySchema,
         response: {
           200: creditCardSchema,
           401: problemDetailsSchema,
           404: problemDetailsSchema,
+          412: problemDetailsSchema,
           409: problemDetailsSchema,
           422: problemDetailsSchema,
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const card = await service.update(
         currentAuth(request).user.id,
         request.params.id,
         request.body,
+        parseIfMatch(request.headers['if-match']),
       );
+      setEntityTag(reply, card);
       return toCreditCardDto(card);
     },
   );

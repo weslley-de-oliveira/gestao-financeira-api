@@ -32,6 +32,7 @@ const DOMAIN_ERROR_STATUS: Readonly<Record<DomainErrorKind, number>> = {
   unauthorized: 401,
   'not-found': 404,
   conflict: 409,
+  precondition: 412,
   invalid: 422,
 };
 

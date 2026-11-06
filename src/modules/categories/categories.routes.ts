@@ -1,6 +1,7 @@
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
+import { ifMatchHeadersSchema, parseIfMatch, setEntityTag } from '../../shared/http/etag.ts';
 import { createCategoriesRepository } from './categories.repository.ts';
 import {
   categoryListSchema,
@@ -54,8 +55,9 @@ export const categoriesRoutes: FastifyPluginCallbackZod = (app, _options, done) 
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const category = await service.get(currentAuth(request).user.id, request.params.id);
+      setEntityTag(reply, category);
       return toCategoryDto(category);
     },
   );
@@ -79,6 +81,7 @@ export const categoriesRoutes: FastifyPluginCallbackZod = (app, _options, done) 
     },
     async (request, reply) => {
       const category = await service.create(currentAuth(request).user.id, request.body);
+      setEntityTag(reply, category);
       return reply.status(201).send(toCategoryDto(category));
     },
   );
@@ -92,22 +95,26 @@ export const categoriesRoutes: FastifyPluginCallbackZod = (app, _options, done) 
         description:
           'Altera só os campos enviados. O tipo não muda (enviá-lo responde 422). Arquivar é `{ "isArchived": true }` e reativar, `false`: categorias não são excluídas, inclusive as padrão. Nome já usado por outra categoria do mesmo tipo responde 409; categoria inexistente ou de outro usuário, 404.',
         params: categoryParamsSchema,
+        headers: ifMatchHeadersSchema,
         body: updateCategoryBodySchema,
         response: {
           200: categorySchema,
           401: problemDetailsSchema,
           404: problemDetailsSchema,
+          412: problemDetailsSchema,
           409: problemDetailsSchema,
           422: problemDetailsSchema,
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const category = await service.update(
         currentAuth(request).user.id,
         request.params.id,
         request.body,
+        parseIfMatch(request.headers['if-match']),
       );
+      setEntityTag(reply, category);
       return toCategoryDto(category);
     },
   );

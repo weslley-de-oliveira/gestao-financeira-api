@@ -4,6 +4,7 @@ import type { CategoriesRepository } from '../categories/categories.repository.t
 import { limitForMonth, progressFrom, withLimitFrom, type BudgetProgress } from './budget-rules.ts';
 import type { BudgetsRepository, BudgetWithLimits } from './budgets.repository.ts';
 import type { CreateBudgetInput, UpdateBudgetInput } from './budgets.schemas.ts';
+import { assertIfMatch, PreconditionFailedError, type IfMatch } from '../../shared/http/etag.ts';
 
 /** Orçamento inexistente ou de outro usuário: a mesma resposta, para não revelar o que existe. */
 export class BudgetNotFoundError extends DomainError {
@@ -60,7 +61,13 @@ export interface BudgetsService {
    * Altera o alerta e o limite. O novo limite vale do mês atual em diante (vigência nova); os
    * meses anteriores mantêm o limite que tinham.
    */
-  update(userId: string, budgetId: string, changes: UpdateBudgetInput): Promise<BudgetWithProgress>;
+  /** Com `ifMatch`, só grava se o orçamento ainda estiver na versão lida. */
+  update(
+    userId: string,
+    budgetId: string,
+    changes: UpdateBudgetInput,
+    ifMatch?: IfMatch,
+  ): Promise<BudgetWithProgress>;
   /** Exclui o orçamento e o histórico de limites; as transações não mudam. */
   remove(userId: string, budgetId: string): Promise<void>;
 }
@@ -122,18 +129,24 @@ export function createBudgetsService({
       return withOneProgress(userId, await find(userId, budgetId), month);
     },
 
-    async update(userId, budgetId, { limitAmount, alertThreshold }) {
+    async update(userId, budgetId, { limitAmount, alertThreshold }, ifMatch) {
       const current = await find(userId, budgetId);
+      assertIfMatch(ifMatch, current);
       const month = currentMonth();
-      const updated = await budgets.updateBudget(userId, budgetId, {
-        alertThreshold,
-        limitsFrom:
-          limitAmount === undefined
-            ? undefined
-            : { month, limits: withLimitFrom(current.limits, month, limitAmount) },
-      });
+      const updated = await budgets.updateBudget(
+        userId,
+        budgetId,
+        {
+          alertThreshold,
+          limitsFrom:
+            limitAmount === undefined
+              ? undefined
+              : { month, limits: withLimitFrom(current.limits, month, limitAmount) },
+        },
+        ifMatch && current.updatedAt,
+      );
       if (!updated) {
-        throw new BudgetNotFoundError();
+        throw ifMatch ? new PreconditionFailedError() : new BudgetNotFoundError();
       }
       return withOneProgress(userId, updated);
     },

@@ -4,6 +4,7 @@ import { isUniqueViolation } from '../../db/errors.ts';
 import { alphabetical } from '../../db/order.ts';
 import { categories, type Category, type NewCategory } from '../../db/schema/index.ts';
 import type { CategoryType } from './categories.constants.ts';
+import { atVersion } from '../../shared/http/etag.ts';
 
 /** Campos que o usuário pode alterar: nunca o dono, o tipo, o id ou as datas. */
 export type CategoryChanges = Partial<
@@ -30,11 +31,15 @@ export interface CategoriesRepository {
     nameNormalized: string,
   ): Promise<Category | null>;
   insertCategory(category: NewCategory): Promise<CategoryWrite>;
-  /** Altera a categoria só se for do usuário; devolve `null` se não encontrar. */
+  /**
+   * Altera a categoria só se for do usuário (e, com `version`, só se ainda estiver nessa versão);
+   * devolve `null` se não encontrar.
+   */
   updateCategory(
     userId: string,
     categoryId: string,
     changes: CategoryChanges,
+    version?: Date,
   ): Promise<CategoryWrite | null>;
 }
 
@@ -100,12 +105,18 @@ export function createCategoriesRepository(db: Database): CategoriesRepository {
       return result;
     },
 
-    async updateCategory(userId, categoryId, changes) {
+    async updateCategory(userId, categoryId, changes, version) {
       return guardDuplicate(async () => {
         const [updated] = await db
           .update(categories)
           .set(changes)
-          .where(and(eq(categories.id, categoryId), eq(categories.userId, userId)))
+          .where(
+            and(
+              eq(categories.id, categoryId),
+              eq(categories.userId, userId),
+              version && atVersion(categories.updatedAt, version),
+            ),
+          )
           .returning();
         return updated;
       });

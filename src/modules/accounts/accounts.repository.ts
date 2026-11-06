@@ -2,6 +2,7 @@ import { and, asc, eq, sql } from 'drizzle-orm';
 import type { Database } from '../../db/client.ts';
 import { alphabetical } from '../../db/order.ts';
 import { accounts, transactions, type Account, type NewAccount } from '../../db/schema/index.ts';
+import { atVersion } from '../../shared/http/etag.ts';
 
 /** Campos que o usuário pode alterar: nunca o dono, o id ou as datas. */
 export type AccountChanges = Partial<
@@ -17,11 +18,15 @@ export interface AccountsRepository {
   /** Conta pelo id, só se for do usuário: a de outro usuário é tratada como inexistente. */
   findAccount(userId: string, accountId: string): Promise<Account | null>;
   insertAccount(account: NewAccount): Promise<Account>;
-  /** Altera a conta só se for do usuário; devolve `null` se não encontrar. */
+  /**
+   * Altera a conta só se for do usuário (e, com `version`, só se ainda estiver nessa versão);
+   * devolve `null` se não encontrar.
+   */
   updateAccount(
     userId: string,
     accountId: string,
     changes: AccountChanges,
+    version?: Date,
   ): Promise<Account | null>;
   /**
    * Efeito somado das transações realizadas em cada conta (sem o saldo inicial), com a regra de
@@ -64,11 +69,11 @@ export function createAccountsRepository(db: Database): AccountsRepository {
       return created;
     },
 
-    async updateAccount(userId, accountId, changes) {
+    async updateAccount(userId, accountId, changes, version) {
       const [updated] = await db
         .update(accounts)
         .set(changes)
-        .where(ownedBy(userId, accountId))
+        .where(and(ownedBy(userId, accountId), version && atVersion(accounts.updatedAt, version)))
         .returning();
       return updated ?? null;
     },

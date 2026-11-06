@@ -11,6 +11,7 @@ import {
   type NewBudget,
 } from '../../db/schema/index.ts';
 import type { BudgetLimitPeriod } from './budget-rules.ts';
+import { atVersion } from '../../shared/http/etag.ts';
 
 /** Orçamento com as vigências do limite, em ordem crescente de mês (nunca vazia). */
 export type BudgetWithLimits = Budget & { limits: BudgetLimitPeriod[] };
@@ -45,6 +46,7 @@ export interface BudgetsRepository {
       alertThreshold?: number | undefined;
       limitsFrom?: { month: string; limits: BudgetLimitPeriod[] } | undefined;
     },
+    version?: Date,
   ): Promise<BudgetWithLimits | null>;
   /** Apaga o orçamento do usuário e as vigências dele; devolve se apagou. */
   deleteBudget(userId: string, budgetId: string): Promise<boolean>;
@@ -142,12 +144,18 @@ export function createBudgetsRepository(db: Database): BudgetsRepository {
       }
     },
 
-    async updateBudget(userId, budgetId, { alertThreshold, limitsFrom }) {
+    async updateBudget(userId, budgetId, { alertThreshold, limitsFrom }, version) {
       const updated = await db.transaction(async (tx) => {
         const [budget] = await tx
           .update(budgets)
           .set({ ...(alertThreshold !== undefined && { alertThreshold }), updatedAt: new Date() })
-          .where(and(eq(budgets.id, budgetId), eq(budgets.userId, userId)))
+          .where(
+            and(
+              eq(budgets.id, budgetId),
+              eq(budgets.userId, userId),
+              version && atVersion(budgets.updatedAt, version),
+            ),
+          )
           .returning();
         if (!budget || !limitsFrom) {
           return budget;

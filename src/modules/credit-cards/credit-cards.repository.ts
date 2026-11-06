@@ -7,6 +7,7 @@ import {
   type CreditCard,
   type NewCreditCard,
 } from '../../db/schema/index.ts';
+import { atVersion } from '../../shared/http/etag.ts';
 
 /** Campos que o usuário pode alterar: nunca o dono, o id ou as datas. */
 export type CreditCardChanges = Partial<
@@ -19,11 +20,15 @@ export interface CreditCardsRepository {
   /** Cartão pelo id, só se for do usuário: o de outro usuário é tratado como inexistente. */
   findCreditCard(userId: string, creditCardId: string): Promise<CreditCard | null>;
   insertCreditCard(card: NewCreditCard): Promise<CreditCard>;
-  /** Altera o cartão só se for do usuário; devolve `null` se não encontrar. */
+  /**
+   * Altera o cartão só se for do usuário (e, com `version`, só se ainda estiver nessa versão);
+   * devolve `null` se não encontrar.
+   */
   updateCreditCard(
     userId: string,
     creditCardId: string,
     changes: CreditCardChanges,
+    version?: Date,
   ): Promise<CreditCard | null>;
   /**
    * Totais de cada cartão para o uso do limite: todas as compras, todos os pagamentos de fatura e
@@ -73,11 +78,13 @@ export function createCreditCardsRepository(db: Database): CreditCardsRepository
       return created;
     },
 
-    async updateCreditCard(userId, creditCardId, changes) {
+    async updateCreditCard(userId, creditCardId, changes, version) {
       const [updated] = await db
         .update(creditCards)
         .set(changes)
-        .where(ownedBy(userId, creditCardId))
+        .where(
+          and(ownedBy(userId, creditCardId), version && atVersion(creditCards.updatedAt, version)),
+        )
         .returning();
       return updated ?? null;
     },

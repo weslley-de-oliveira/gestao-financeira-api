@@ -8,6 +8,7 @@ import type {
   UpdateCategoryInput,
 } from './categories.schemas.ts';
 import { categoryNameKey } from './category-name.ts';
+import { assertIfMatch, PreconditionFailedError, type IfMatch } from '../../shared/http/etag.ts';
 
 /** Categoria inexistente ou de outro usuário: a mesma resposta, para não revelar o que existe. */
 export class CategoryNotFoundError extends DomainError {
@@ -42,7 +43,13 @@ export interface CategoriesService {
   /** Cria a categoria do usuário; nome repetido no tipo → `DuplicateCategoryNameError`. */
   create(userId: string, input: CreateCategoryInput): Promise<Category>;
   /** Altera só os campos enviados (nunca o tipo); nome repetido → `DuplicateCategoryNameError`. */
-  update(userId: string, categoryId: string, changes: UpdateCategoryInput): Promise<Category>;
+  /** Com `ifMatch`, só grava se a categoria ainda estiver na versão lida. */
+  update(
+    userId: string,
+    categoryId: string,
+    changes: UpdateCategoryInput,
+    ifMatch?: IfMatch,
+  ): Promise<Category>;
 }
 
 export function createCategoriesService(repository: CategoriesRepository): CategoriesService {
@@ -80,7 +87,11 @@ export function createCategoriesService(repository: CategoriesRepository): Categ
       return result.category;
     },
 
-    async update(userId, categoryId, { name, icon, color, isArchived }) {
+    async update(userId, categoryId, { name, icon, color, isArchived }, ifMatch) {
+      const current = ifMatch ? await get(userId, categoryId) : undefined;
+      if (current) {
+        assertIfMatch(ifMatch, current);
+      }
       const nameNormalized = name === undefined ? undefined : categoryNameKey(name);
       const changes: CategoryChanges = {
         ...(name !== undefined && { name, nameNormalized }),
@@ -91,11 +102,16 @@ export function createCategoriesService(repository: CategoriesRepository): Categ
       };
       // Corpo vazio: nada a alterar, mas a categoria ainda precisa existir e ser do usuário.
       if (Object.keys(changes).length === 0) {
-        return get(userId, categoryId);
+        return current ?? get(userId, categoryId);
       }
-      const result = await repository.updateCategory(userId, categoryId, changes);
+      const result = await repository.updateCategory(
+        userId,
+        categoryId,
+        changes,
+        current?.updatedAt,
+      );
       if (!result) {
-        throw new CategoryNotFoundError();
+        throw current ? new PreconditionFailedError() : new CategoryNotFoundError();
       }
       if ('duplicate' in result) {
         // Só o nome causa duplicata, e o tipo é o da própria categoria.

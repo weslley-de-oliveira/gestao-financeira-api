@@ -4,6 +4,7 @@ import { transactions, type NewTransaction, type Transaction } from '../../db/sc
 import { toPage, type Page } from '../../shared/http/pagination.ts';
 import { normalizeForSearch } from '../../shared/utils/text.ts';
 import type { ListTransactionsQuery } from './transactions.schemas.ts';
+import { atVersion } from '../../shared/http/etag.ts';
 
 /** Campos que a edição regrava: nunca o dono, o id ou as datas de criação. */
 export type TransactionChanges = Omit<NewTransaction, 'id' | 'userId' | 'createdAt' | 'updatedAt'>;
@@ -17,11 +18,15 @@ export interface TransactionsRepository {
   /** Transação pelo id, só se for do usuário: a de outro usuário é tratada como inexistente. */
   findTransaction(userId: string, transactionId: string): Promise<Transaction | null>;
   insertTransaction(transaction: NewTransaction): Promise<Transaction>;
-  /** Regrava a transação só se for do usuário; devolve `null` se não encontrar. */
+  /**
+   * Regrava a transação só se for do usuário (e, com `version`, só se ainda estiver nessa versão);
+   * devolve `null` se não encontrar.
+   */
   updateTransaction(
     userId: string,
     transactionId: string,
     changes: TransactionChanges,
+    version?: Date,
   ): Promise<Transaction | null>;
   /** Apaga a transação só se for do usuário; devolve se apagou. */
   deleteTransaction(userId: string, transactionId: string): Promise<boolean>;
@@ -70,11 +75,16 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
       return created;
     },
 
-    async updateTransaction(userId, transactionId, changes) {
+    async updateTransaction(userId, transactionId, changes, version) {
       const [updated] = await db
         .update(transactions)
         .set(changes)
-        .where(ownedBy(userId, transactionId))
+        .where(
+          and(
+            ownedBy(userId, transactionId),
+            version && atVersion(transactions.updatedAt, version),
+          ),
+        )
         .returning();
       return updated ?? null;
     },

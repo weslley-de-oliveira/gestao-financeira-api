@@ -19,6 +19,7 @@ import {
   type ListTransactionsQuery,
   type UpdateTransactionInput,
 } from './transactions.schemas.ts';
+import { assertIfMatch, PreconditionFailedError, type IfMatch } from '../../shared/http/etag.ts';
 
 /** Transação inexistente ou de outro usuário: a mesma resposta, para não revelar o que existe. */
 export class TransactionNotFoundError extends DomainError {
@@ -97,6 +98,7 @@ export interface TransactionsService {
     userId: string,
     transactionId: string,
     changes: UpdateTransactionInput,
+    ifMatch?: IfMatch,
   ): Promise<Transaction>;
   /** Apaga a transação. Pagamento de fatura → `InvoicePaymentNotEditableError`. */
   remove(userId: string, transactionId: string): Promise<void>;
@@ -349,24 +351,30 @@ export function createTransactionsService({
       return transactions.insertTransaction({ ...withCardRules(input), userId });
     },
 
-    async update(userId, transactionId, changes) {
+    async update(userId, transactionId, changes, ifMatch) {
       // Compra de fatura paga não muda (nem para sair dela); e nenhuma pode entrar numa paga.
       const current = await getEditable(userId, transactionId);
+      assertIfMatch(ifMatch, current);
       const next = mergeChanges(current, changes);
       await checkReferences(userId, next, current);
       if (next.type !== 'transfer' && next.creditCardId) {
         await assertInvoiceNotPaid(userId, next.creditCardId, next.date);
       }
-      const updated = await transactions.updateTransaction(userId, transactionId, {
-        // Os campos que o novo tipo não usa voltam a ser nulos.
-        accountId: null,
-        creditCardId: null,
-        categoryId: null,
-        destinationAccountId: null,
-        ...withCardRules(next),
-      });
+      const updated = await transactions.updateTransaction(
+        userId,
+        transactionId,
+        {
+          // Os campos que o novo tipo não usa voltam a ser nulos.
+          accountId: null,
+          creditCardId: null,
+          categoryId: null,
+          destinationAccountId: null,
+          ...withCardRules(next),
+        },
+        ifMatch && current.updatedAt,
+      );
       if (!updated) {
-        throw new TransactionNotFoundError();
+        throw ifMatch ? new PreconditionFailedError() : new TransactionNotFoundError();
       }
       return updated;
     },

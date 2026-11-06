@@ -2659,6 +2659,13 @@
             "in": "path",
             "name": "id",
             "required": true
+          },
+          {
+            "schema": { "example": "\"1793928014821\"", "type": "string" },
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "description": "ETag recebida na leitura (`GET` ou `PATCH` anterior). Se o registro mudou desde então, responde 412 e nada é gravado."
           }
         ],
         "responses": {
@@ -2675,6 +2682,12 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "412": {
             "description": "Default Response",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
@@ -2957,6 +2970,13 @@
             "in": "path",
             "name": "id",
             "required": true
+          },
+          {
+            "schema": { "example": "\"1793928014821\"", "type": "string" },
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "description": "ETag recebida na leitura (`GET` ou `PATCH` anterior). Se o registro mudou desde então, responde 412 e nada é gravado."
           }
         ],
         "responses": {
@@ -2979,6 +2999,12 @@
             }
           },
           "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "412": {
             "description": "Default Response",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
@@ -3279,6 +3305,13 @@
             "in": "path",
             "name": "id",
             "required": true
+          },
+          {
+            "schema": { "example": "\"1793928014821\"", "type": "string" },
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "description": "ETag recebida na leitura (`GET` ou `PATCH` anterior). Se o registro mudou desde então, responde 412 e nada é gravado."
           }
         ],
         "responses": {
@@ -3301,6 +3334,12 @@
             }
           },
           "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "412": {
             "description": "Default Response",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
@@ -3615,6 +3654,13 @@
             "in": "path",
             "name": "id",
             "required": true
+          },
+          {
+            "schema": { "example": "\"1793928014821\"", "type": "string" },
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "description": "ETag recebida na leitura (`GET` ou `PATCH` anterior). Se o registro mudou desde então, responde 412 e nada é gravado."
           }
         ],
         "responses": {
@@ -3637,6 +3683,12 @@
             }
           },
           "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "412": {
             "description": "Default Response",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
@@ -4100,6 +4152,13 @@
             "in": "path",
             "name": "id",
             "required": true
+          },
+          {
+            "schema": { "example": "\"1793928014821\"", "type": "string" },
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "description": "ETag recebida na leitura (`GET` ou `PATCH` anterior). Se o registro mudou desde então, responde 412 e nada é gravado."
           }
         ],
         "responses": {
@@ -4116,6 +4175,12 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "412": {
             "description": "Default Response",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
@@ -4441,6 +4506,13 @@
             "in": "path",
             "name": "id",
             "required": true
+          },
+          {
+            "schema": { "example": "\"1793928014821\"", "type": "string" },
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "description": "ETag recebida na leitura (`GET` ou `PATCH` anterior). Se o registro mudou desde então, responde 412 e nada é gravado."
           }
         ],
         "responses": {
@@ -4455,6 +4527,12 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "412": {
             "description": "Default Response",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
