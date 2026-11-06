@@ -759,6 +759,17 @@
             ],
             "description": "Total de parcelas da compra."
           },
+          "refundedTransactionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              { "type": "null" }
+            ],
+            "description": "Despesa estornada; só em `refund` (a categoria do estorno é a dela)."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -787,6 +798,7 @@
           "installmentGroupId",
           "installmentNumber",
           "installmentCount",
+          "refundedTransactionId",
           "createdAt",
           "updatedAt"
         ]
@@ -937,6 +949,35 @@
           }
         },
         "required": ["count", "income", "expense", "net", "pendingCount"]
+      },
+      "CreateRefundInput": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "description": "Padrão: \"Estorno: \" seguido da descrição da despesa.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "example": "Mercado do mês"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000000,
+            "description": "Valor estornado, em centavos; no máximo o que falta estornar da despesa.",
+            "example": 123456
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "example": "2026-11-05",
+            "description": "Data do estorno; não pode ser anterior à despesa."
+          },
+          "notes": { "anyOf": [{ "type": "string", "maxLength": 500 }, { "type": "null" }] }
+        },
+        "required": ["amount", "date"],
+        "additionalProperties": false
       },
       "DashboardInput": {
         "type": "object",
@@ -2094,6 +2135,17 @@
             ],
             "description": "Total de parcelas da compra."
           },
+          "refundedTransactionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              { "type": "null" }
+            ],
+            "description": "Despesa estornada; só em `refund` (a categoria do estorno é a dela)."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -2122,6 +2174,7 @@
           "installmentGroupId",
           "installmentNumber",
           "installmentCount",
+          "refundedTransactionId",
           "createdAt",
           "updatedAt"
         ],
@@ -2280,6 +2333,35 @@
           }
         },
         "required": ["count", "income", "expense", "net", "pendingCount"],
+        "additionalProperties": false
+      },
+      "CreateRefund": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "description": "Padrão: \"Estorno: \" seguido da descrição da despesa.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "example": "Mercado do mês"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000000,
+            "description": "Valor estornado, em centavos; no máximo o que falta estornar da despesa.",
+            "example": 123456
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "example": "2026-11-05",
+            "description": "Data do estorno; não pode ser anterior à despesa."
+          },
+          "notes": {}
+        },
+        "required": ["amount", "date", "notes"],
         "additionalProperties": false
       },
       "Dashboard": {
@@ -3977,6 +4059,123 @@
             }
           },
           "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/transactions/{id}/refunds": {
+      "post": {
+        "summary": "Estorna uma despesa",
+        "tags": ["Transações"],
+        "description": "Cria um estorno (`refund`) da despesa realizada, na conta ou no cartão dela: devolve o valor à conta ou abate a fatura em que a data do estorno cai, e reduz o gasto da categoria da despesa no mês do estorno. Pode haver vários estornos, até o valor da despesa (passar disso, ou data anterior à despesa, responde 422 no campo). Outro tipo de transação, ou despesa pendente, responde 409; no cartão, estorno numa fatura já paga também. Com `Idempotency-Key`, repetir o pedido devolve o mesmo estorno.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreateRefundInput" } }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "example": "0b9d6a3e-6c1f-4f7a-9d1e-2f0f5d7c9a11",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false,
+            "description": "Chave única por operação (ex.: um UUID gerado ao abrir a confirmação). Repetir a requisição com a mesma chave em até 24 horas devolve a resposta da primeira, sem executar de novo."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Transaction" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Lista os estornos de uma despesa",
+        "tags": ["Transações"],
+        "description": "Estornos da despesa, dos mais antigos aos mais recentes.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Transaction" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
             "description": "Default Response",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }

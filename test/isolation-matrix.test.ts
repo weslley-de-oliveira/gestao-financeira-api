@@ -58,6 +58,17 @@ const CASES: Case[] = [
   },
   { method: 'DELETE', path: '/v1/transactions/{id}', params: (ids) => ({ id: ids.transaction }) },
   {
+    method: 'POST',
+    path: '/v1/transactions/{id}/refunds',
+    params: (ids) => ({ id: ids.transaction }),
+    body: { amount: 100, date: '2026-11-12' },
+  },
+  {
+    method: 'GET',
+    path: '/v1/transactions/{id}/refunds',
+    params: (ids) => ({ id: ids.transaction }),
+  },
+  {
     method: 'GET',
     path: '/v1/installment-purchases/{id}',
     params: (ids) => ({ id: ids.installmentPurchase }),

@@ -22,3 +22,10 @@ export function assertValidCents(value: unknown, field = 'value'): asserts value
 export function isWithinMoneyLimit(value: unknown): value is Cents {
   return isValidCents(value) && Math.abs(value) <= MAX_MONEY_CENTS;
 }
+
+const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+/** Centavos em reais, para mensagens: 123456 → "R$ 1.234,56". */
+export function formatCents(cents: Cents): string {
+  return BRL.format(cents / 100).replace(/\s/g, ' ');
+}

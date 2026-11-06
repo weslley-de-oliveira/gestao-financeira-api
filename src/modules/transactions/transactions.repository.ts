@@ -58,6 +58,8 @@ export interface TransactionsRepository {
     creditCardId: string,
     invoiceMonths: readonly string[],
   ): Promise<string | null>;
+  /** Estornos de uma despesa do usuário, dos mais antigos aos mais recentes. */
+  listRefunds(userId: string, transactionId: string): Promise<Transaction[]>;
   /** Se a fatura (cartão e mês de referência) do usuário já tem pagamento. */
   hasInvoicePayment(userId: string, creditCardId: string, invoiceMonth: string): Promise<boolean>;
 }
@@ -197,6 +199,19 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
         .orderBy(asc(transactions.invoiceMonth))
         .limit(1);
       return payment?.invoiceMonth ?? null;
+    },
+
+    async listRefunds(userId, transactionId) {
+      return db
+        .select()
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            eq(transactions.refundedTransactionId, transactionId),
+          ),
+        )
+        .orderBy(asc(transactions.date), asc(transactions.id));
     },
 
     async hasInvoicePayment(userId, creditCardId, invoiceMonth) {

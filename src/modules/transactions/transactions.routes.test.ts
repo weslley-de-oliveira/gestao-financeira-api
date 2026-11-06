@@ -118,6 +118,7 @@ describe('rotas /v1/transactions', () => {
         installmentGroupId: null,
         installmentNumber: null,
         installmentCount: null,
+        refundedTransactionId: null,
         createdAt: expect.any(String) as unknown,
         updatedAt: expect.any(String) as unknown,
       });

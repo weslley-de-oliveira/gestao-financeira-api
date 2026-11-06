@@ -50,6 +50,9 @@ export const transactionSchema = z
       .nullable()
       .meta({ description: 'Número da parcela (1 a `installmentCount`).' }),
     installmentCount: z.int().nullable().meta({ description: 'Total de parcelas da compra.' }),
+    refundedTransactionId: z.uuid().nullable().meta({
+      description: 'Despesa estornada; só em `refund` (a categoria do estorno é a dela).',
+    }),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime().meta({
       description: 'Versão do registro: a ETag é derivada dela (use a ETag no `If-Match`).',
@@ -305,7 +308,24 @@ export function toTransactionDto(transaction: Transaction): TransactionDto {
     installmentGroupId: transaction.installmentGroupId,
     installmentNumber: transaction.installmentNumber,
     installmentCount: transaction.installmentCount,
+    refundedTransactionId: transaction.refundedTransactionId,
     createdAt: transaction.createdAt.toISOString(),
     updatedAt: transaction.updatedAt.toISOString(),
   };
 }
+
+/** Estorno de uma despesa: valor (até o que falta estornar), data e, opcionalmente, descrição. */
+export const createRefundBodySchema = z
+  .strictObject({
+    description: descriptionSchema.optional().meta({
+      description: 'Padrão: "Estorno: " seguido da descrição da despesa.',
+    }),
+    amount: positiveCentsSchema.meta({
+      description: 'Valor estornado, em centavos; no máximo o que falta estornar da despesa.',
+    }),
+    date: isoDateSchema.meta({ description: 'Data do estorno; não pode ser anterior à despesa.' }),
+    notes: notesSchema,
+  })
+  .meta({ id: 'CreateRefund' });
+
+export type CreateRefundInput = z.infer<typeof createRefundBodySchema>;
