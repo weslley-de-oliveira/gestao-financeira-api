@@ -201,6 +201,95 @@ describe('estornos: /v1/transactions/{id}/refunds', () => {
     expect(list.json<unknown[]>()).toHaveLength(1);
   });
 
+  describe('edição e exclusão', () => {
+    it('edita descrição, valor e data do estorno, dentro do que falta estornar', async () => {
+      const original = await expense();
+      const first = (
+        await refund(original.id, { amount: 3_000, date: '2026-11-12' })
+      ).json<TransactionDto>();
+      await refund(original.id, { amount: 5_000, date: '2026-11-12' });
+
+      const ok = await user.api('PATCH', `/v1/transactions/${first.id}`, {
+        description: 'Devolução parcial',
+        amount: 5_000,
+        date: '2026-11-13',
+      });
+      const tooMuch = await user.api('PATCH', `/v1/transactions/${first.id}`, { amount: 5_001 });
+      const account = await user.api('PATCH', `/v1/transactions/${first.id}`, {
+        accountId: randomUUIDv7(),
+      });
+
+      expect(ok.json()).toMatchObject({
+        type: 'refund',
+        description: 'Devolução parcial',
+        amount: 5_000,
+        date: '2026-11-13',
+        refundedTransactionId: original.id,
+      });
+      expect(tooMuch.json()).toMatchObject({
+        status: 422,
+        errors: [
+          {
+            field: 'body.amount',
+            message: 'O estorno pode ser de no máximo R$ 50,00, o que falta estornar.',
+          },
+        ],
+      });
+      expect(account.json()).toMatchObject({ status: 422, errors: [{ field: 'body.accountId' }] });
+    });
+
+    it('exclui o estorno, mas não a despesa que tem estornos (409)', async () => {
+      const original = await expense();
+      const first = (
+        await refund(original.id, { amount: 3_000, date: '2026-11-12' })
+      ).json<TransactionDto>();
+
+      const blocked = await user.api('DELETE', `/v1/transactions/${original.id}`);
+      const amountChange = await user.api('PATCH', `/v1/transactions/${original.id}`, {
+        amount: 1,
+      });
+      const rename = await user.api('PATCH', `/v1/transactions/${original.id}`, {
+        description: 'Tênis de corrida',
+      });
+
+      expect(blocked.json()).toMatchObject({ status: 409, type: '/problems/has-refunds' });
+      expect(amountChange.json()).toMatchObject({ status: 409, type: '/problems/has-refunds' });
+      expect(rename.statusCode).toBe(200);
+
+      expect((await user.api('DELETE', `/v1/transactions/${first.id}`)).statusCode).toBe(204);
+      expect((await user.api('DELETE', `/v1/transactions/${original.id}`)).statusCode).toBe(204);
+    });
+
+    it('não exclui a compra parcelada com uma parcela estornada (409)', async () => {
+      const purchase = (
+        await user.api('POST', '/v1/installment-purchases', {
+          description: 'Geladeira',
+          amount: 30_000,
+          date: '2026-11-10',
+          creditCardId: cardId,
+          categoryId: food.id,
+          installmentCount: 3,
+        })
+      ).json<InstallmentPurchaseDto>();
+      await refund(purchase.installments[0]!.id, { amount: 1_000, date: '2026-11-10' });
+
+      const response = await user.api('DELETE', `/v1/installment-purchases/${purchase.id}`);
+
+      expect(response.json()).toMatchObject({ status: 409, type: '/problems/has-refunds' });
+    });
+
+    it('lista os estornos pelo tipo', async () => {
+      const original = await expense();
+      await refund(original.id, { amount: 3_000, date: '2026-11-12' });
+
+      const page = await user.api('GET', '/v1/transactions?type=refund');
+
+      expect(page.json<{ items: TransactionDto[] }>().items.map((item) => item.type)).toEqual([
+        'refund',
+      ]);
+    });
+  });
+
   it('responde 404 para despesa de outra pessoa ou inexistente, e 401 sem sessão', async () => {
     const original = await expense();
     const other = await signUp(app);

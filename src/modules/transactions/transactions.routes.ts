@@ -130,7 +130,7 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
         tags: [TRANSACTIONS_TAG],
         summary: 'Edita uma transação',
         description:
-          'Os campos enviados são aplicados sobre a transação e o resultado segue as regras do cadastro. Ao trocar o tipo, os campos que não servem ao novo tipo são descartados (a categoria, ao virar transferência; a conta de destino, ao virar receita ou despesa). `notes: null` remove as observações. Contas e categoria que a transação já tinha continuam aceitas mesmo se arquivadas depois; trocar por uma arquivada responde 409, assim como editar pagamento de fatura e editar compra de fatura já paga (ou movê-la para uma fatura paga) e editar uma parcela sozinha (`/problems/installment`: altere a compra parcelada).',
+          'Os campos enviados são aplicados sobre a transação e o resultado segue as regras do cadastro. Ao trocar o tipo, os campos que não servem ao novo tipo são descartados (a categoria, ao virar transferência; a conta de destino, ao virar receita ou despesa). `notes: null` remove as observações. Contas e categoria que a transação já tinha continuam aceitas mesmo se arquivadas depois; trocar por uma arquivada responde 409, assim como editar pagamento de fatura e editar compra de fatura já paga (ou movê-la para uma fatura paga) e editar uma parcela sozinha (`/problems/installment`: altere a compra parcelada). Num estorno, só mudam descrição, valor (até o que falta estornar) e data. Uma despesa com estornos só muda descrição, categoria e observações; o resto responde 409 (`/problems/has-refunds`).',
         params: transactionParamsSchema,
         headers: ifMatchHeadersSchema,
         body: updateTransactionBodySchema,
@@ -163,7 +163,7 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
         tags: [TRANSACTIONS_TAG],
         summary: 'Exclui uma transação',
         description:
-          'Remove a transação de vez. Pagamento de fatura responde 409 (é desfeito pela fatura), assim como compra de fatura já paga (desfaça o pagamento antes) e parcela de compra parcelada (`/problems/installment`: exclua a compra inteira).',
+          'Remove a transação de vez. Pagamento de fatura responde 409 (é desfeito pela fatura), assim como compra de fatura já paga (desfaça o pagamento antes) e parcela de compra parcelada (`/problems/installment`: exclua a compra inteira). Despesa com estornos também responde 409 (`/problems/has-refunds`): exclua os estornos antes.',
         params: transactionParamsSchema,
         response: {
           204: z.null(),
