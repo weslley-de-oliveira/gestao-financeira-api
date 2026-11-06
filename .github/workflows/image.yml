@@ -57,6 +57,7 @@ jobs:
         run: |
           docker run -d --name api -p 3333:3333 \
             -e DATABASE_URL=postgres://ninguem:nada@127.0.0.1:1/nenhum \
+            -e APP_ORIGIN=https://exemplo.com \
             "${IMAGE}:sha-${GITHUB_SHA::7}"
           for attempt in $(seq 1 20); do
             if curl -fsS http://127.0.0.1:3333/health; then exit 0; fi

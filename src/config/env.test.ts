@@ -30,3 +30,24 @@ describe('TRUST_PROXY', () => {
     expect(() => loadEnv({ ...required, TRUST_PROXY: 'true' })).toThrow(InvalidEnvError);
   });
 });
+
+describe('produção', () => {
+  const withoutOrigin = { ...required, NODE_ENV: 'production' };
+  const production = { ...withoutOrigin, APP_ORIGIN: 'https://gestao-financeira.exemplo.com' };
+
+  it('desliga o /docs por padrão, mas permite ligá-lo de propósito', () => {
+    expect(loadEnv(production).DOCS_ENABLED).toBe(false);
+    expect(loadEnv({ ...production, DOCS_ENABLED: 'true' }).DOCS_ENABLED).toBe(true);
+    expect(loadEnv(required).DOCS_ENABLED).toBe(true);
+  });
+
+  it('não sobe com CORS liberado: o front usa a mesma origem', () => {
+    expect(() => loadEnv({ ...production, CORS_ORIGINS: 'http://localhost:4200' })).toThrow(
+      /CORS_ORIGINS/,
+    );
+  });
+
+  it('não sobe sem a origem do front (verificação de CSRF)', () => {
+    expect(() => loadEnv(withoutOrigin)).toThrow(/APP_ORIGIN/);
+  });
+});
