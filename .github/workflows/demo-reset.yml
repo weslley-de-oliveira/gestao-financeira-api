@@ -1,0 +1,55 @@
+name: Restaura a demonstração
+
+# A conta de demonstração é compartilhada por quem visita o projeto: todo dia, de madrugada em
+# Brasília, ela volta aos dados iniciais (seed). Também pode ser rodado à mão (Actions → Run).
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-reset
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    name: Seed da conta de demonstração
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HUSKY: 0
+      # Conexão direta do Neon (a mesma do Render), guardada como segredo do repositório.
+      DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+
+    steps:
+      - name: Check secret
+        id: secret
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::notice::DEMO_DATABASE_URL não definido: a demonstração não foi restaurada."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.secret.outputs.configured == 'true'
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        if: steps.secret.outputs.configured == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.secret.outputs.configured == 'true'
+        run: npm ci
+
+      - name: Restore demo account
+        if: steps.secret.outputs.configured == 'true'
+        run: npm run db:seed

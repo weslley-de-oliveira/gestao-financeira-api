@@ -6,7 +6,11 @@ import { problemDetailsSchema } from '../../shared/http/problem.ts';
 import { toUserDto, userSchema } from '../auth/auth.schemas.ts';
 import { clearSessionCookie } from '../auth/session-cookie.ts';
 import { createUsersRepository } from './users.repository.ts';
-import { deleteAccountBodySchema, updateProfileBodySchema } from './users.schemas.ts';
+import {
+  changePasswordBodySchema,
+  deleteAccountBodySchema,
+  updateProfileBodySchema,
+} from './users.schemas.ts';
 import { createUsersService } from './users.service.ts';
 
 export const PROFILE_TAG = 'Perfil';
@@ -31,6 +35,31 @@ export const usersRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
     async (request) => {
       const user = await service.updateProfile(currentAuth(request).user.id, request.body);
       return toUserDto(user);
+    },
+  );
+
+  app.post(
+    '/password',
+    {
+      config: { rateLimit: AUTH_RATE_LIMITS.changePassword },
+      schema: {
+        tags: [PROFILE_TAG],
+        summary: 'Troca a senha',
+        description:
+          'Confirma com a senha atual (errada responde 422 em `currentPassword`). A senha nova segue as regras do cadastro e precisa ser diferente da atual. Esta sessão continua; as outras sessões da pessoa, em outros aparelhos, são encerradas.',
+        body: changePasswordBodySchema,
+        response: {
+          204: z.null(),
+          401: problemDetailsSchema,
+          422: problemDetailsSchema,
+          429: problemDetailsSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const { user, sessionId } = currentAuth(request);
+      await service.changePassword(user.id, sessionId, request.body);
+      return reply.status(204).send(null);
     },
   );
 

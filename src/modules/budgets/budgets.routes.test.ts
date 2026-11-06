@@ -60,6 +60,7 @@ describe('rotas /v1/budgets', () => {
           state: 'ok',
         },
         createdAt: expect.any(String) as unknown,
+        updatedAt: expect.any(String) as unknown,
       });
     });
 

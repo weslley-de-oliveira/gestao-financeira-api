@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import type { Database } from '../../db/client.ts';
-import { users, type User } from '../../db/schema/index.ts';
+import { sessions, users, type User } from '../../db/schema/index.ts';
 
 export interface UsersRepository {
   findUser(userId: string): Promise<User | null>;
@@ -11,6 +11,11 @@ export interface UsersRepository {
    * categorias, transações, cartões, orçamentos, metas e sessões.
    */
   deleteUser(userId: string): Promise<void>;
+  /**
+   * Grava o hash da senha nova e encerra as outras sessões da pessoa (outros aparelhos), mantendo
+   * a sessão `keepSessionId`, de onde a troca foi feita. Tudo numa transação.
+   */
+  changePassword(userId: string, passwordHash: string, keepSessionId: string): Promise<void>;
 }
 
 export function createUsersRepository(db: Database): UsersRepository {
@@ -31,6 +36,15 @@ export function createUsersRepository(db: Database): UsersRepository {
 
     async deleteUser(userId) {
       await db.delete(users).where(eq(users.id, userId));
+    },
+
+    async changePassword(userId, passwordHash, keepSessionId) {
+      await db.transaction(async (tx) => {
+        await tx.update(users).set({ passwordHash }).where(eq(users.id, userId));
+        await tx
+          .delete(sessions)
+          .where(and(eq(sessions.userId, userId), ne(sessions.id, keepSessionId)));
+      });
     },
   };
 }

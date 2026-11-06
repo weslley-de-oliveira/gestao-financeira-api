@@ -65,6 +65,7 @@ describe('rotas /v1/goals', () => {
         isPaused: false,
         isArchived: false,
         createdAt: expect.any(String) as unknown,
+        updatedAt: expect.any(String) as unknown,
         contributions: [],
         currentAmount: 0,
         remainingAmount: 1_000_000,
@@ -162,7 +163,10 @@ describe('rotas /v1/goals', () => {
       const goal = await createGoal();
       const other = await signUp(app);
 
-      expect((await user.api('GET', `/v1/goals/${goal.id}`)).json()).toEqual(goal);
+      expect((await user.api('GET', `/v1/goals/${goal.id}`)).json()).toEqual({
+        ...goal,
+        updatedAt: expect.any(String) as unknown,
+      });
       for (const id of [goal.id, randomUUIDv7()]) {
         const response = await other.api('GET', `/v1/goals/${id}`);
 
@@ -185,6 +189,7 @@ describe('rotas /v1/goals', () => {
 
       expect(response.json()).toEqual({
         ...goal,
+        updatedAt: expect.any(String) as unknown,
         name: 'Viagem ao Japão',
         targetAmount: 2_000_000,
         description: null,
@@ -204,7 +209,10 @@ describe('rotas /v1/goals', () => {
       expect((await patch(goal.id, { isArchived: true })).json()).toMatchObject({
         isArchived: true,
       });
-      expect((await patch(goal.id, { isArchived: false })).json()).toEqual(goal);
+      expect((await patch(goal.id, { isArchived: false })).json()).toEqual({
+        ...goal,
+        updatedAt: expect.any(String) as unknown,
+      });
       expect((await user.api('DELETE', `/v1/goals/${goal.id}`)).statusCode).toBe(404);
     });
 
@@ -235,7 +243,10 @@ describe('rotas /v1/goals', () => {
       expect(
         (await other.api('PATCH', `/v1/goals/${goal.id}`, { name: 'Invadida' })).statusCode,
       ).toBe(404);
-      expect((await user.api('GET', `/v1/goals/${goal.id}`)).json()).toEqual(goal);
+      expect((await user.api('GET', `/v1/goals/${goal.id}`)).json()).toEqual({
+        ...goal,
+        updatedAt: expect.any(String) as unknown,
+      });
     });
   });
 });

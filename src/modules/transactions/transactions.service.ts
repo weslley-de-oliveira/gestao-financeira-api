@@ -355,6 +355,10 @@ export function createTransactionsService({
       // Compra de fatura paga não muda (nem para sair dela); e nenhuma pode entrar numa paga.
       const current = await getEditable(userId, transactionId);
       assertIfMatch(ifMatch, current);
+      // Corpo vazio: nada a gravar (nem uma versão nova).
+      if (Object.keys(changes).length === 0) {
+        return current;
+      }
       const next = mergeChanges(current, changes);
       await checkReferences(userId, next, current);
       if (next.type !== 'transfer' && next.creditCardId) {

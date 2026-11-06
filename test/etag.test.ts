@@ -144,7 +144,10 @@ describe('ETag e If-Match', () => {
     });
 
     it('devolve a mesma ETag no GET e no PATCH com a versão atual, e uma nova depois dele', async () => {
-      const read = etagOf(await user.api('GET', url));
+      const detail = await user.api('GET', url);
+      const read = etagOf(detail);
+      // O cliente monta o If-Match a partir do `updatedAt` que recebeu (ex.: numa listagem).
+      expect(read).toBe(`"${Date.parse(detail.json<{ updatedAt: string }>().updatedAt)}"`);
       await nextMillisecond();
 
       const response = await patch(url, resource.change(1), read);

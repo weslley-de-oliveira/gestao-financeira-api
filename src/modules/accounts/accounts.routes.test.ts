@@ -136,6 +136,7 @@ describe('rotas /v1/accounts', () => {
         icon: 'savings',
         isArchived: false,
         createdAt: account.createdAt.toISOString(),
+        updatedAt: account.updatedAt.toISOString(),
       });
     });
 
@@ -353,6 +354,7 @@ describe('rotas /v1/accounts', () => {
       expect(response.statusCode).toBe(200);
       expect(response.json()).toEqual({
         ...account,
+        updatedAt: expect.any(String) as unknown,
         name: 'Conta salário',
         type: 'other',
         initialBalance: -1,
@@ -392,7 +394,7 @@ describe('rotas /v1/accounts', () => {
       const response = await send('PATCH', `/v1/accounts/${account.id}`, {}, token);
 
       expect(response.statusCode).toBe(200);
-      expect(response.json()).toEqual(account);
+      expect(response.json()).toEqual({ ...account, updatedAt: expect.any(String) as unknown });
     });
 
     it('responde 422 para campo inválido, sem alterar nada', async () => {
@@ -474,7 +476,11 @@ describe('rotas /v1/accounts', () => {
       const response = await setArchived(account.id, true, token);
 
       expect(response.statusCode).toBe(200);
-      expect(response.json()).toEqual({ ...account, isArchived: true });
+      expect(response.json()).toEqual({
+        ...account,
+        isArchived: true,
+        updatedAt: expect.any(String) as unknown,
+      });
       expect(names(await get('/v1/accounts', token))).toEqual(['Atual']);
       expect(names(await get('/v1/accounts?includeArchived=true', token))).toEqual([
         'Antiga',
@@ -490,7 +496,7 @@ describe('rotas /v1/accounts', () => {
 
       const response = await setArchived(account.id, false, token);
 
-      expect(response.json()).toEqual(account);
+      expect(response.json()).toEqual({ ...account, updatedAt: expect.any(String) as unknown });
       expect(names(await get('/v1/accounts', token))).toEqual(['Conta corrente']);
     });
 

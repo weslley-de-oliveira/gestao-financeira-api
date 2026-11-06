@@ -71,6 +71,7 @@ describe('rotas /v1/credit-cards', () => {
         id: expect.any(String) as unknown,
         isArchived: false,
         createdAt: expect.any(String) as unknown,
+        updatedAt: expect.any(String) as unknown,
         // Sem compras: nada usado e a próxima fatura vazia.
         usedLimit: 0,
         availableLimit: 500_000,
@@ -211,7 +212,10 @@ describe('rotas /v1/credit-cards', () => {
       const card = await createCard();
       const other = await signUp(app);
 
-      expect((await user.api('GET', `/v1/credit-cards/${card.id}`)).json()).toEqual(card);
+      expect((await user.api('GET', `/v1/credit-cards/${card.id}`)).json()).toEqual({
+        ...card,
+        updatedAt: expect.any(String) as unknown,
+      });
       for (const id of [card.id, randomUUIDv7()]) {
         const response = await other.api('GET', `/v1/credit-cards/${id}`);
 
@@ -273,13 +277,17 @@ describe('rotas /v1/credit-cards', () => {
       const archived = await user.api('PATCH', `/v1/credit-cards/${card.id}`, {
         isArchived: true,
       });
-      expect(archived.json()).toEqual({ ...card, isArchived: true });
+      expect(archived.json()).toEqual({
+        ...card,
+        isArchived: true,
+        updatedAt: expect.any(String) as unknown,
+      });
       const active = (await user.api('GET', '/v1/credit-cards')).json<CreditCardDto[]>();
       expect(active.map(({ id }) => id)).not.toContain(card.id);
       const reactivated = await user.api('PATCH', `/v1/credit-cards/${card.id}`, {
         isArchived: false,
       });
-      expect(reactivated.json()).toEqual(card);
+      expect(reactivated.json()).toEqual({ ...card, updatedAt: expect.any(String) as unknown });
 
       const deleted = await user.api('DELETE', `/v1/credit-cards/${card.id}`);
       expect(deleted.statusCode).toBe(404);

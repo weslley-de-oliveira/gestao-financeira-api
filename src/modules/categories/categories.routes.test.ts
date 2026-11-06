@@ -150,6 +150,7 @@ describe('rotas /v1/categories', () => {
         isDefault: true,
         isArchived: false,
         createdAt: category.createdAt.toISOString(),
+        updatedAt: category.updatedAt.toISOString(),
       });
     });
 
@@ -361,6 +362,7 @@ describe('rotas /v1/categories', () => {
       expect(response.statusCode).toBe(200);
       expect(response.json()).toEqual({
         ...category,
+        updatedAt: expect.any(String) as unknown,
         name: 'Comida fora',
         icon: 'shopping_bag',
         color: '#2e7d32',
@@ -428,7 +430,7 @@ describe('rotas /v1/categories', () => {
       const response = await patch(category.id, {}, token);
 
       expect(response.statusCode).toBe(200);
-      expect(response.json()).toEqual(category);
+      expect(response.json()).toEqual({ ...category, updatedAt: expect.any(String) as unknown });
     });
 
     it.each([
@@ -483,7 +485,11 @@ describe('rotas /v1/categories', () => {
       const response = await setArchived(category.id, true, token);
 
       expect(response.statusCode).toBe(200);
-      expect(response.json()).toEqual({ ...category, isArchived: true });
+      expect(response.json()).toEqual({
+        ...category,
+        isArchived: true,
+        updatedAt: expect.any(String) as unknown,
+      });
       expect(names(await get('/v1/categories', token))).toEqual(['Atual']);
       expect(names(await get('/v1/categories?includeArchived=true', token))).toEqual([
         'Antiga',
@@ -499,7 +505,7 @@ describe('rotas /v1/categories', () => {
 
       const response = await setArchived(category.id, false, token);
 
-      expect(response.json()).toEqual(category);
+      expect(response.json()).toEqual({ ...category, updatedAt: expect.any(String) as unknown });
       expect(names(await get('/v1/categories', token))).toEqual(['Alimentação']);
     });
 

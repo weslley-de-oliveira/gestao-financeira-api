@@ -49,6 +49,9 @@ export const creditCardSchema = z
     color: colorSchema,
     isArchived: z.boolean(),
     createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime().meta({
+      description: 'Versão do registro: a ETag é derivada dela (use a ETag no `If-Match`).',
+    }),
     usedLimit: z.int().meta({
       description: 'Compras ainda não pagas, em centavos: compras menos faturas pagas.',
     }),
@@ -146,6 +149,7 @@ export function toCreditCardDto(card: CreditCard & CardUsage): CreditCardDto {
     color: card.color as CreditCardDto['color'],
     isArchived: card.isArchived,
     createdAt: card.createdAt.toISOString(),
+    updatedAt: card.updatedAt.toISOString(),
     usedLimit: card.usedLimit,
     availableLimit: card.availableLimit,
     nextInvoice: card.nextInvoice,

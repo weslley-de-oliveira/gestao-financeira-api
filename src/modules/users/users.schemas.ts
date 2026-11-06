@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PASSWORD_MAX_LENGTH, userNameSchema } from '../auth/auth.schemas.ts';
+import { PASSWORD_MAX_LENGTH, passwordSchema, userNameSchema } from '../auth/auth.schemas.ts';
 
 // `strictObject`: campos desconhecidos (ex.: `id`) são rejeitados com 422.
 export const updateProfileBodySchema = z.strictObject({
@@ -26,3 +26,16 @@ export const deleteAccountBodySchema = z.strictObject({
 });
 
 export type DeleteAccountInput = z.infer<typeof deleteAccountBodySchema>;
+
+export const changePasswordBodySchema = z.strictObject({
+  currentPassword: z
+    .string('Informe a senha atual.')
+    .min(1, 'Informe a senha atual.')
+    .max(PASSWORD_MAX_LENGTH, `A senha deve ter no máximo ${PASSWORD_MAX_LENGTH} caracteres.`)
+    .meta({ description: 'Senha atual, para confirmar a troca.' }),
+  newPassword: passwordSchema.meta({
+    description: 'Senha nova: de 8 a 128 caracteres, com pelo menos uma letra e um número.',
+  }),
+});
+
+export type ChangePasswordInput = z.infer<typeof changePasswordBodySchema>;

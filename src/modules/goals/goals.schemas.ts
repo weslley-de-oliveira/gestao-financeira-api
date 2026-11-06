@@ -50,6 +50,9 @@ export const goalSchema = z
     isPaused: z.boolean().meta({ description: 'Pausada: não fica atrasada enquanto pausada.' }),
     isArchived: z.boolean(),
     createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime().meta({
+      description: 'Versão do registro: a ETag é derivada dela (use a ETag no `If-Match`).',
+    }),
     contributions: z
       .array(contributionSchema)
       .meta({ description: 'Aportes e retiradas, dos mais recentes para os mais antigos.' }),
@@ -188,6 +191,7 @@ export function toGoalDto(
     isPaused: goal.isPaused,
     isArchived: goal.isArchived,
     createdAt: goal.createdAt.toISOString(),
+    updatedAt: goal.updatedAt.toISOString(),
     contributions: goal.contributions.map((contribution) => ({
       id: contribution.id,
       type: contribution.type,

@@ -57,6 +57,9 @@ export const budgetSchema = z
       description: 'Consumo do mês consultado; `null` se o orçamento ainda não valia nele.',
     }),
     createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime().meta({
+      description: 'Versão do registro: a ETag é derivada dela (use a ETag no `If-Match`).',
+    }),
   })
   .meta({ id: 'Budget' });
 
@@ -111,5 +114,6 @@ export function toBudgetDto(
     limits: budget.limits,
     progress: budget.progress,
     createdAt: budget.createdAt.toISOString(),
+    updatedAt: budget.updatedAt.toISOString(),
   };
 }

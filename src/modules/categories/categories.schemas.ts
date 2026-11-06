@@ -31,6 +31,9 @@ export const categorySchema = z
     }),
     isArchived: z.boolean(),
     createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime().meta({
+      description: 'Versão do registro: a ETag é derivada dela (use a ETag no `If-Match`).',
+    }),
   })
   .meta({ id: 'Category' });
 
@@ -101,5 +104,6 @@ export function toCategoryDto(category: Category): CategoryDto {
     isDefault: category.isDefault,
     isArchived: category.isArchived,
     createdAt: category.createdAt.toISOString(),
+    updatedAt: category.updatedAt.toISOString(),
   };
 }
