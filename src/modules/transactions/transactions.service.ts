@@ -5,6 +5,10 @@ import {
   InvalidInputError,
   type InvalidField,
 } from '../../shared/errors/domain-error.ts';
+import {
+  ARCHIVED_REFERENCE_PROBLEM_TYPE,
+  PAID_INVOICE_PROBLEM_TYPE,
+} from '../../shared/http/problem.ts';
 import { monthLabel } from '../../shared/utils/date.ts';
 import { invoiceCycleFor } from '../../shared/utils/invoice-cycle.ts';
 import type { AccountsRepository } from '../accounts/accounts.repository.ts';
@@ -17,6 +21,8 @@ import {
   type CreateTransactionInput,
   type CreateTransferInput,
   type ListTransactionsQuery,
+  type TransactionFilters,
+  type TransactionSummary,
   type UpdateTransactionInput,
 } from './transactions.schemas.ts';
 import { assertIfMatch, PreconditionFailedError, type IfMatch } from '../../shared/http/etag.ts';
@@ -45,6 +51,7 @@ export class InvoicePaymentNotEditableError extends DomainError {
  */
 export class PaidInvoiceError extends DomainError {
   readonly kind = 'conflict';
+  override readonly problemType = PAID_INVOICE_PROBLEM_TYPE;
 
   constructor(cardName: string, referenceMonth: string) {
     super(
@@ -56,6 +63,7 @@ export class PaidInvoiceError extends DomainError {
 /** Conta ou categoria arquivada numa transação nova (ou trocada na edição). */
 export class ArchivedReferenceError extends DomainError {
   readonly kind = 'conflict';
+  override readonly problemType = ARCHIVED_REFERENCE_PROBLEM_TYPE;
 }
 
 /**
@@ -82,6 +90,8 @@ export interface TransactionsServiceDependencies {
 export interface TransactionsService {
   /** Uma página das transações do usuário que passam nos filtros, das mais recentes às antigas. */
   list(userId: string, query: ListTransactionsQuery): Promise<Page<Transaction>>;
+  /** Totais e contagens de todas as transações do usuário que passam nos filtros. */
+  summarize(userId: string, filters: TransactionFilters): Promise<TransactionSummary>;
   /** Transação do usuário; inexistente ou de outro usuário → `TransactionNotFoundError`. */
   get(userId: string, transactionId: string): Promise<Transaction>;
   /**
@@ -339,6 +349,10 @@ export function createTransactionsService({
   return {
     list(userId, query) {
       return transactions.listTransactions(userId, query);
+    },
+
+    summarize(userId, filters) {
+      return transactions.summarizeTransactions(userId, filters);
     },
 
     get,

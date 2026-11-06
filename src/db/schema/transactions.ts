@@ -65,6 +65,16 @@ export const transactions = pgTable(
     index('transactions_user_id_date_idx').on(table.userId, table.date),
     // Compras de um cartão por período (faturas).
     index('transactions_credit_card_id_date_idx').on(table.creditCardId, table.date),
+    // Filtros da listagem por conta (origem ou destino) e por categoria, e a contagem de uso das
+    // categorias. Também servem às chaves estrangeiras, que o Postgres não indexa sozinho.
+    index('transactions_user_id_account_id_idx').on(table.userId, table.accountId),
+    index('transactions_user_id_destination_account_id_idx').on(
+      table.userId,
+      table.destinationAccountId,
+    ),
+    index('transactions_user_id_category_id_idx').on(table.userId, table.categoryId),
+    // Ordenação por valor, com o id como desempate (paginação por cursor).
+    index('transactions_user_id_amount_id_idx').on(table.userId, table.amount, table.id),
     // Cada fatura (cartão + mês) é paga no máximo uma vez.
     uniqueIndex('transactions_invoice_payment_unique')
       .on(table.creditCardId, table.invoiceMonth)

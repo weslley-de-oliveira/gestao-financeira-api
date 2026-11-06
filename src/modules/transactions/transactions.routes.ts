@@ -11,9 +11,11 @@ import {
   createTransactionBodySchema,
   listTransactionsQuerySchema,
   toTransactionDto,
+  transactionFiltersQuerySchema,
   transactionPageSchema,
   transactionParamsSchema,
   transactionSchema,
+  transactionSummarySchema,
   updateTransactionBodySchema,
 } from './transactions.schemas.ts';
 import { createTransactionsService } from './transactions.service.ts';
@@ -37,7 +39,7 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
         tags: [TRANSACTIONS_TAG],
         summary: 'Lista as transações',
         description:
-          'Transações do usuário, das mais recentes para as mais antigas, com filtros combináveis: período (`from`/`to`, inclusivos), tipo, status, conta (origem ou destino), cartão, categoria e busca `q` na descrição e nas observações, sem diferenciar maiúsculas e acentos. Paginada por cursor: para a próxima página, repita a consulta com `cursor` igual ao `nextCursor` recebido.',
+          'Transações do usuário, com filtros combináveis: período (`from`/`to`, inclusivos), tipo, status, conta (origem ou destino), cartão, categoria e busca `q` na descrição e nas observações, sem diferenciar maiúsculas e acentos. Ordenadas por `sort` (padrão: das mais recentes para as mais antigas). Paginada por cursor: para a próxima página, repita a consulta (filtros e `sort` iguais) com `cursor` igual ao `nextCursor` recebido.',
         querystring: listTransactionsQuerySchema,
         response: {
           200: transactionPageSchema,
@@ -50,6 +52,25 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
       const page = await service.list(currentAuth(request).user.id, request.query);
       return { items: page.items.map(toTransactionDto), nextCursor: page.nextCursor };
     },
+  );
+
+  app.get(
+    '/summary',
+    {
+      schema: {
+        tags: [TRANSACTIONS_TAG],
+        summary: 'Resume as transações filtradas',
+        description:
+          'Totais de todas as transações que passam nos filtros (os mesmos da listagem), sem paginação: quantidade, receitas e despesas realizadas, resultado e pendentes. Transferências e pagamentos de fatura contam na quantidade, mas não nos totais; compras no cartão são despesas.',
+        querystring: transactionFiltersQuerySchema,
+        response: {
+          200: transactionSummarySchema,
+          401: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    (request) => service.summarize(currentAuth(request).user.id, request.query),
   );
 
   app.post(

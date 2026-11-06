@@ -4,31 +4,33 @@ export const DEFAULT_PAGE_SIZE = 50;
 export const MAX_PAGE_SIZE = 100;
 
 /**
- * Posição na lista ordenada por data e id, da mais recente para a mais antiga: a próxima página
- * começa logo depois dela. Diferente de `offset`, não pula nem repete itens quando entram
- * registros novos entre uma página e outra.
+ * Posição na lista ordenada: a ordenação usada, o valor da chave de ordenação e o id do último
+ * item. A próxima página começa logo depois dela. Diferente de `offset`, não pula nem repete itens
+ * quando entram registros novos entre uma página e outra.
  */
-export interface DateIdCursor {
-  date: string;
+export interface PageCursor {
+  sort: string;
+  value: string | number;
   id: string;
 }
 
 const cursorPayloadSchema = z.strictObject({
-  d: z.iso.date(),
+  s: z.string().min(1).max(40),
+  v: z.union([z.string().max(40), z.number().int()]),
   i: z.uuid(),
 });
 
-/** Cursor opaco para o cliente: base64url do JSON `{ d, i }`. */
-export function encodeCursor({ date, id }: DateIdCursor): string {
-  return Buffer.from(JSON.stringify({ d: date, i: id })).toString('base64url');
+/** Cursor opaco para o cliente: base64url do JSON `{ s, v, i }`. */
+export function encodeCursor({ sort, value, id }: PageCursor): string {
+  return Buffer.from(JSON.stringify({ s: sort, v: value, i: id })).toString('base64url');
 }
 
 /** Devolve `null` se o texto não for um cursor gerado por `encodeCursor`. */
-export function decodeCursor(cursor: string): DateIdCursor | null {
+export function decodeCursor(cursor: string): PageCursor | null {
   try {
     const json: unknown = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
     const parsed = cursorPayloadSchema.safeParse(json);
-    return parsed.success ? { date: parsed.data.d, id: parsed.data.i } : null;
+    return parsed.success ? { sort: parsed.data.s, value: parsed.data.v, id: parsed.data.i } : null;
   } catch {
     return null;
   }
@@ -81,13 +83,13 @@ export interface Page<T> {
 
 /**
  * Monta a página a partir de uma consulta que buscou `limit + 1` linhas: a linha a mais só indica
- * que há próxima página e não é devolvida.
+ * que há próxima página e não é devolvida. `positionOf` diz a posição do último item na ordenação.
  */
-export function toPage<T extends DateIdCursor>(rows: T[], limit: number): Page<T> {
+export function toPage<T>(rows: T[], limit: number, positionOf: (row: T) => PageCursor): Page<T> {
   const items = rows.slice(0, limit);
   const last = items.at(-1);
   return {
     items,
-    nextCursor: rows.length > limit && last ? encodeCursor(last) : null,
+    nextCursor: rows.length > limit && last !== undefined ? encodeCursor(positionOf(last)) : null,
   };
 }

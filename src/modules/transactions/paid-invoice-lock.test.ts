@@ -70,7 +70,11 @@ describe('compras de fatura paga ficam bloqueadas', () => {
 
   function expectLocked(response: LightMyRequestResponse) {
     expect(response.statusCode).toBe(409);
-    expect(response.json()).toMatchObject({ status: 409, detail: LOCKED });
+    expect(response.json()).toMatchObject({
+      type: '/problems/paid-invoice',
+      status: 409,
+      detail: LOCKED,
+    });
   }
 
   it('não cria compra que cairia na fatura paga', async () => {

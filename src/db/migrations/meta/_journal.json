@@ -71,6 +71,13 @@
       "when": 1793928751310,
       "tag": "0009_cria-idempotency-keys",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793974321215,
+      "tag": "0010_indexa-filtros-de-transacoes",
+      "breakpoints": true
     }
   ]
 }

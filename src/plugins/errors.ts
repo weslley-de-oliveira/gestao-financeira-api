@@ -72,6 +72,7 @@ export const errorsPlugin = fp(
         return sendProblem(request, reply, {
           status: DOMAIN_ERROR_STATUS[error.kind],
           detail: error.message,
+          ...(error.problemType && { type: error.problemType }),
         });
       }
 
