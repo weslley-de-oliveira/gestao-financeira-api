@@ -41,7 +41,15 @@ test/                # Postgres de teste, helpers e testes que cruzam módulos (
 
 - **Isolamento entre usuários:** toda consulta filtra pelo usuário da sessão; o recurso de outra pessoa responde 404, como um id que não existe (`test/isolation-matrix.test.ts` cobre cada rota com id).
 - **Regras iguais às do front:** saldos, faturas, orçamentos e metas seguem as mesmas regras do front, com testes de paridade (`*.parity.test.ts`); somas grandes são feitas em SQL.
-- **Erros:** sempre Problem Details (RFC 9457), com `errors[]` por campo nos 422 e o `x-request-id` para encontrar o log.
+- **Erros:** sempre Problem Details (RFC 9457), com `errors[]` por campo nos 422 e o `x-request-id` para encontrar o log. Os conflitos que o cliente trata de forma diferente têm `type` próprio: `/problems/paid-invoice` (compra de fatura já paga) e `/problems/archived-reference` (conta, cartão ou categoria arquivada).
+
+## Listagem de transações
+
+- **Filtros:** período (`from`/`to`), tipo, status, conta (origem ou destino), cartão, categoria e busca `q` na descrição e nas observações, sem diferenciar acentos.
+- **Ordenação:** `sort` por data ou valor, nos dois sentidos, com o mesmo desempate do front (a registrada por último primeiro).
+- **Paginação por cursor:** o `nextCursor` guarda a ordenação e a posição do último item, então uma transação nova não desloca a página seguinte. Um cursor de outra ordenação responde 422.
+- **Resumo:** `GET /v1/transactions/summary`, com os mesmos filtros, devolve a quantidade, as receitas e despesas realizadas, o resultado e os pendentes, para o front mostrar totais e o número de páginas sem baixar tudo.
+- **Uso por categoria:** as categorias trazem `transactionCount`, calculado numa agregação só.
 
 ## Segurança
 
@@ -135,7 +143,8 @@ As decisões de arquitetura estão na seção 11 do plano. Além delas:
 
 - **Migrações na subida** (`MIGRATE_ON_START`), com trava no banco contra duas instâncias migrando ao mesmo tempo: o plano gratuito do Render não tem pré-deploy.
 - **`TRUST_PROXY` por número de saltos:** o Fastify 5 recusa esse modo, porque quem chama a API direto pode forjar o `X-Forwarded-For`. Aqui isso afeta só o rate limit de quem contorna a Vercel, e os provedores não publicam faixas de IP fixas para confiar por endereço.
-- **ETag pela versão do registro:** valores calculados (saldo, uso do limite, progresso) não mudam a ETag; aportes e retiradas mudam a da meta. A versão tem resolução de milissegundos.
+- **ETag pela versão do registro:** valores calculados (saldo, uso do limite, progresso, uso da categoria) não mudam a ETag; aportes e retiradas mudam a da meta. A versão tem resolução de milissegundos.
+- **Paginação por cursor também na ordenação por valor**, em vez de `page`/`offset`: o cliente navega para a página anterior e para a próxima, mas não salta direto para uma página qualquer. Em troca, a página não muda quando entra uma transação no meio da navegação.
 
 ## Padrão de commits
 
