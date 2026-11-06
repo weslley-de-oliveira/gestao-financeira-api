@@ -5,6 +5,10 @@ import {
   InvalidInputError,
   type InvalidField,
 } from '../../shared/errors/domain-error.ts';
+import {
+  ARCHIVED_REFERENCE_PROBLEM_TYPE,
+  PAID_INVOICE_PROBLEM_TYPE,
+} from '../../shared/http/problem.ts';
 import { monthLabel } from '../../shared/utils/date.ts';
 import { invoiceCycleFor } from '../../shared/utils/invoice-cycle.ts';
 import type { AccountsRepository } from '../accounts/accounts.repository.ts';
@@ -47,6 +51,7 @@ export class InvoicePaymentNotEditableError extends DomainError {
  */
 export class PaidInvoiceError extends DomainError {
   readonly kind = 'conflict';
+  override readonly problemType = PAID_INVOICE_PROBLEM_TYPE;
 
   constructor(cardName: string, referenceMonth: string) {
     super(
@@ -58,6 +63,7 @@ export class PaidInvoiceError extends DomainError {
 /** Conta ou categoria arquivada numa transação nova (ou trocada na edição). */
 export class ArchivedReferenceError extends DomainError {
   readonly kind = 'conflict';
+  override readonly problemType = ARCHIVED_REFERENCE_PROBLEM_TYPE;
 }
 
 /**

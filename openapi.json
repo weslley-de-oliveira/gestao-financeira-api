@@ -12,7 +12,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "description": "Tipo do problema; `about:blank` quando o status já basta.",
+            "description": "Tipo do problema: `/problems/validation-error` (422 com `errors`), `/problems/paid-invoice` (409: compra de fatura já paga), `/problems/archived-reference` (409: conta, cartão ou categoria arquivada); `about:blank` quando o status já basta.",
             "example": "about:blank"
           },
           "title": { "type": "string", "example": "Recurso não encontrado" },
@@ -1195,7 +1195,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "description": "Tipo do problema; `about:blank` quando o status já basta.",
+            "description": "Tipo do problema: `/problems/validation-error` (422 com `errors`), `/problems/paid-invoice` (409: compra de fatura já paga), `/problems/archived-reference` (409: conta, cartão ou categoria arquivada); `about:blank` quando o status já basta.",
             "example": "about:blank"
           },
           "title": { "type": "string", "example": "Recurso não encontrado" },

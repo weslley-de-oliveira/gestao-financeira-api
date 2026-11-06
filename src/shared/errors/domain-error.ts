@@ -7,6 +7,8 @@ export type DomainErrorKind =
 
 export abstract class DomainError extends Error {
   abstract readonly kind: DomainErrorKind;
+  /** `type` do Problem Details, quando o cliente precisa distinguir este erro de outros iguais. */
+  readonly problemType?: string;
 
   constructor(message: string) {
     super(message);

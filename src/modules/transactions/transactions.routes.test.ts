@@ -1120,7 +1120,12 @@ describe('rotas /v1/transactions', () => {
 
     function expectConflict(response: Awaited<ReturnType<typeof post>>, detail: string) {
       expect(response.statusCode).toBe(409);
-      expect(response.json()).toMatchObject({ status: 409, title: 'Conflito', detail });
+      expect(response.json()).toMatchObject({
+        type: '/problems/archived-reference',
+        status: 409,
+        title: 'Conflito',
+        detail,
+      });
     }
 
     const transfer = () => ({
