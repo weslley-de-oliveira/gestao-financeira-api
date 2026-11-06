@@ -27,3 +27,7 @@ export const TRANSACTION_NOTES_MAX_LENGTH = 500;
 export const TRANSACTION_SORTS = ['date-desc', 'date-asc', 'amount-desc', 'amount-asc'] as const;
 
 export type TransactionSort = (typeof TRANSACTION_SORTS)[number];
+
+/** Parcelas de uma compra parcelada no cartão: de 2 a 24, como nos cartões em geral. */
+export const MIN_INSTALLMENTS = 2;
+export const MAX_INSTALLMENTS = 24;

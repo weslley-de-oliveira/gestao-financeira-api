@@ -6,6 +6,7 @@ import {
   date,
   foreignKey,
   index,
+  integer,
   pgTable,
   text,
   uniqueIndex,
@@ -16,6 +17,8 @@ import {
   TRANSACTION_NOTES_MAX_LENGTH,
   TRANSACTION_STATUSES,
   TRANSACTION_TYPES,
+  MAX_INSTALLMENTS,
+  MIN_INSTALLMENTS,
 } from '../../modules/transactions/transactions.constants.ts';
 import { MAX_MONEY_CENTS } from '../../shared/utils/money.ts';
 import { accounts } from './accounts.ts';
@@ -58,9 +61,26 @@ export const transactions = pgTable(
     categoryId: uuid(),
     status: text({ enum: TRANSACTION_STATUSES }).notNull().default('completed'),
     notes: text(),
+    /**
+     * Parcela de uma compra parcelada no cartão: o grupo (o mesmo em todas as parcelas), o número
+     * da parcela e o total de parcelas. Nulos nas demais transações.
+     */
+    installmentGroupId: uuid(),
+    installmentNumber: integer(),
+    installmentCount: integer(),
     ...timestamps(),
   },
   (table) => [
+    // As parcelas de uma compra, para editar e excluir a compra inteira.
+    index('transactions_user_id_installment_group_id_idx').on(
+      table.userId,
+      table.installmentGroupId,
+    ),
+    // Cada número de parcela aparece uma vez por compra.
+    uniqueIndex('transactions_installment_unique').on(
+      table.installmentGroupId,
+      table.installmentNumber,
+    ),
     // Listagem por período (e o cálculo de saldo), sempre filtrados pelo dono.
     index('transactions_user_id_date_idx').on(table.userId, table.date),
     // Compras de um cartão por período (faturas).
@@ -118,6 +138,24 @@ export const transactions = pgTable(
     check(
       'transactions_invoice_month_format',
       sql`${table.invoiceMonth} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`,
+    ),
+    // Parcela: os três campos juntos, número entre 1 e o total, e só em compra no cartão.
+    check(
+      'transactions_installment_shape',
+      sql`(
+        ${table.installmentGroupId} is null
+        and ${table.installmentNumber} is null
+        and ${table.installmentCount} is null
+      ) or (
+        ${table.installmentGroupId} is not null
+        and ${table.installmentNumber} is not null
+        and ${table.installmentCount} is not null
+        and ${table.installmentCount} between ${sql.raw(String(MIN_INSTALLMENTS))} and ${sql.raw(String(MAX_INSTALLMENTS))}
+        and ${table.installmentNumber} between 1 and ${table.installmentCount}
+        and ${table.type} = 'expense'
+        and ${table.creditCardId} is not null
+        and ${table.accountId} is null
+      )`,
     ),
     // Forma de cada tipo, como no front:
     // - receita/despesa em conta: conta e categoria, sem cartão, destino ou fatura;
