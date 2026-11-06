@@ -11,6 +11,8 @@ COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
 COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
+COPY scripts/copy-migrations.ts ./scripts/
+# Compila e copia as migrações SQL para dist/db/migrations (aplicadas na subida).
 RUN npm run build
 
 # Só as dependências de produção.

@@ -16,9 +16,14 @@ services:
         value: production
       - key: LOG_LEVEL
         value: info
-      # Conexão do Neon (endpoint com pooling, sslmode=require). Definida no painel, nunca no git.
+      # Conexão direta do Neon (sem "-pooler" no host, com sslmode=require): a trava das migrações
+      # precisa de sessão, que o PgBouncer em modo transação não mantém. Definida no painel, nunca no
+      # git.
       - key: DATABASE_URL
         sync: false
+      # O plano gratuito não tem pré-deploy: as migrações rodam na subida de cada versão.
+      - key: MIGRATE_ON_START
+        value: 'true'
       - key: DATABASE_POOL_MAX
         value: '5'
       # O front chama a API pela própria origem (rewrite /api da Vercel): só ela altera dados.

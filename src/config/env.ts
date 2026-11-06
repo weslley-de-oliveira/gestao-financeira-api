@@ -17,6 +17,8 @@ const envSchema = z.object({
   // Limite de requisições por IP (e de tentativas de login). Só os testes o desligam.
   RATE_LIMIT_ENABLED: z.stringbool().default(true),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  // Aplica as migrações pendentes antes de abrir a porta (em produção, a cada deploy).
+  MIGRATE_ON_START: z.stringbool().default(false),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
   // Origens com CORS liberado, separadas por vírgula (ex.: o front no ng serve). Vazio = sem CORS:
   // em produção o front chama a API pela mesma origem (proxy da Vercel).
