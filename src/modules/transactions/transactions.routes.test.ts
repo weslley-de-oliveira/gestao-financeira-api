@@ -960,6 +960,86 @@ describe('rotas /v1/transactions', () => {
       expect(await descriptions(`?accountId=${ledger.account.id}`)).toEqual(newestFirst);
     });
 
+    describe('GET /v1/transactions/summary', () => {
+      const summary = (query = '') =>
+        app.inject({
+          method: 'GET',
+          url: `/v1/transactions/summary${query}`,
+          cookies: ledger.cookies,
+        });
+
+      it.each([
+        [
+          // Só as despesas realizadas somam; o salário pendente, a transferência e o pagamento
+          // de fatura contam na quantidade, mas não nos totais. A de outra pessoa não aparece.
+          'sem filtros',
+          '',
+          { count: 5, income: 0, expense: 90_780, net: -90_780, pendingCount: 1 },
+        ],
+        [
+          'período',
+          '?from=2026-10-05&to=2026-11-02',
+          { count: 3, income: 0, expense: 45_390, net: -45_390, pendingCount: 1 },
+        ],
+        [
+          'receitas realizadas',
+          '?type=income&status=completed',
+          { count: 0, income: 0, expense: 0, net: 0, pendingCount: 0 },
+        ],
+        [
+          'busca',
+          '?q=farm',
+          { count: 1, income: 0, expense: 45_390, net: -45_390, pendingCount: 0 },
+        ],
+      ])('totaliza com %s', async (_case, query, expected) => {
+        const response = await summary(query);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual(expected);
+      });
+
+      it('soma as receitas realizadas', async () => {
+        const income = await post(
+          ledger,
+          expense(ledger, {
+            type: 'income',
+            description: 'Bônus',
+            amount: 100_000,
+            date: '2026-09-01',
+            categoryId: ledger.salary.id,
+          }),
+        );
+
+        const response = await summary('?to=2026-09-30');
+
+        expect(response.json()).toEqual({
+          count: 1,
+          income: 100_000,
+          expense: 0,
+          net: 100_000,
+          pendingCount: 0,
+        });
+        await app.db
+          .delete(transactions)
+          .where(eq(transactions.id, income.json<{ id: string }>().id));
+      });
+
+      it('responde 422 para período invertido', async () => {
+        const response = await summary('?from=2026-11-01&to=2026-10-31');
+
+        expect(response.statusCode).toBe(422);
+        expect(response.json()).toMatchObject({
+          errors: [{ field: 'querystring.to' }],
+        });
+      });
+
+      it('responde 401 sem sessão', async () => {
+        const response = await app.inject({ method: 'GET', url: '/v1/transactions/summary' });
+
+        expect(response.statusCode).toBe(401);
+      });
+    });
+
     it.each([
       [
         'data final antes da inicial',

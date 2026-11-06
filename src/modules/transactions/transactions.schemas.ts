@@ -184,7 +184,55 @@ export const transactionParamsSchema = z.object({
 
 export const TRANSACTION_SEARCH_MAX_LENGTH = 100;
 
-/** Filtros da listagem, todos opcionais e combináveis, a ordenação e a página. */
+/** Filtros da listagem e do resumo, todos opcionais e combináveis. */
+const filterFields = {
+  from: isoDateSchema.optional().meta({ description: 'Data inicial do período, inclusiva.' }),
+  to: isoDateSchema.optional().meta({ description: 'Data final do período, inclusiva.' }),
+  type: z
+    .enum(TRANSACTION_TYPES, 'Tipo de transação inválido.')
+    .optional()
+    .meta({ description: 'Só as transações deste tipo.' }),
+  status: transactionStatusSchema.optional(),
+  accountId: z
+    .uuid('Identificador de conta inválido.')
+    .optional()
+    .meta({ description: 'Transações que saem ou entram nesta conta (origem ou destino).' }),
+  creditCardId: z
+    .uuid('Identificador de cartão inválido.')
+    .optional()
+    .meta({ description: 'Compras e pagamentos de fatura deste cartão.' }),
+  categoryId: z.uuid('Identificador de categoria inválido.').optional(),
+  q: z
+    .string()
+    .trim()
+    .max(
+      TRANSACTION_SEARCH_MAX_LENGTH,
+      `A busca deve ter no máximo ${TRANSACTION_SEARCH_MAX_LENGTH} caracteres.`,
+    )
+    .optional()
+    // Só espaços: sem busca.
+    .transform((value) => (value === '' ? undefined : value))
+    .meta({
+      description: 'Busca na descrição e nas observações, sem diferenciar maiúsculas e acentos.',
+    }),
+};
+
+const periodInOrder = (query: { from?: string | undefined; to?: string | undefined }) =>
+  !query.from || !query.to || query.from <= query.to;
+
+const periodOutOfOrder = {
+  path: ['to'],
+  message: 'A data final deve ser igual ou posterior à data inicial.',
+};
+
+/** Filtros do resumo: os mesmos da listagem, sem ordenação nem página. */
+export const transactionFiltersQuerySchema = z
+  .object(filterFields)
+  .refine(periodInOrder, periodOutOfOrder);
+
+export type TransactionFilters = z.infer<typeof transactionFiltersQuerySchema>;
+
+/** Filtros da listagem, a ordenação e a página. */
 export const listTransactionsQuerySchema = z
   .object({
     ...pageQueryFields,
@@ -192,40 +240,9 @@ export const listTransactionsQuerySchema = z
       description:
         'Data (`date-desc`, padrão, ou `date-asc`) ou valor (`amount-desc` ou `amount-asc`). No empate, a registrada por último vem primeiro; em `date-asc`, a registrada primeiro.',
     }),
-    from: isoDateSchema.optional().meta({ description: 'Data inicial do período, inclusiva.' }),
-    to: isoDateSchema.optional().meta({ description: 'Data final do período, inclusiva.' }),
-    type: z
-      .enum(TRANSACTION_TYPES, 'Tipo de transação inválido.')
-      .optional()
-      .meta({ description: 'Só as transações deste tipo.' }),
-    status: transactionStatusSchema.optional(),
-    accountId: z
-      .uuid('Identificador de conta inválido.')
-      .optional()
-      .meta({ description: 'Transações que saem ou entram nesta conta (origem ou destino).' }),
-    creditCardId: z
-      .uuid('Identificador de cartão inválido.')
-      .optional()
-      .meta({ description: 'Compras e pagamentos de fatura deste cartão.' }),
-    categoryId: z.uuid('Identificador de categoria inválido.').optional(),
-    q: z
-      .string()
-      .trim()
-      .max(
-        TRANSACTION_SEARCH_MAX_LENGTH,
-        `A busca deve ter no máximo ${TRANSACTION_SEARCH_MAX_LENGTH} caracteres.`,
-      )
-      .optional()
-      // Só espaços: sem busca.
-      .transform((value) => (value === '' ? undefined : value))
-      .meta({
-        description: 'Busca na descrição e nas observações, sem diferenciar maiúsculas e acentos.',
-      }),
+    ...filterFields,
   })
-  .refine((query) => !query.from || !query.to || query.from <= query.to, {
-    path: ['to'],
-    message: 'A data final deve ser igual ou posterior à data inicial.',
-  })
+  .refine(periodInOrder, periodOutOfOrder)
   .refine((query) => !query.cursor || cursorFitsSort(query.cursor, query.sort), {
     path: ['cursor'],
     message: 'O cursor é de outra ordenação: recomece da primeira página.',
@@ -242,6 +259,25 @@ function cursorFitsSort(cursor: PageCursor, sort: TransactionSort): boolean {
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
 
 export const transactionPageSchema = pageSchema(transactionSchema, 'TransactionPage');
+
+/** Totais de todas as transações que passam nos filtros, com as regras do front. */
+export const transactionSummarySchema = z
+  .object({
+    count: z.number().int().meta({ description: 'Quantidade de transações, de qualquer tipo.' }),
+    income: z.number().int().meta({ description: 'Soma das receitas realizadas, em centavos.' }),
+    expense: z
+      .number()
+      .int()
+      .meta({ description: 'Soma das despesas realizadas (inclui compras no cartão).' }),
+    net: z.number().int().meta({ description: 'Receitas − despesas.' }),
+    pendingCount: z
+      .number()
+      .int()
+      .meta({ description: 'Quantidade de pendentes, de qualquer tipo (fora dos totais).' }),
+  })
+  .meta({ id: 'TransactionSummary' });
+
+export type TransactionSummary = z.infer<typeof transactionSummarySchema>;
 
 export function toTransactionDto(transaction: Transaction): TransactionDto {
   return {

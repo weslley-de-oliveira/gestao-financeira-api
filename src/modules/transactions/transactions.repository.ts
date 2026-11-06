@@ -4,7 +4,11 @@ import { transactions, type NewTransaction, type Transaction } from '../../db/sc
 import { toPage, type Page } from '../../shared/http/pagination.ts';
 import { normalizeForSearch } from '../../shared/utils/text.ts';
 import type { TransactionSort } from './transactions.constants.ts';
-import type { ListTransactionsQuery } from './transactions.schemas.ts';
+import type {
+  ListTransactionsQuery,
+  TransactionFilters,
+  TransactionSummary,
+} from './transactions.schemas.ts';
 import { atVersion } from '../../shared/http/etag.ts';
 
 /** Campos que a edição regrava: nunca o dono, o id ou as datas de criação. */
@@ -16,6 +20,11 @@ export interface TransactionsRepository {
    * (padrão: data, da mais recente para a mais antiga; no mesmo dia, a registrada por último).
    */
   listTransactions(userId: string, query: ListTransactionsQuery): Promise<Page<Transaction>>;
+  /**
+   * Totais de todas as transações do usuário que passam nos filtros: receitas e despesas só
+   * realizadas (transferências e pagamentos de fatura ficam fora) e a quantidade de pendentes.
+   */
+  summarizeTransactions(userId: string, filters: TransactionFilters): Promise<TransactionSummary>;
   /** Transação pelo id, só se for do usuário: a de outro usuário é tratada como inexistente. */
   findTransaction(userId: string, transactionId: string): Promise<Transaction | null>;
   insertTransaction(transaction: NewTransaction): Promise<Transaction>;
@@ -66,6 +75,25 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
         value: order.column === transactions.date ? row.date : row.amount,
         id: row.id,
       }));
+    },
+
+    async summarizeTransactions(userId, filters) {
+      const completedSum = (type: 'income' | 'expense') =>
+        sql<number>`coalesce(sum(${transactions.amount}) filter (where ${transactions.status} = 'completed' and ${transactions.type} = ${type}), 0)`.mapWith(
+          Number,
+        );
+      const [totals] = await db
+        .select({
+          count: sql<number>`count(*)`.mapWith(Number),
+          income: completedSum('income'),
+          expense: completedSum('expense'),
+          pendingCount:
+            sql<number>`count(*) filter (where ${transactions.status} = 'pending')`.mapWith(Number),
+        })
+        .from(transactions)
+        .where(and(eq(transactions.userId, userId), ...filterConditions(filters)));
+      const { count = 0, income = 0, expense = 0, pendingCount = 0 } = totals ?? {};
+      return { count, income, expense, net: income - expense, pendingCount };
     },
 
     async findTransaction(userId, transactionId) {
@@ -164,7 +192,7 @@ function filterConditions({
   creditCardId,
   categoryId,
   q,
-}: ListTransactionsQuery): (SQL | undefined)[] {
+}: TransactionFilters): (SQL | undefined)[] {
   return [
     from ? gte(transactions.date, from) : undefined,
     to ? lte(transactions.date, to) : undefined,

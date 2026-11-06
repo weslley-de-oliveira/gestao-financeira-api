@@ -17,6 +17,8 @@ import {
   type CreateTransactionInput,
   type CreateTransferInput,
   type ListTransactionsQuery,
+  type TransactionFilters,
+  type TransactionSummary,
   type UpdateTransactionInput,
 } from './transactions.schemas.ts';
 import { assertIfMatch, PreconditionFailedError, type IfMatch } from '../../shared/http/etag.ts';
@@ -82,6 +84,8 @@ export interface TransactionsServiceDependencies {
 export interface TransactionsService {
   /** Uma página das transações do usuário que passam nos filtros, das mais recentes às antigas. */
   list(userId: string, query: ListTransactionsQuery): Promise<Page<Transaction>>;
+  /** Totais e contagens de todas as transações do usuário que passam nos filtros. */
+  summarize(userId: string, filters: TransactionFilters): Promise<TransactionSummary>;
   /** Transação do usuário; inexistente ou de outro usuário → `TransactionNotFoundError`. */
   get(userId: string, transactionId: string): Promise<Transaction>;
   /**
@@ -339,6 +343,10 @@ export function createTransactionsService({
   return {
     list(userId, query) {
       return transactions.listTransactions(userId, query);
+    },
+
+    summarize(userId, filters) {
+      return transactions.summarizeTransactions(userId, filters);
     },
 
     get,
