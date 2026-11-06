@@ -85,6 +85,13 @@
       "when": 1793990218202,
       "tag": "0011_adiciona-parcelamento",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793996930293,
+      "tag": "0012_adiciona-estornos",
+      "breakpoints": true
     }
   ]
 }

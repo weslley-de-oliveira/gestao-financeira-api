@@ -668,7 +668,7 @@
           },
           "type": {
             "type": "string",
-            "enum": ["expense", "income", "transfer", "invoice-payment"],
+            "enum": ["expense", "income", "transfer", "invoice-payment", "refund"],
             "description": "`expense` (despesa), `income` (receita), `transfer` (transferência) ou `invoice-payment` (pagamento de fatura)."
           },
           "description": { "type": "string" },
@@ -2003,7 +2003,7 @@
           },
           "type": {
             "type": "string",
-            "enum": ["expense", "income", "transfer", "invoice-payment"],
+            "enum": ["expense", "income", "transfer", "invoice-payment", "refund"],
             "description": "`expense` (despesa), `income` (receita), `transfer` (transferência) ou `invoice-payment` (pagamento de fatura)."
           },
           "description": { "type": "string" },
@@ -3548,7 +3548,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["expense", "income", "transfer", "invoice-payment"]
+              "enum": ["expense", "income", "transfer", "invoice-payment", "refund"]
             },
             "in": "query",
             "name": "type",
@@ -3701,7 +3701,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["expense", "income", "transfer", "invoice-payment"]
+              "enum": ["expense", "income", "transfer", "invoice-payment", "refund"]
             },
             "in": "query",
             "name": "type",

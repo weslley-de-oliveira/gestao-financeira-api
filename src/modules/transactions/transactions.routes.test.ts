@@ -1056,7 +1056,7 @@ describe('rotas /v1/transactions', () => {
         'querystring.from',
         'Informe uma data válida no formato aaaa-mm-dd.',
       ],
-      ['tipo desconhecido', '?type=refund', 'querystring.type', 'Tipo de transação inválido.'],
+      ['tipo desconhecido', '?type=chargeback', 'querystring.type', 'Tipo de transação inválido.'],
       ['ordenação desconhecida', '?sort=name', 'querystring.sort', 'Ordenação inválida.'],
       [
         'conta que não é UUID',

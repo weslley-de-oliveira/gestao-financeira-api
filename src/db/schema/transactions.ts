@@ -9,6 +9,7 @@ import {
   integer,
   pgTable,
   text,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -68,9 +69,15 @@ export const transactions = pgTable(
     installmentGroupId: uuid(),
     installmentNumber: integer(),
     installmentCount: integer(),
+    /** Despesa estornada; só em `refund`. A categoria do estorno é a dela. */
+    refundedTransactionId: uuid(),
     ...timestamps(),
   },
   (table) => [
+    // Alvo da chave estrangeira dos estornos (a despesa estornada é do mesmo usuário).
+    unique('transactions_id_user_id_unique').on(table.id, table.userId),
+    // Estornos de uma despesa.
+    index('transactions_refunded_transaction_id_idx').on(table.refundedTransactionId),
     // As parcelas de uma compra, para editar e excluir a compra inteira.
     index('transactions_user_id_installment_group_id_idx').on(
       table.userId,
@@ -116,6 +123,11 @@ export const transactions = pgTable(
       foreignColumns: [categories.id, categories.userId, categories.type],
     }),
     foreignKey({
+      name: 'transactions_refunded_transaction_fk',
+      columns: [table.refundedTransactionId, table.userId],
+      foreignColumns: [table.id, table.userId],
+    }),
+    foreignKey({
       name: 'transactions_credit_card_fk',
       columns: [table.creditCardId, table.userId],
       foreignColumns: [creditCards.id, creditCards.userId],
@@ -157,11 +169,17 @@ export const transactions = pgTable(
         and ${table.accountId} is null
       )`,
     ),
+    // Só o estorno aponta para uma despesa, e todo estorno aponta para uma.
+    check(
+      'transactions_refund_link',
+      sql`(${table.type} = 'refund') = (${table.refundedTransactionId} is not null)`,
+    ),
     // Forma de cada tipo, como no front:
     // - receita/despesa em conta: conta e categoria, sem cartão, destino ou fatura;
     // - compra no cartão: despesa com cartão e categoria, sem conta, sempre realizada;
     // - transferência: contas de origem e destino diferentes, sem categoria nem cartão;
-    // - pagamento de fatura: conta, cartão e mês, sem categoria, sempre realizado.
+    // - pagamento de fatura: conta, cartão e mês, sem categoria, sempre realizado;
+    // - estorno: conta ou cartão (os da despesa), sem categoria (é a da despesa), sempre realizado.
     check(
       'transactions_shape',
       sql`(
@@ -193,6 +211,13 @@ export const transactions = pgTable(
         and ${table.invoiceMonth} is not null
         and ${table.categoryId} is null
         and ${table.destinationAccountId} is null
+        and ${table.status} = 'completed'
+      ) or (
+        ${table.type} = 'refund'
+        and ((${table.accountId} is null) <> (${table.creditCardId} is null))
+        and ${table.categoryId} is null
+        and ${table.destinationAccountId} is null
+        and ${table.invoiceMonth} is null
         and ${table.status} = 'completed'
       )`,
     ),

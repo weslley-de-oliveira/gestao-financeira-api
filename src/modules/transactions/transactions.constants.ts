@@ -1,9 +1,19 @@
 /** Regras de forma das transações, as mesmas do front (`shared/models/transaction.ts`). */
-export const TRANSACTION_TYPES = ['expense', 'income', 'transfer', 'invoice-payment'] as const;
+export const TRANSACTION_TYPES = [
+  'expense',
+  'income',
+  'transfer',
+  'invoice-payment',
+  'refund',
+] as const;
 
 /**
  * `invoice-payment` é o pagamento de uma fatura de cartão: debita a conta de pagamento, mas não é
  * despesa (as compras já foram contadas). É criado e desfeito só pelas rotas de faturas.
+ *
+ * `refund` é o estorno de uma despesa realizada (em conta ou no cartão): devolve o valor à conta ou
+ * abate a fatura, e reduz o gasto da categoria da despesa no mês do estorno. É criado pela rota de
+ * estornos da despesa.
  */
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 
