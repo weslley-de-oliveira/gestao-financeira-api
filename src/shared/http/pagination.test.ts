@@ -4,32 +4,30 @@ import { z } from 'zod';
 import { decodeCursor, encodeCursor, pageQueryFields, toPage } from './pagination.ts';
 
 describe('cursor de página', () => {
-  const position = { date: '2026-11-05', id: randomUUIDv7() };
+  const position = { sort: 'date-desc', value: '2026-11-05', id: randomUUIDv7() };
 
-  it('volta à mesma posição depois de codificado', () => {
-    expect(decodeCursor(encodeCursor(position))).toEqual(position);
+  it.each([
+    ['valor texto', position],
+    ['valor numérico', { sort: 'amount-desc', value: 45_390, id: position.id }],
+  ])('volta à mesma posição depois de codificado (%s)', (_case, cursor) => {
+    expect(decodeCursor(encodeCursor(cursor))).toEqual(cursor);
   });
 
   it('é opaco e seguro para URL', () => {
     expect(encodeCursor(position)).toMatch(/^[A-Za-z0-9_-]+$/);
   });
 
+  const encode = (payload: unknown) => Buffer.from(JSON.stringify(payload)).toString('base64url');
+
   it.each([
     ['texto qualquer', 'abc'],
     ['base64 de algo que não é JSON', Buffer.from('oi').toString('base64url')],
-    ['JSON sem os campos', Buffer.from('{"x":1}').toString('base64url')],
-    [
-      'data inválida',
-      Buffer.from(JSON.stringify({ d: '2026-13-01', i: position.id })).toString('base64url'),
-    ],
-    [
-      'id que não é UUID',
-      Buffer.from(JSON.stringify({ d: '2026-11-05', i: '1' })).toString('base64url'),
-    ],
-    [
-      'campos a mais',
-      Buffer.from(JSON.stringify({ d: '2026-11-05', i: position.id, x: 1 })).toString('base64url'),
-    ],
+    ['JSON sem os campos', encode({ x: 1 })],
+    ['formato antigo, sem ordenação', encode({ d: '2026-11-05', i: position.id })],
+    ['ordenação vazia', encode({ s: '', v: '2026-11-05', i: position.id })],
+    ['valor fracionado', encode({ s: 'amount-desc', v: 1.5, i: position.id })],
+    ['id que não é UUID', encode({ s: 'date-desc', v: '2026-11-05', i: '1' })],
+    ['campos a mais', encode({ s: 'date-desc', v: '2026-11-05', i: position.id, x: 1 })],
   ])('recusa %s', (_case, cursor) => {
     expect(decodeCursor(cursor)).toBeNull();
   });
@@ -43,7 +41,7 @@ describe('parâmetros de página', () => {
   });
 
   it('converte limit da query string e decodifica o cursor', () => {
-    const position = { date: '2026-11-05', id: randomUUIDv7() };
+    const position = { sort: 'date-desc', value: '2026-11-05', id: randomUUIDv7() };
 
     expect(query.parse({ limit: '10', cursor: encodeCursor(position) })).toEqual({
       limit: 10,
@@ -66,16 +64,21 @@ describe('toPage', () => {
     date,
     id: randomUUIDv7(),
   }));
+  const positionOf = (row: { date: string; id: string }) => ({
+    sort: 'date-desc',
+    value: row.date,
+    id: row.id,
+  });
 
   it('com uma linha a mais, devolve o limite e o cursor do último item', () => {
-    const page = toPage(rows, 2);
+    const page = toPage(rows, 2, positionOf);
 
     expect(page.items).toEqual(rows.slice(0, 2));
-    expect(decodeCursor(page.nextCursor ?? '')).toEqual(rows[1]);
+    expect(decodeCursor(page.nextCursor ?? '')).toEqual(positionOf(rows[1]!));
   });
 
   it('sem linha a mais, é a última página', () => {
-    expect(toPage(rows, 3)).toEqual({ items: rows, nextCursor: null });
-    expect(toPage([], 3)).toEqual({ items: [], nextCursor: null });
+    expect(toPage(rows, 3, positionOf)).toEqual({ items: rows, nextCursor: null });
+    expect(toPage([], 3, positionOf)).toEqual({ items: [], nextCursor: null });
   });
 });

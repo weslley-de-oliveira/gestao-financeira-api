@@ -1,8 +1,9 @@
-import { and, desc, eq, gte, lte, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '../../db/client.ts';
 import { transactions, type NewTransaction, type Transaction } from '../../db/schema/index.ts';
 import { toPage, type Page } from '../../shared/http/pagination.ts';
 import { normalizeForSearch } from '../../shared/utils/text.ts';
+import type { TransactionSort } from './transactions.constants.ts';
 import type { ListTransactionsQuery } from './transactions.schemas.ts';
 import { atVersion } from '../../shared/http/etag.ts';
 
@@ -11,8 +12,8 @@ export type TransactionChanges = Omit<NewTransaction, 'id' | 'userId' | 'created
 
 export interface TransactionsRepository {
   /**
-   * Uma página das transações do usuário que passam em todos os filtros, das mais recentes para
-   * as mais antigas (data e, no mesmo dia, a registrada por último primeiro).
+   * Uma página das transações do usuário que passam em todos os filtros, na ordenação pedida
+   * (padrão: data, da mais recente para a mais antiga; no mesmo dia, a registrada por último).
    */
   listTransactions(userId: string, query: ListTransactionsQuery): Promise<Page<Transaction>>;
   /** Transação pelo id, só se for do usuário: a de outro usuário é tratada como inexistente. */
@@ -40,7 +41,8 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
 
   return {
     async listTransactions(userId, query) {
-      const { cursor, limit } = query;
+      const { cursor, limit, sort } = query;
+      const order = SORT_ORDERS[sort];
       const rows = await db
         .select()
         .from(transactions)
@@ -49,16 +51,21 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
             eq(transactions.userId, userId),
             ...filterConditions(query),
             // Continua logo depois do último item da página anterior.
-            cursor
-              ? sql`(${transactions.date}, ${transactions.id}) < (${cursor.date}::date, ${cursor.id}::uuid)`
-              : undefined,
+            cursor ? afterPosition(order, cursor.value, cursor.id) : undefined,
           ),
         )
-        // O id é UUID v7 (ordenado pelo momento do cadastro): desempata o mesmo dia.
-        .orderBy(desc(transactions.date), desc(transactions.id))
+        .orderBy(
+          order.direction === 'desc' ? desc(order.column) : asc(order.column),
+          // O id é UUID v7 (ordenado pelo momento do cadastro): desempata pela ordem de registro.
+          order.tieBreak === 'desc' ? desc(transactions.id) : asc(transactions.id),
+        )
         // Uma linha a mais só para saber se há próxima página.
         .limit(limit + 1);
-      return toPage(rows, limit);
+      return toPage(rows, limit, (row) => ({
+        sort,
+        value: order.column === transactions.date ? row.date : row.amount,
+        id: row.id,
+      }));
     },
 
     async findTransaction(userId, transactionId) {
@@ -113,6 +120,38 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
       return payment !== undefined;
     },
   };
+}
+
+interface SortOrder {
+  column: typeof transactions.date | typeof transactions.amount;
+  /** Tipo do valor do cursor no banco. */
+  cast: 'date' | 'bigint';
+  direction: 'asc' | 'desc';
+  tieBreak: 'asc' | 'desc';
+}
+
+/** Cada ordenação da listagem, com o mesmo desempate do front (`transaction-query.ts`). */
+const SORT_ORDERS: Record<TransactionSort, SortOrder> = {
+  'date-desc': { column: transactions.date, cast: 'date', direction: 'desc', tieBreak: 'desc' },
+  'date-asc': { column: transactions.date, cast: 'date', direction: 'asc', tieBreak: 'asc' },
+  'amount-desc': {
+    column: transactions.amount,
+    cast: 'bigint',
+    direction: 'desc',
+    tieBreak: 'desc',
+  },
+  'amount-asc': { column: transactions.amount, cast: 'bigint', direction: 'asc', tieBreak: 'desc' },
+};
+
+/**
+ * Itens depois da posição `(valor, id)` na ordenação. A chave e o desempate podem ter sentidos
+ * diferentes (`amount-asc`), então não dá para comparar a tupla inteira de uma vez.
+ */
+function afterPosition(order: SortOrder, value: string | number, id: string): SQL {
+  const keyOp = sql.raw(order.direction === 'desc' ? '<' : '>');
+  const idOp = sql.raw(order.tieBreak === 'desc' ? '<' : '>');
+  const cast = sql.raw(order.cast);
+  return sql`(${order.column} ${keyOp} ${value}::${cast} or (${order.column} = ${value}::${cast} and ${transactions.id} ${idOp} ${id}::uuid))`;
 }
 
 /** Condições SQL dos filtros enviados; os ausentes não restringem nada. */

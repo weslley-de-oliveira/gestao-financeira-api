@@ -3125,7 +3125,7 @@
       "get": {
         "summary": "Lista as transações",
         "tags": ["Transações"],
-        "description": "Transações do usuário, das mais recentes para as mais antigas, com filtros combináveis: período (`from`/`to`, inclusivos), tipo, status, conta (origem ou destino), cartão, categoria e busca `q` na descrição e nas observações, sem diferenciar maiúsculas e acentos. Paginada por cursor: para a próxima página, repita a consulta com `cursor` igual ao `nextCursor` recebido.",
+        "description": "Transações do usuário, com filtros combináveis: período (`from`/`to`, inclusivos), tipo, status, conta (origem ou destino), cartão, categoria e busca `q` na descrição e nas observações, sem diferenciar maiúsculas e acentos. Ordenadas por `sort` (padrão: das mais recentes para as mais antigas). Paginada por cursor: para a próxima página, repita a consulta (filtros e `sort` iguais) com `cursor` igual ao `nextCursor` recebido.",
         "parameters": [
           {
             "schema": { "type": "string" },
@@ -3140,6 +3140,17 @@
             "name": "limit",
             "required": false,
             "description": "Itens por página (1 a 100; padrão 50)."
+          },
+          {
+            "schema": {
+              "default": "date-desc",
+              "type": "string",
+              "enum": ["date-desc", "date-asc", "amount-desc", "amount-asc"]
+            },
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "description": "Data (`date-desc`, padrão, ou `date-asc`) ou valor (`amount-desc` ou `amount-asc`). No empate, a registrada por último vem primeiro; em `date-asc`, a registrada primeiro."
           },
           {
             "schema": {

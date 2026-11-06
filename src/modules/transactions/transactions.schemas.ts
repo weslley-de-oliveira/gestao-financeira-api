@@ -1,13 +1,15 @@
 import { z } from 'zod';
 import type { Transaction } from '../../db/schema/index.ts';
-import { pageQueryFields, pageSchema } from '../../shared/http/pagination.ts';
+import { pageQueryFields, pageSchema, type PageCursor } from '../../shared/http/pagination.ts';
 import { collapseWhitespace } from '../../shared/utils/text.ts';
 import { positiveCentsSchema } from '../../shared/validation/money.ts';
 import {
   TRANSACTION_DESCRIPTION_MAX_LENGTH,
   TRANSACTION_NOTES_MAX_LENGTH,
+  TRANSACTION_SORTS,
   TRANSACTION_STATUSES,
   TRANSACTION_TYPES,
+  type TransactionSort,
 } from './transactions.constants.ts';
 
 export const transactionStatusSchema = z
@@ -182,10 +184,14 @@ export const transactionParamsSchema = z.object({
 
 export const TRANSACTION_SEARCH_MAX_LENGTH = 100;
 
-/** Filtros da listagem, todos opcionais e combináveis, e a página. */
+/** Filtros da listagem, todos opcionais e combináveis, a ordenação e a página. */
 export const listTransactionsQuerySchema = z
   .object({
     ...pageQueryFields,
+    sort: z.enum(TRANSACTION_SORTS, 'Ordenação inválida.').default('date-desc').meta({
+      description:
+        'Data (`date-desc`, padrão, ou `date-asc`) ou valor (`amount-desc` ou `amount-asc`). No empate, a registrada por último vem primeiro; em `date-asc`, a registrada primeiro.',
+    }),
     from: isoDateSchema.optional().meta({ description: 'Data inicial do período, inclusiva.' }),
     to: isoDateSchema.optional().meta({ description: 'Data final do período, inclusiva.' }),
     type: z
@@ -219,7 +225,19 @@ export const listTransactionsQuerySchema = z
   .refine((query) => !query.from || !query.to || query.from <= query.to, {
     path: ['to'],
     message: 'A data final deve ser igual ou posterior à data inicial.',
+  })
+  .refine((query) => !query.cursor || cursorFitsSort(query.cursor, query.sort), {
+    path: ['cursor'],
+    message: 'O cursor é de outra ordenação: recomece da primeira página.',
   });
+
+/** O cursor foi gerado nesta ordenação e traz o valor do tipo certo (data ou centavos). */
+function cursorFitsSort(cursor: PageCursor, sort: TransactionSort): boolean {
+  if (cursor.sort !== sort) return false;
+  return sort.startsWith('date')
+    ? isoDateSchema.safeParse(cursor.value).success
+    : Number.isSafeInteger(cursor.value);
+}
 
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
 

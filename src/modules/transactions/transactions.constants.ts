@@ -19,3 +19,11 @@ export type TransactionStatus = (typeof TRANSACTION_STATUSES)[number];
 
 export const TRANSACTION_DESCRIPTION_MAX_LENGTH = 80;
 export const TRANSACTION_NOTES_MAX_LENGTH = 500;
+
+/**
+ * Ordenações da listagem, as mesmas do front (`transaction-query.ts`). O desempate é sempre a
+ * registrada por último primeiro, exceto em `date-asc`, que inverte também o desempate.
+ */
+export const TRANSACTION_SORTS = ['date-desc', 'date-asc', 'amount-desc', 'amount-asc'] as const;
+
+export type TransactionSort = (typeof TRANSACTION_SORTS)[number];

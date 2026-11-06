@@ -843,6 +843,48 @@ describe('rotas /v1/transactions', () => {
         expect(page.nextCursor).toBeNull();
       });
 
+      it.each([
+        ['data, mais antigas primeiro', 'date-asc', [...newestFirst].reverse()],
+        [
+          'maior valor (empate: registrada por último primeiro)',
+          'amount-desc',
+          ['Fatura de outubro', 'Reserva', 'Farmácia', 'Salário', 'Mercado Pão de Açúcar'],
+        ],
+        [
+          'menor valor (empate: registrada por último primeiro)',
+          'amount-asc',
+          ['Farmácia', 'Salário', 'Mercado Pão de Açúcar', 'Reserva', 'Fatura de outubro'],
+        ],
+      ])('ordena por %s e pagina na mesma ordem', async (_case, sort, expected) => {
+        expect(await descriptions(`?sort=${sort}`)).toEqual(expected);
+        // Página de 1 item: cada empate de valor ou data cai na fronteira entre páginas.
+        expect((await allPages(`?sort=${sort}&limit=1`)).flat()).toEqual(expected);
+        expect((await allPages(`?sort=${sort}&limit=2`)).flat()).toEqual(expected);
+      });
+
+      it('ordena e pagina com filtros', async () => {
+        expect(await allPages(`?sort=amount-asc&type=expense&limit=1`)).toEqual([
+          ['Farmácia'],
+          ['Mercado Pão de Açúcar'],
+        ]);
+      });
+
+      it('recusa o cursor de outra ordenação', async () => {
+        const first = (await list('?sort=amount-desc&limit=1')).json<TransactionPage>();
+
+        const response = await list(`?sort=date-desc&cursor=${first.nextCursor}`);
+
+        expect(response.statusCode).toBe(422);
+        expect(response.json()).toMatchObject({
+          errors: [
+            {
+              field: 'querystring.cursor',
+              message: 'O cursor é de outra ordenação: recomece da primeira página.',
+            },
+          ],
+        });
+      });
+
       it('uma transação nova não desloca a página seguinte', async () => {
         const first = (await list('?limit=2')).json<TransactionPage>();
         // Entra no topo da lista depois que a primeira página foi lida.
@@ -932,6 +974,7 @@ describe('rotas /v1/transactions', () => {
         'Informe uma data válida no formato aaaa-mm-dd.',
       ],
       ['tipo desconhecido', '?type=refund', 'querystring.type', 'Tipo de transação inválido.'],
+      ['ordenação desconhecida', '?sort=name', 'querystring.sort', 'Ordenação inválida.'],
       [
         'conta que não é UUID',
         '?accountId=123',
