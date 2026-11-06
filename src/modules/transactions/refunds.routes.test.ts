@@ -247,6 +247,47 @@ describe('estornos: /v1/transactions/{id}/refunds', () => {
     });
   });
 
+  describe('orçamento e totais', () => {
+    it('desconta o estorno do gasto da categoria, dos totais e do dashboard do mês', async () => {
+      const budget = (
+        await user.api('POST', '/v1/budgets', { categoryId: food.id, limitAmount: 50_000 })
+      ).json<{ id: string }>();
+      const original = await expense({ amount: 20_000, date: '2026-11-02' });
+      await refund(original.id, { amount: 5_000, date: '2026-11-12' });
+
+      const progress = (await user.api('GET', `/v1/budgets/${budget.id}?month=2026-11`)).json<{
+        progress: { spent: number };
+      }>().progress;
+      const summary = (
+        await user.api('GET', '/v1/transactions/summary?from=2026-11-01&to=2026-11-30')
+      ).json<{ count: number; expense: number; income: number }>();
+      const dashboard = (
+        await user.api('GET', '/v1/dashboard?from=2026-11-01&to=2026-11-30')
+      ).json<{ summary: { expense: number; net: number } }>();
+
+      expect(progress.spent).toBe(15_000);
+      expect(summary).toMatchObject({ count: 2, expense: 15_000, income: 0 });
+      expect(dashboard.summary).toMatchObject({ expense: 15_000, net: -15_000 });
+    });
+
+    it('o estorno conta no mês dele, sem deixar o gasto negativo', async () => {
+      const budget = (
+        await user.api('POST', '/v1/budgets', { categoryId: food.id, limitAmount: 50_000 })
+      ).json<{ id: string }>();
+      const original = await expense({ amount: 20_000, date: '2026-11-02' });
+      await refund(original.id, { amount: 20_000, date: '2026-12-03' });
+
+      const december = (await user.api('GET', `/v1/budgets/${budget.id}?month=2026-12`)).json<{
+        progress: { spent: number };
+      }>().progress;
+      const november = (await user.api('GET', `/v1/budgets/${budget.id}?month=2026-11`)).json<{
+        progress: { spent: number };
+      }>().progress;
+
+      expect([november.spent, december.spent]).toEqual([20_000, 0]);
+    });
+  });
+
   describe('edição e exclusão', () => {
     it('edita descrição, valor e data do estorno, dentro do que falta estornar', async () => {
       const original = await expense();

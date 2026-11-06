@@ -24,7 +24,8 @@ export interface TransactionSummary {
 
 /**
  * Totais do período: só as realizadas entram em receitas e despesas; transferências e pagamentos
- * de fatura não são receita nem despesa (as compras do cartão já foram contadas).
+ * de fatura não são receita nem despesa (as compras do cartão já foram contadas). Estornos são
+ * despesa negativa: reduzem as despesas do período em que acontecem.
  */
 export function summarizeTransactions(
   transactions: readonly Pick<Transaction, 'type' | 'amount' | 'status'>[],
@@ -39,6 +40,8 @@ export function summarizeTransactions(
       income += transaction.amount;
     } else if (transaction.type === 'expense') {
       expense += transaction.amount;
+    } else if (transaction.type === 'refund') {
+      expense -= transaction.amount;
     }
   }
   return { income, expense, net: income - expense, pendingCount };
