@@ -41,7 +41,7 @@ test/                # Postgres de teste, helpers e testes que cruzam módulos (
 
 - **Isolamento entre usuários:** toda consulta filtra pelo usuário da sessão; o recurso de outra pessoa responde 404, como um id que não existe (`test/isolation-matrix.test.ts` cobre cada rota com id).
 - **Regras iguais às do front:** saldos, faturas, orçamentos e metas seguem as mesmas regras do front, com testes de paridade (`*.parity.test.ts`); somas grandes são feitas em SQL.
-- **Erros:** sempre Problem Details (RFC 9457), com `errors[]` por campo nos 422 e o `x-request-id` para encontrar o log. Os conflitos que o cliente trata de forma diferente têm `type` próprio: `/problems/paid-invoice` (compra de fatura já paga) e `/problems/archived-reference` (conta, cartão ou categoria arquivada).
+- **Erros:** sempre Problem Details (RFC 9457), com `errors[]` por campo nos 422 e o `x-request-id` para encontrar o log. Os conflitos que o cliente trata de forma diferente têm `type` próprio: `/problems/paid-invoice` (compra de fatura já paga), `/problems/archived-reference` (conta, cartão ou categoria arquivada) e `/problems/installment` (parcela alterada sozinha).
 
 ## Listagem de transações
 
@@ -50,6 +50,16 @@ test/                # Postgres de teste, helpers e testes que cruzam módulos (
 - **Paginação por cursor:** o `nextCursor` guarda a ordenação e a posição do último item, então uma transação nova não desloca a página seguinte. Um cursor de outra ordenação responde 422.
 - **Resumo:** `GET /v1/transactions/summary`, com os mesmos filtros, devolve a quantidade, as receitas e despesas realizadas, o resultado e os pendentes, para o front mostrar totais e o número de páginas sem baixar tudo.
 - **Uso por categoria:** as categorias trazem `transactionCount`, calculado numa agregação só.
+
+## Compras parceladas
+
+- **Cada parcela é uma compra comum no cartão**, com `installmentGroupId`, `installmentNumber` e `installmentCount`. Assim, fatura, uso do limite, orçamento, totais e dashboard não mudam de regra. O banco garante a forma: os três campos juntos, só em compra no cartão, de 2 a 24 parcelas e um número de cada por compra.
+- **Valores e datas** (`modules/installments/installment-plan.ts`): o total é dividido em centavos, com a sobra na 1ª parcela. A 1ª parcela tem a data da compra; as seguintes ficam no mesmo dia, ajustado ao ciclo de cada fatura seguinte, para não errar a fatura perto do fechamento nem nos dias 29 a 31. Um teste de propriedade confere isso para todos os dias de fechamento ao longo de um ano.
+- **Consequências:** orçamento e totais contam cada parcela no mês dela, como no extrato do cartão. O limite reserva o total na hora, porque soma todas as compras ainda não pagas.
+- **Rotas próprias:**
+  - `POST /v1/installment-purchases`, com `Idempotency-Key`: repetir o pedido não duplica as parcelas.
+  - `GET`, `PATCH` e `DELETE /v1/installment-purchases/{id}`. O `PATCH` muda só descrição, categoria e observações, em todas as parcelas, inclusive as de faturas pagas, porque esses campos não mudam valores. O `DELETE` recusa (409) se alguma parcela estiver numa fatura paga.
+  - Alterar ou excluir uma parcela sozinha em `/v1/transactions/{id}` responde 409 (`/problems/installment`). Para mudar valor, número de parcelas, cartão ou data, exclua a compra e registre de novo.
 
 ## Segurança
 

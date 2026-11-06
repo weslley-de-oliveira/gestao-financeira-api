@@ -97,7 +97,7 @@ export function progressFrom(
 
 /**
  * Consumo do orçamento no mês (porte de `budgetProgress` do front): despesas da categoria pela
- * data (compras no cartão incluídas, pela data da compra). Só as realizadas contam; as pendentes
+ * data (compras no cartão incluídas, pela data da compra; numa compra parcelada, cada parcela pela data dela). Só as realizadas contam; as pendentes
  * ficam à parte como previstas. Transferências e pagamentos de fatura não são despesas e não
  * entram. `null` se o orçamento não vale no mês. A API soma no banco
  * (`BudgetsRepository.spendingByCategory`); esta função é a referência legível da regra.

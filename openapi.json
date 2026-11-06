@@ -4747,7 +4747,7 @@
       "get": {
         "summary": "Lista os orçamentos com o consumo do mês",
         "tags": ["Orçamentos"],
-        "description": "Orçamentos que valem no mês (padrão: o atual), em ordem alfabética da categoria, com o consumo: só despesas realizadas contam (compras no cartão incluídas, pela data da compra); as pendentes aparecem à parte.",
+        "description": "Orçamentos que valem no mês (padrão: o atual), em ordem alfabética da categoria, com o consumo: só despesas realizadas contam (compras no cartão incluídas, pela data da compra; numa compra parcelada, cada parcela no mês dela); as pendentes aparecem à parte.",
         "parameters": [
           {
             "schema": {
