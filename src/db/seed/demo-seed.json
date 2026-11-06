@@ -686,7 +686,7 @@
       "date": "2026-07-10"
     },
     {
-      "id": "ba123ab7-ae82-4c4d-b0db-a55972259789",
+      "id": "c862631b-e3fe-4f55-bccb-755c55f8d08a",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-07-10T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -990,7 +990,7 @@
       "date": "2026-07-27"
     },
     {
-      "id": "c6c7ea7e-922b-4774-b4f8-61f4e9259512",
+      "id": "58e913bd-c861-46bb-89a8-fd77ef507379",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-07-27T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -1198,7 +1198,7 @@
       "date": "2026-08-10"
     },
     {
-      "id": "6e8d28cb-4814-4589-b37b-bd73cf6fec08",
+      "id": "cfd27eb6-c93e-441f-b307-074436f4d427",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-08-10T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -1489,7 +1489,7 @@
       "date": "2026-08-27"
     },
     {
-      "id": "0ee09e1a-ce4f-40c3-a20e-697e652e7484",
+      "id": "b00c0eec-6ada-4d08-b962-f0c0a6416b69",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-08-27T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -1617,7 +1617,7 @@
       "date": "2026-09-10"
     },
     {
-      "id": "c862631b-e3fe-4f55-bccb-755c55f8d08a",
+      "id": "c6c7ea7e-922b-4774-b4f8-61f4e9259512",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-09-10T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -1988,7 +1988,7 @@
       "date": "2026-09-27"
     },
     {
-      "id": "58e913bd-c861-46bb-89a8-fd77ef507379",
+      "id": "853ed678-ba22-42e0-b41a-aec0caf0ab3f",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-09-27T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -2215,7 +2215,7 @@
       "date": "2026-10-10"
     },
     {
-      "id": "cfd27eb6-c93e-441f-b307-074436f4d427",
+      "id": "0ee09e1a-ce4f-40c3-a20e-697e652e7484",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-10-10T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -2490,7 +2490,7 @@
       "date": "2026-10-25"
     },
     {
-      "id": "b00c0eec-6ada-4d08-b962-f0c0a6416b69",
+      "id": "daa44655-bdfd-47d3-9626-e6c35c4c3aae",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-10-27T12:00:00.000Z",
       "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
@@ -2552,6 +2552,23 @@
       "description": "Aplicativo de transporte",
       "amount": 4624,
       "date": "2026-11-02"
+    },
+    {
+      "id": "6e8d28cb-4814-4589-b37b-bd73cf6fec08",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2026-11-02T12:00:00.000Z",
+      "accountId": "f75aa991-fa3e-4258-8587-4b12dc4dbe42",
+      "creditCardId": null,
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": null,
+      "status": "completed",
+      "notes": null,
+      "type": "refund",
+      "description": "Estorno: Delivery",
+      "amount": 5955,
+      "date": "2026-11-02",
+      "refundedTransactionId": "947fa586-5bab-47e3-b3e2-d106b1f9e666"
     },
     {
       "id": "d092c879-c8b7-490f-8e4a-0d3e4419c0f6",
@@ -2616,6 +2633,23 @@
       "description": "Farmácia",
       "amount": 13933,
       "date": "2026-11-04"
+    },
+    {
+      "id": "ba123ab7-ae82-4c4d-b0db-a55972259789",
+      "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
+      "createdAt": "2026-11-04T12:00:00.000Z",
+      "accountId": null,
+      "creditCardId": "a8de8d22-0669-46d2-af53-d7b6c6a76eee",
+      "invoiceMonth": null,
+      "destinationAccountId": null,
+      "categoryId": null,
+      "status": "completed",
+      "notes": null,
+      "type": "refund",
+      "description": "Estorno: Presente",
+      "amount": 10432,
+      "date": "2026-11-04",
+      "refundedTransactionId": "a52b1d26-bed0-4ab9-9908-8775d48d3e3a"
     },
     {
       "id": "24c081bf-9a5a-4335-8685-63e965bef4ac",
@@ -3148,7 +3182,7 @@
   ],
   "budgets": [
     {
-      "id": "853ed678-ba22-42e0-b41a-aec0caf0ab3f",
+      "id": "661edf1e-b42e-4ede-b3c8-0201174273c4",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "categoryId": "d310f713-304d-4030-8ed3-cd9983176714",
@@ -3165,7 +3199,7 @@
       "alertThreshold": 80
     },
     {
-      "id": "daa44655-bdfd-47d3-9626-e6c35c4c3aae",
+      "id": "3ebe70b0-fa3e-4f9f-8f9f-ddb60c8e9d68",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "categoryId": "bbd56c6d-9f2d-4505-a867-ca69283e0e63",
@@ -3178,7 +3212,7 @@
       "alertThreshold": 90
     },
     {
-      "id": "661edf1e-b42e-4ede-b3c8-0201174273c4",
+      "id": "c1611355-073d-4586-878f-781a0cd9e94a",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "categoryId": "552e5027-6887-4b7d-b470-676265ed9390",
@@ -3191,7 +3225,7 @@
       "alertThreshold": 80
     },
     {
-      "id": "3ebe70b0-fa3e-4f9f-8f9f-ddb60c8e9d68",
+      "id": "bc3ea2a3-13eb-4194-a4a5-cfceb4eacb77",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "categoryId": "4d736fcd-835c-4fbd-8928-9284eef9cea0",
@@ -3236,7 +3270,7 @@
   ],
   "goals": [
     {
-      "id": "55c1e21e-b91d-4e34-ac3b-9afd511b257a",
+      "id": "9f19d37a-e883-4556-93bd-ead276f574b0",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "description": "Seis meses de despesas guardados.",
@@ -3247,7 +3281,7 @@
       "initialAmount": 800000,
       "contributions": [
         {
-          "id": "c1611355-073d-4586-878f-781a0cd9e94a",
+          "id": "7c1afaf6-772b-4c6e-8c3b-5a7cb4148f00",
           "type": "deposit",
           "amount": 50000,
           "date": "2026-06-07",
@@ -3255,7 +3289,7 @@
           "createdAt": "2026-06-07T12:00:00.000Z"
         },
         {
-          "id": "bc3ea2a3-13eb-4194-a4a5-cfceb4eacb77",
+          "id": "4e89368b-8de5-42ac-81c5-86a6672ed3d9",
           "type": "deposit",
           "amount": 50000,
           "date": "2026-07-07",
@@ -3263,7 +3297,7 @@
           "createdAt": "2026-07-07T12:00:00.000Z"
         },
         {
-          "id": "7c1afaf6-772b-4c6e-8c3b-5a7cb4148f00",
+          "id": "8381159b-5eae-4824-bce7-b65187ef82dc",
           "type": "deposit",
           "amount": 50000,
           "date": "2026-08-07",
@@ -3271,7 +3305,7 @@
           "createdAt": "2026-08-07T12:00:00.000Z"
         },
         {
-          "id": "4e89368b-8de5-42ac-81c5-86a6672ed3d9",
+          "id": "55c1e21e-b91d-4e34-ac3b-9afd511b257a",
           "type": "deposit",
           "amount": 50000,
           "date": "2026-09-07",
@@ -3279,7 +3313,7 @@
           "createdAt": "2026-09-07T12:00:00.000Z"
         },
         {
-          "id": "8381159b-5eae-4824-bce7-b65187ef82dc",
+          "id": "7cb72408-fc38-4c31-ba0f-0702079eadcb",
           "type": "deposit",
           "amount": 50000,
           "date": "2026-10-07",
@@ -3292,7 +3326,7 @@
       "icon": "health_and_safety"
     },
     {
-      "id": "0102d0ee-ac06-41c8-a253-85a539aca443",
+      "id": "04744b93-e7f7-48b3-a30a-242a0a6c7d1e",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "description": null,
@@ -3303,7 +3337,7 @@
       "initialAmount": 100000,
       "contributions": [
         {
-          "id": "7cb72408-fc38-4c31-ba0f-0702079eadcb",
+          "id": "c34a9737-6801-4397-bd74-81816937d412",
           "type": "deposit",
           "amount": 100000,
           "date": "2026-07-08",
@@ -3311,7 +3345,7 @@
           "createdAt": "2026-07-08T12:00:00.000Z"
         },
         {
-          "id": "9f19d37a-e883-4556-93bd-ead276f574b0",
+          "id": "35fbe9db-2eec-4289-9243-239678b539cb",
           "type": "deposit",
           "amount": 100000,
           "date": "2026-08-08",
@@ -3319,7 +3353,7 @@
           "createdAt": "2026-08-08T12:00:00.000Z"
         },
         {
-          "id": "c34a9737-6801-4397-bd74-81816937d412",
+          "id": "9a35a4b1-d573-42be-8f64-53edffdf8516",
           "type": "deposit",
           "amount": 100000,
           "date": "2026-09-08",
@@ -3327,7 +3361,7 @@
           "createdAt": "2026-09-08T12:00:00.000Z"
         },
         {
-          "id": "35fbe9db-2eec-4289-9243-239678b539cb",
+          "id": "0102d0ee-ac06-41c8-a253-85a539aca443",
           "type": "deposit",
           "amount": 100000,
           "date": "2026-10-08",
@@ -3335,7 +3369,7 @@
           "createdAt": "2026-10-08T12:00:00.000Z"
         },
         {
-          "id": "9a35a4b1-d573-42be-8f64-53edffdf8516",
+          "id": "2d485a53-7a1f-4b6e-9ad3-87094793def6",
           "type": "withdrawal",
           "amount": 40000,
           "date": "2026-09-20",
@@ -3348,7 +3382,7 @@
       "icon": "flight"
     },
     {
-      "id": "4f07589d-94e0-4c53-8552-e8492fd73775",
+      "id": "396b37f6-b185-4489-bd09-525e2b740af2",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "description": null,
@@ -3359,7 +3393,7 @@
       "initialAmount": 150000,
       "contributions": [
         {
-          "id": "2d485a53-7a1f-4b6e-9ad3-87094793def6",
+          "id": "0bad2872-1a74-4fb0-9df3-119af8789abe",
           "type": "deposit",
           "amount": 30000,
           "date": "2026-06-09",
@@ -3367,7 +3401,7 @@
           "createdAt": "2026-06-09T12:00:00.000Z"
         },
         {
-          "id": "04744b93-e7f7-48b3-a30a-242a0a6c7d1e",
+          "id": "4f07589d-94e0-4c53-8552-e8492fd73775",
           "type": "deposit",
           "amount": 30000,
           "date": "2026-07-09",
@@ -3375,7 +3409,7 @@
           "createdAt": "2026-07-09T12:00:00.000Z"
         },
         {
-          "id": "0bad2872-1a74-4fb0-9df3-119af8789abe",
+          "id": "82f9fc28-6e4f-4b17-8ffb-2efed5bff1ad",
           "type": "deposit",
           "amount": 30000,
           "date": "2026-08-09",
@@ -3388,7 +3422,7 @@
       "icon": "devices"
     },
     {
-      "id": "9d7381ee-6ec8-4e71-ae78-717961fde55c",
+      "id": "2e3116c6-4ba7-43b7-9760-b847c49e4fc4",
       "userId": "36f17f3e-8c46-44e0-b785-be013a3f207a",
       "createdAt": "2026-06-01T12:00:00.000Z",
       "description": null,
@@ -3399,7 +3433,7 @@
       "initialAmount": 0,
       "contributions": [
         {
-          "id": "82f9fc28-6e4f-4b17-8ffb-2efed5bff1ad",
+          "id": "33d5baa2-4df9-4200-8e69-4b35cc5206ed",
           "type": "deposit",
           "amount": 90000,
           "date": "2026-06-09",
@@ -3407,7 +3441,7 @@
           "createdAt": "2026-06-09T12:00:00.000Z"
         },
         {
-          "id": "396b37f6-b185-4489-bd09-525e2b740af2",
+          "id": "81219f2b-9586-405f-a475-4bccd0e79070",
           "type": "deposit",
           "amount": 90000,
           "date": "2026-07-09",
@@ -3415,7 +3449,7 @@
           "createdAt": "2026-07-09T12:00:00.000Z"
         },
         {
-          "id": "33d5baa2-4df9-4200-8e69-4b35cc5206ed",
+          "id": "eb09ba9e-551b-40ff-8af7-ee5ab66b2722",
           "type": "deposit",
           "amount": 90000,
           "date": "2026-08-09",
@@ -3423,7 +3457,7 @@
           "createdAt": "2026-08-09T12:00:00.000Z"
         },
         {
-          "id": "81219f2b-9586-405f-a475-4bccd0e79070",
+          "id": "9d7381ee-6ec8-4e71-ae78-717961fde55c",
           "type": "deposit",
           "amount": 90000,
           "date": "2026-09-09",
@@ -3431,7 +3465,7 @@
           "createdAt": "2026-09-09T12:00:00.000Z"
         },
         {
-          "id": "eb09ba9e-551b-40ff-8af7-ee5ab66b2722",
+          "id": "27a20ba5-87fb-44cb-8495-069628c9844e",
           "type": "deposit",
           "amount": 90000,
           "date": "2026-10-09",
