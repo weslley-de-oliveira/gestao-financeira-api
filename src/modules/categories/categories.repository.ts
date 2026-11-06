@@ -1,8 +1,13 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { Database } from '../../db/client.ts';
 import { isUniqueViolation } from '../../db/errors.ts';
 import { alphabetical } from '../../db/order.ts';
-import { categories, type Category, type NewCategory } from '../../db/schema/index.ts';
+import {
+  categories,
+  transactions,
+  type Category,
+  type NewCategory,
+} from '../../db/schema/index.ts';
 import type { CategoryType } from './categories.constants.ts';
 import { atVersion } from '../../shared/http/etag.ts';
 
@@ -41,6 +46,11 @@ export interface CategoriesRepository {
     changes: CategoryChanges,
     version?: Date,
   ): Promise<CategoryWrite | null>;
+  /**
+   * Quantidade de transações de cada categoria, em todos os períodos e de qualquer status.
+   * Categorias sem transações ficam fora do mapa.
+   */
+  transactionCounts(userId: string, categoryIds: readonly string[]): Promise<Map<string, number>>;
 }
 
 export function createCategoriesRepository(db: Database): CategoriesRepository {
@@ -120,6 +130,25 @@ export function createCategoriesRepository(db: Database): CategoriesRepository {
           .returning();
         return updated;
       });
+    },
+
+    async transactionCounts(userId, categoryIds) {
+      if (categoryIds.length === 0) {
+        return new Map();
+      }
+      const rows = await db
+        .select({
+          categoryId: transactions.categoryId,
+          count: sql<number>`count(*)`.mapWith(Number),
+        })
+        .from(transactions)
+        .where(
+          and(eq(transactions.userId, userId), inArray(transactions.categoryId, [...categoryIds])),
+        )
+        .groupBy(transactions.categoryId);
+      return new Map(
+        rows.flatMap(({ categoryId, count }) => (categoryId ? [[categoryId, count] as const] : [])),
+      );
     },
   };
 }

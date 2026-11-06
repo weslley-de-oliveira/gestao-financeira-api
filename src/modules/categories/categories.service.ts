@@ -36,12 +36,15 @@ export class DuplicateCategoryNameError extends DomainError {
   }
 }
 
+/** Categoria com a quantidade de transações que a usam (todos os períodos, qualquer status). */
+export type CategoryWithUsage = Category & { transactionCount: number };
+
 export interface CategoriesService {
-  list(userId: string, query: ListCategoriesQuery): Promise<Category[]>;
+  list(userId: string, query: ListCategoriesQuery): Promise<CategoryWithUsage[]>;
   /** Categoria do usuário; inexistente ou de outro usuário → `CategoryNotFoundError`. */
-  get(userId: string, categoryId: string): Promise<Category>;
+  get(userId: string, categoryId: string): Promise<CategoryWithUsage>;
   /** Cria a categoria do usuário; nome repetido no tipo → `DuplicateCategoryNameError`. */
-  create(userId: string, input: CreateCategoryInput): Promise<Category>;
+  create(userId: string, input: CreateCategoryInput): Promise<CategoryWithUsage>;
   /** Altera só os campos enviados (nunca o tipo); nome repetido → `DuplicateCategoryNameError`. */
   /** Com `ifMatch`, só grava se a categoria ainda estiver na versão lida. */
   update(
@@ -49,16 +52,33 @@ export interface CategoriesService {
     categoryId: string,
     changes: UpdateCategoryInput,
     ifMatch?: IfMatch,
-  ): Promise<Category>;
+  ): Promise<CategoryWithUsage>;
 }
 
 export function createCategoriesService(repository: CategoriesRepository): CategoriesService {
-  async function get(userId: string, categoryId: string): Promise<Category> {
+  async function find(userId: string, categoryId: string): Promise<Category> {
     const category = await repository.findCategory(userId, categoryId);
     if (!category) {
       throw new CategoryNotFoundError();
     }
     return category;
+  }
+
+  async function withUsages(userId: string, categories: Category[]): Promise<CategoryWithUsage[]> {
+    const counts = await repository.transactionCounts(
+      userId,
+      categories.map((category) => category.id),
+    );
+    return categories.map((category) => ({
+      ...category,
+      transactionCount: counts.get(category.id) ?? 0,
+    }));
+  }
+
+  async function withUsage(userId: string, category: Category): Promise<CategoryWithUsage> {
+    const [result] = await withUsages(userId, [category]);
+    if (!result) throw new Error('Uso da categoria não calculado.');
+    return result;
   }
 
   /** Monta o erro de duplicata olhando a categoria que já usa o nome. */
@@ -72,11 +92,13 @@ export function createCategoriesService(repository: CategoriesRepository): Categ
   }
 
   return {
-    list(userId, query) {
-      return repository.listCategories(userId, query);
+    async list(userId, query) {
+      return withUsages(userId, await repository.listCategories(userId, query));
     },
 
-    get,
+    async get(userId, categoryId) {
+      return withUsage(userId, await find(userId, categoryId));
+    },
 
     async create(userId, input) {
       const nameNormalized = categoryNameKey(input.name);
@@ -84,11 +106,12 @@ export function createCategoriesService(repository: CategoriesRepository): Categ
       if ('duplicate' in result) {
         throw await duplicateError(userId, input.type, nameNormalized);
       }
-      return result.category;
+      // Recém-criada: nenhuma transação a usa ainda.
+      return { ...result.category, transactionCount: 0 };
     },
 
     async update(userId, categoryId, { name, icon, color, isArchived }, ifMatch) {
-      const current = ifMatch ? await get(userId, categoryId) : undefined;
+      const current = ifMatch ? await find(userId, categoryId) : undefined;
       if (current) {
         assertIfMatch(ifMatch, current);
       }
@@ -102,7 +125,7 @@ export function createCategoriesService(repository: CategoriesRepository): Categ
       };
       // Corpo vazio: nada a alterar, mas a categoria ainda precisa existir e ser do usuário.
       if (Object.keys(changes).length === 0) {
-        return current ?? get(userId, categoryId);
+        return withUsage(userId, current ?? (await find(userId, categoryId)));
       }
       const result = await repository.updateCategory(
         userId,
@@ -115,10 +138,10 @@ export function createCategoriesService(repository: CategoriesRepository): Categ
       }
       if ('duplicate' in result) {
         // Só o nome causa duplicata, e o tipo é o da própria categoria.
-        const { type } = await get(userId, categoryId);
+        const { type } = await find(userId, categoryId);
         throw await duplicateError(userId, type, nameNormalized ?? '');
       }
-      return result.category;
+      return withUsage(userId, result.category);
     },
   };
 }

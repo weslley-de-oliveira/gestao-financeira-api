@@ -316,6 +316,12 @@
             "description": "Criada com o conjunto inicial do cadastro; `false` nas criadas pelo usuário."
           },
           "isArchived": { "type": "boolean" },
+          "transactionCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Quantidade de transações que usam a categoria, em todos os períodos."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -336,6 +342,7 @@
           "color",
           "isDefault",
           "isArchived",
+          "transactionCount",
           "createdAt",
           "updatedAt"
         ]
@@ -1499,6 +1506,12 @@
             "description": "Criada com o conjunto inicial do cadastro; `false` nas criadas pelo usuário."
           },
           "isArchived": { "type": "boolean" },
+          "transactionCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Quantidade de transações que usam a categoria, em todos os períodos."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -1519,6 +1532,7 @@
           "color",
           "isDefault",
           "isArchived",
+          "transactionCount",
           "createdAt",
           "updatedAt"
         ],

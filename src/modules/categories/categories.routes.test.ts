@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestApp } from '../../../test/helpers/app.ts';
+import { createAccount, signUp as signUpUser } from '../../../test/helpers/users.ts';
 import { categories, type NewCategory } from '../../db/schema/index.ts';
 import { SESSION_COOKIE } from '../auth/session-cookie.ts';
 import type { CategoryDto } from './categories.schemas.ts';
@@ -133,6 +134,49 @@ describe('rotas /v1/categories', () => {
     });
   });
 
+  describe('uso por categoria', () => {
+    it('conta as transações de cada categoria, de qualquer período e status', async () => {
+      const user = await signUpUser(app);
+      const account = await createAccount(user);
+      const list = (await user.api('GET', '/v1/categories')).json<CategoryDto[]>();
+      const byName = (name: string) => {
+        const category = list.find((item) => item.name === name);
+        if (!category) throw new Error(`categoria ${name} não encontrada`);
+        return category;
+      };
+      const food = byName('Alimentação');
+      const transport = byName('Transporte');
+      for (const [category, date, status] of [
+        [food, '2025-01-10', 'completed'],
+        [food, '2026-11-05', 'pending'],
+        [transport, '2026-11-05', 'completed'],
+      ] as const) {
+        const response = await user.api('POST', '/v1/transactions', {
+          type: 'expense',
+          description: 'Gasto',
+          amount: 1_000,
+          date,
+          accountId: account.id,
+          categoryId: category.id,
+          status,
+        });
+        expect(response.statusCode).toBe(201);
+      }
+
+      const counts = (await user.api('GET', '/v1/categories')).json<CategoryDto[]>();
+      const detail = (await user.api('GET', `/v1/categories/${food.id}`)).json<CategoryDto>();
+
+      expect(counts.find((item) => item.id === food.id)?.transactionCount).toBe(2);
+      expect(counts.find((item) => item.id === transport.id)?.transactionCount).toBe(1);
+      expect(
+        counts
+          .filter((item) => item.id !== food.id && item.id !== transport.id)
+          .every((item) => item.transactionCount === 0),
+      ).toBe(true);
+      expect(detail.transactionCount).toBe(2);
+    });
+  });
+
   describe('GET /v1/categories/:id', () => {
     it('detalha a categoria sem expor o dono nem o nome normalizado', async () => {
       const { userId, token } = await signUp();
@@ -149,6 +193,7 @@ describe('rotas /v1/categories', () => {
         color: '#c62828',
         isDefault: true,
         isArchived: false,
+        transactionCount: 0,
         createdAt: category.createdAt.toISOString(),
         updatedAt: category.updatedAt.toISOString(),
       });

@@ -30,6 +30,9 @@ export const categorySchema = z
       description: 'Criada com o conjunto inicial do cadastro; `false` nas criadas pelo usuário.',
     }),
     isArchived: z.boolean(),
+    transactionCount: z.int().meta({
+      description: 'Quantidade de transações que usam a categoria, em todos os períodos.',
+    }),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime().meta({
       description: 'Versão do registro: a ETag é derivada dela (use a ETag no `If-Match`).',
@@ -93,7 +96,7 @@ export const updateCategoryBodySchema = z.strictObject({
 
 export type UpdateCategoryInput = z.infer<typeof updateCategoryBodySchema>;
 
-export function toCategoryDto(category: Category): CategoryDto {
+export function toCategoryDto(category: Category & { transactionCount: number }): CategoryDto {
   return {
     id: category.id,
     name: category.name,
@@ -103,6 +106,7 @@ export function toCategoryDto(category: Category): CategoryDto {
     color: category.color as CategoryDto['color'],
     isDefault: category.isDefault,
     isArchived: category.isArchived,
+    transactionCount: category.transactionCount,
     createdAt: category.createdAt.toISOString(),
     updatedAt: category.updatedAt.toISOString(),
   };
