@@ -3813,7 +3813,7 @@
       "post": {
         "summary": "Paga a fatura",
         "tags": ["Faturas"],
-        "description": "Paga o valor total da fatura, com a data de hoje, debitando a conta de pagamento do cartão (cria a transação `invoice-payment`). Só fatura fechada ou vencida, com compras e ainda sem pagamento; senão, ou com a conta de pagamento arquivada, responde 409. Devolve a fatura paga.",
+        "description": "Paga o valor total da fatura, com a data de hoje, debitando a conta de pagamento do cartão (cria a transação `invoice-payment`). Só fatura fechada ou vencida, com compras e ainda sem pagamento; senão, ou com a conta de pagamento arquivada, responde 409. Devolve a fatura paga. Com `Idempotency-Key`, repetir o pedido (ex.: depois de uma falha de rede) devolve o mesmo pagamento em vez de 409: a chave reaproveitada em outra requisição responde 422, e enquanto a primeira ainda roda, 409.",
         "parameters": [
           {
             "schema": {
@@ -3835,6 +3835,18 @@
             "name": "month",
             "required": true,
             "description": "Mês de referência da fatura (o mês do vencimento)."
+          },
+          {
+            "schema": {
+              "example": "0b9d6a3e-6c1f-4f7a-9d1e-2f0f5d7c9a11",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false,
+            "description": "Chave única por operação (ex.: um UUID gerado ao abrir a confirmação). Repetir a requisição com a mesma chave em até 24 horas devolve a resposta da primeira, sem executar de novo."
           }
         ],
         "responses": {

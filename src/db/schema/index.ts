@@ -5,6 +5,7 @@ export * from './budgets.ts';
 export * from './categories.ts';
 export * from './credit-cards.ts';
 export * from './goals.ts';
+export * from './idempotency-keys.ts';
 export * from './sessions.ts';
 export * from './transactions.ts';
 export * from './users.ts';
