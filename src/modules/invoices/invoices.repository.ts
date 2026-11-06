@@ -25,7 +25,7 @@ export function createInvoicesRepository(db: Database): InvoicesRepository {
           and(
             eq(transactions.userId, userId),
             eq(transactions.creditCardId, creditCardId),
-            inArray(transactions.type, ['expense', 'invoice-payment']),
+            inArray(transactions.type, ['expense', 'refund', 'invoice-payment']),
           ),
         );
     },

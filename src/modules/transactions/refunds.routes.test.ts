@@ -201,6 +201,52 @@ describe('estornos: /v1/transactions/{id}/refunds', () => {
     expect(list.json<unknown[]>()).toHaveLength(1);
   });
 
+  describe('efeitos', () => {
+    it('devolve o valor à conta', async () => {
+      const original = await expense();
+      await refund(original.id, { amount: 3_000, date: '2026-11-12' });
+
+      const account = (await user.api('GET', `/v1/accounts/${accountId}`)).json<{
+        currentBalance: number;
+      }>();
+
+      expect(account.currentBalance).toBe(-7_000);
+    });
+
+    it('no cartão, abate a fatura em que cai, libera o limite e pode deixar crédito', async () => {
+      // Compra de 20/10 (fatura de 11/2026) e estornos em 10/11 (fatura de 12/2026).
+      const purchase = await expense({
+        accountId: undefined,
+        creditCardId: cardId,
+        date: '2026-10-20',
+      });
+      await expense({ accountId: undefined, creditCardId: cardId, amount: 2_000 });
+      await refund(purchase.id, { amount: 6_000, date: '2026-11-10' });
+
+      const invoices = (await user.api('GET', `/v1/credit-cards/${cardId}/invoices`)).json<
+        { referenceMonth: string; total: number }[]
+      >();
+      const december = (await user.api('GET', `/v1/credit-cards/${cardId}/invoices/2026-12`)).json<{
+        total: number;
+        purchases: unknown[];
+        refunds: TransactionDto[];
+      }>();
+      const card = (await user.api('GET', `/v1/credit-cards/${cardId}`)).json<{
+        usedLimit: number;
+        nextInvoice: { amount: number };
+      }>();
+
+      expect(invoices.map(({ referenceMonth, total }) => [referenceMonth, total])).toEqual([
+        ['2026-12', -4_000],
+        ['2026-11', 10_000],
+      ]);
+      expect(december.purchases).toHaveLength(1);
+      expect(december.refunds.map((item) => item.amount)).toEqual([6_000]);
+      expect(card.usedLimit).toBe(6_000);
+      expect(card.nextInvoice.amount).toBe(-4_000);
+    });
+  });
+
   describe('edição e exclusão', () => {
     it('edita descrição, valor e data do estorno, dentro do que falta estornar', async () => {
       const original = await expense();

@@ -107,13 +107,17 @@ export function createCreditCardsRepository(db: Database): CreditCardsRepository
         cycle_purchases: string;
       }>(sql`
         select cycles.credit_card_id,
-          coalesce(sum(${transactions.amount}) filter (where ${transactions.type} = 'expense'), 0)
-            as purchases,
+          coalesce(sum(case
+            when ${transactions.type} = 'expense' then ${transactions.amount}
+            when ${transactions.type} = 'refund' then -${transactions.amount}
+          end), 0) as purchases,
           coalesce(sum(${transactions.amount})
             filter (where ${transactions.type} = 'invoice-payment'), 0) as payments,
-          coalesce(sum(${transactions.amount}) filter (
-            where ${transactions.type} = 'expense'
-              and ${transactions.date} between cycles.start_date and cycles.end_date
+          coalesce(sum(case
+            when ${transactions.type} = 'expense' then ${transactions.amount}
+            when ${transactions.type} = 'refund' then -${transactions.amount}
+          end) filter (
+            where ${transactions.date} between cycles.start_date and cycles.end_date
           ), 0) as cycle_purchases
         from (values ${values}) as cycles (credit_card_id, start_date, end_date)
         left join ${transactions}

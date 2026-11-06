@@ -1244,6 +1244,11 @@
           "purchases": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/TransactionInput" }
+          },
+          "refunds": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TransactionInput" },
+            "description": "Estornos lançados no ciclo."
           }
         },
         "required": [
@@ -1256,7 +1261,8 @@
           "total",
           "status",
           "payment",
-          "purchases"
+          "purchases",
+          "refunds"
         ]
       },
       "CreateInstallmentPurchaseInput": {
@@ -2632,7 +2638,12 @@
             "anyOf": [{ "$ref": "#/components/schemas/Transaction" }, { "type": "null" }],
             "description": "A transação `invoice-payment` da fatura, se paga."
           },
-          "purchases": { "type": "array", "items": { "$ref": "#/components/schemas/Transaction" } }
+          "purchases": { "type": "array", "items": { "$ref": "#/components/schemas/Transaction" } },
+          "refunds": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Transaction" },
+            "description": "Estornos lançados no ciclo."
+          }
         },
         "required": [
           "referenceMonth",
@@ -2644,7 +2655,8 @@
           "total",
           "status",
           "payment",
-          "purchases"
+          "purchases",
+          "refunds"
         ],
         "additionalProperties": false
       },
