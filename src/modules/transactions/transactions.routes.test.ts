@@ -116,6 +116,7 @@ describe('rotas /v1/transactions', () => {
         status: 'completed',
         notes: null,
         createdAt: expect.any(String) as unknown,
+        updatedAt: expect.any(String) as unknown,
       });
       expect((await stored(body.id))?.userId).toBe(ledger.userId);
     });
@@ -499,6 +500,7 @@ describe('rotas /v1/transactions', () => {
         expect(response.statusCode).toBe(200);
         expect(response.json()).toEqual({
           ...created,
+          updatedAt: expect.any(String) as unknown,
           description: 'Feira da semana',
           amount: 12_000,
           status: 'pending',

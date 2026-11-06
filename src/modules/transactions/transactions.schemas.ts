@@ -40,6 +40,9 @@ export const transactionSchema = z
     status: transactionStatusSchema,
     notes: z.string().nullable(),
     createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime().meta({
+      description: 'Versão do registro: a ETag é derivada dela (use a ETag no `If-Match`).',
+    }),
   })
   .meta({ id: 'Transaction' });
 
@@ -237,5 +240,6 @@ export function toTransactionDto(transaction: Transaction): TransactionDto {
     status: transaction.status,
     notes: transaction.notes,
     createdAt: transaction.createdAt.toISOString(),
+    updatedAt: transaction.updatedAt.toISOString(),
   };
 }

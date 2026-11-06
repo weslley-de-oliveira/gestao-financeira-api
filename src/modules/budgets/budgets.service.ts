@@ -132,6 +132,10 @@ export function createBudgetsService({
     async update(userId, budgetId, { limitAmount, alertThreshold }, ifMatch) {
       const current = await find(userId, budgetId);
       assertIfMatch(ifMatch, current);
+      // Corpo vazio: nada a gravar (nem uma versão nova).
+      if (limitAmount === undefined && alertThreshold === undefined) {
+        return withOneProgress(userId, current);
+      }
       const month = currentMonth();
       const updated = await budgets.updateBudget(
         userId,

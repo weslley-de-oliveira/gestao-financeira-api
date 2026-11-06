@@ -90,6 +90,9 @@ export const accountSchema = z
     icon: accountIconSchema,
     isArchived: z.boolean(),
     createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime().meta({
+      description: 'Versão do registro: a ETag é derivada dela (use a ETag no `If-Match`).',
+    }),
   })
   .meta({ id: 'Account' });
 
@@ -122,5 +125,6 @@ export function toAccountDto(account: Account & { currentBalance: number }): Acc
     icon: account.icon as AccountDto['icon'],
     isArchived: account.isArchived,
     createdAt: account.createdAt.toISOString(),
+    updatedAt: account.updatedAt.toISOString(),
   };
 }
