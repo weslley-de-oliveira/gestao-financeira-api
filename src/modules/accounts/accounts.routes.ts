@@ -1,6 +1,7 @@
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
+import { ifMatchHeadersSchema, parseIfMatch, setEntityTag } from '../../shared/http/etag.ts';
 import { createAccountsRepository } from './accounts.repository.ts';
 import {
   accountListSchema,
@@ -53,8 +54,9 @@ export const accountsRoutes: FastifyPluginCallbackZod = (app, _options, done) =>
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const account = await service.get(currentAuth(request).user.id, request.params.id);
+      setEntityTag(reply, account);
       return toAccountDto(account);
     },
   );
@@ -73,6 +75,7 @@ export const accountsRoutes: FastifyPluginCallbackZod = (app, _options, done) =>
     },
     async (request, reply) => {
       const account = await service.create(currentAuth(request).user.id, request.body);
+      setEntityTag(reply, account);
       return reply.status(201).send(toAccountDto(account));
     },
   );
@@ -86,21 +89,25 @@ export const accountsRoutes: FastifyPluginCallbackZod = (app, _options, done) =>
         description:
           'Altera só os campos enviados; `institution: null` remove a instituição. Arquivar é `{ "isArchived": true }` e reativar, `false`: contas não são excluídas, para preservar o histórico das transações. Conta inexistente ou de outro usuário responde 404.',
         params: accountParamsSchema,
+        headers: ifMatchHeadersSchema,
         body: updateAccountBodySchema,
         response: {
           200: accountSchema,
           401: problemDetailsSchema,
           404: problemDetailsSchema,
+          412: problemDetailsSchema,
           422: problemDetailsSchema,
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const account = await service.update(
         currentAuth(request).user.id,
         request.params.id,
         request.body,
+        parseIfMatch(request.headers['if-match']),
       );
+      setEntityTag(reply, account);
       return toAccountDto(account);
     },
   );

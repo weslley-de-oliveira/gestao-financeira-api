@@ -1,5 +1,6 @@
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
+import { idempotencyHeadersSchema, idempotent } from '../../shared/http/idempotency.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
 import { createAccountsRepository } from '../accounts/accounts.repository.ts';
 import { createCreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
@@ -84,8 +85,9 @@ export const invoicesRoutes: FastifyPluginCallbackZod = (app, _options, done) =>
         tags: [INVOICES_TAG],
         summary: 'Paga a fatura',
         description:
-          'Paga o valor total da fatura, com a data de hoje, debitando a conta de pagamento do cartão (cria a transação `invoice-payment`). Só fatura fechada ou vencida, com compras e ainda sem pagamento; senão, ou com a conta de pagamento arquivada, responde 409. Devolve a fatura paga.',
+          'Paga o valor total da fatura, com a data de hoje, debitando a conta de pagamento do cartão (cria a transação `invoice-payment`). Só fatura fechada ou vencida, com compras e ainda sem pagamento; senão, ou com a conta de pagamento arquivada, responde 409. Devolve a fatura paga. Com `Idempotency-Key`, repetir o pedido (ex.: depois de uma falha de rede) devolve o mesmo pagamento em vez de 409: a chave reaproveitada em outra requisição responde 422, e enquanto a primeira ainda roda, 409.',
         params: invoiceParamsSchema,
+        headers: idempotencyHeadersSchema,
         response: {
           201: invoiceSchema,
           401: problemDetailsSchema,
@@ -97,8 +99,12 @@ export const invoicesRoutes: FastifyPluginCallbackZod = (app, _options, done) =>
     },
     async (request, reply) => {
       const { id, month } = request.params;
-      const invoice = await service.pay(currentAuth(request).user.id, id, month);
-      return reply.status(201).send(toInvoiceDto(invoice));
+      const userId = currentAuth(request).user.id;
+      return idempotent(
+        reply,
+        { db: app.db, userId, key: request.headers['idempotency-key'], request, now: new Date() },
+        async () => ({ statusCode: 201, body: toInvoiceDto(await service.pay(userId, id, month)) }),
+      );
     },
   );
 

@@ -15,6 +15,7 @@ import {
   type ListGoalsQuery,
   type UpdateGoalInput,
 } from './goals.schemas.ts';
+import { assertIfMatch, PreconditionFailedError, type IfMatch } from '../../shared/http/etag.ts';
 
 /** Meta inexistente ou de outro usuário: a mesma resposta, para não revelar o que existe. */
 export class GoalNotFoundError extends DomainError {
@@ -65,7 +66,13 @@ export interface GoalsService {
    * vencida pode ser mantida, mas não definida de novo; o valor inicial não pode deixar o
    * acumulado negativo (`InsufficientGoalBalanceError`).
    */
-  update(userId: string, goalId: string, changes: UpdateGoalInput): Promise<GoalWithContributions>;
+  /** Com `ifMatch`, só grava se a meta ainda estiver na versão lida (aportes mudam a versão). */
+  update(
+    userId: string,
+    goalId: string,
+    changes: UpdateGoalInput,
+    ifMatch?: IfMatch,
+  ): Promise<GoalWithContributions>;
   /** Registra aporte ou retirada até hoje; retirada maior que o acumulado → 409. */
   addContribution(
     userId: string,
@@ -133,8 +140,9 @@ export function createGoalsService({ goals, today }: GoalsServiceDependencies): 
       return withOne(await goals.insertGoal({ ...input, userId }));
     },
 
-    async update(userId, goalId, { isPaused, isArchived, ...changes }) {
+    async update(userId, goalId, { isPaused, isArchived, ...changes }, ifMatch) {
       const current = await withOne(await find(userId, goalId));
+      assertIfMatch(ifMatch, current);
       // O resultado da edição precisa valer como um cadastro.
       const result = createGoalBodySchema.safeParse({
         name: changes.name ?? current.name,
@@ -162,13 +170,18 @@ export function createGoalsService({ goals, today }: GoalsServiceDependencies): 
         );
       }
 
-      const updated = await goals.updateGoal(userId, goalId, {
-        ...result.data,
-        ...(isPaused !== undefined && { isPaused }),
-        ...(isArchived !== undefined && { isArchived }),
-      });
+      const updated = await goals.updateGoal(
+        userId,
+        goalId,
+        {
+          ...result.data,
+          ...(isPaused !== undefined && { isPaused }),
+          ...(isArchived !== undefined && { isArchived }),
+        },
+        ifMatch && current.updatedAt,
+      );
       if (!updated) {
-        throw new GoalNotFoundError();
+        throw ifMatch ? new PreconditionFailedError() : new GoalNotFoundError();
       }
       return withOne(updated);
     },

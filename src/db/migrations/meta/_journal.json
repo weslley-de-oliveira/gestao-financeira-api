@@ -64,6 +64,13 @@
       "when": 1793907921145,
       "tag": "0008_cria-goals",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793928751310,
+      "tag": "0009_cria-idempotency-keys",
+      "breakpoints": true
     }
   ]
 }

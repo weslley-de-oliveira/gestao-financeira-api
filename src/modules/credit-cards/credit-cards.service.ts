@@ -11,6 +11,7 @@ import {
   type ListCreditCardsQuery,
   type UpdateCreditCardInput,
 } from './credit-cards.schemas.ts';
+import { assertIfMatch, PreconditionFailedError, type IfMatch } from '../../shared/http/etag.ts';
 
 /** Cartão inexistente ou de outro usuário: a mesma resposta, para não revelar o que existe. */
 export class CreditCardNotFoundError extends DomainError {
@@ -59,6 +60,7 @@ export interface CreditCardsService {
     userId: string,
     creditCardId: string,
     changes: UpdateCreditCardInput,
+    ifMatch?: IfMatch,
   ): Promise<CreditCardWithUsage>;
 }
 
@@ -135,8 +137,9 @@ export function createCreditCardsService({
       return withOneUsage(userId, await creditCards.insertCreditCard({ ...input, userId }));
     },
 
-    async update(userId, creditCardId, { isArchived, ...changes }) {
+    async update(userId, creditCardId, { isArchived, ...changes }, ifMatch) {
       const current = await find(userId, creditCardId);
+      assertIfMatch(ifMatch, current);
       // O resultado da edição precisa valer como um cadastro (ex.: dias diferentes).
       const result = createCreditCardBodySchema.safeParse({
         name: changes.name ?? current.name,
@@ -158,12 +161,14 @@ export function createCreditCardsService({
       }
       await checkPaymentAccount(userId, result.data.paymentAccountId, current);
 
-      const updated = await creditCards.updateCreditCard(userId, creditCardId, {
-        ...result.data,
-        ...(isArchived !== undefined && { isArchived }),
-      });
+      const updated = await creditCards.updateCreditCard(
+        userId,
+        creditCardId,
+        { ...result.data, ...(isArchived !== undefined && { isArchived }) },
+        ifMatch && current.updatedAt,
+      );
       if (!updated) {
-        throw new CreditCardNotFoundError();
+        throw ifMatch ? new PreconditionFailedError() : new CreditCardNotFoundError();
       }
       return withOneUsage(userId, updated);
     },

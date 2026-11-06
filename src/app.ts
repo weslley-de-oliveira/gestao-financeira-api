@@ -71,6 +71,8 @@ export async function buildApp(env: Env, { now }: BuildAppOptions = {}): Promise
     logger: loggerOptions(env),
     logController: new LogController({ disableRequestLogging: isRequestLoggingDisabled }),
     bodyLimit: BODY_LIMIT_BYTES,
+    // Atrás de proxies (Vercel e Render), o IP, o protocolo e o host vêm dos cabeçalhos X-Forwarded-*.
+    trustProxy: trustedProxies(env),
     requestIdHeader: false,
     genReqId: (request: IncomingMessage) => {
       const incoming = request.headers[REQUEST_ID_HEADER];
@@ -118,6 +120,17 @@ export async function buildApp(env: Env, { now }: BuildAppOptions = {}): Promise
   await app.register(usersRoutes, { prefix: '/v1/me' });
 
   return app;
+}
+
+/**
+ * Confia nos `TRUST_PROXY` saltos mais próximos do X-Forwarded-For (ex.: o balanceador do Render e
+ * a Vercel). O Fastify recusa a contagem de saltos numérica, porque quem chamar a API direto pode
+ * forjar o cabeçalho; aqui isso só afeta o rate limit de quem contorna a Vercel, e os provedores não
+ * publicam faixas de IP fixas para confiar por endereço.
+ */
+function trustedProxies(env: Env): FastifyServerOptions['trustProxy'] {
+  const hops = env.TRUST_PROXY;
+  return hops > 0 ? (_address: string, hop: number) => hop < hops : false;
 }
 
 function isRequestLoggingDisabled(request: FastifyRequest): boolean {

@@ -2,6 +2,7 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
+import { ifMatchHeadersSchema, parseIfMatch, setEntityTag } from '../../shared/http/etag.ts';
 import { createCategoriesRepository } from '../categories/categories.repository.ts';
 import { createBudgetsRepository } from './budgets.repository.ts';
 import {
@@ -62,12 +63,13 @@ export const budgetsRoutes: FastifyPluginCallbackZod = (app, _options, done) => 
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const budget = await service.get(
         currentAuth(request).user.id,
         request.params.id,
         request.query.month,
       );
+      setEntityTag(reply, budget);
       return toBudgetDto(budget);
     },
   );
@@ -91,6 +93,7 @@ export const budgetsRoutes: FastifyPluginCallbackZod = (app, _options, done) => 
     },
     async (request, reply) => {
       const budget = await service.create(currentAuth(request).user.id, request.body);
+      setEntityTag(reply, budget);
       return reply.status(201).send(toBudgetDto(budget));
     },
   );
@@ -104,21 +107,25 @@ export const budgetsRoutes: FastifyPluginCallbackZod = (app, _options, done) => 
         description:
           'O novo limite vale do mês atual em diante: os meses anteriores mantêm o limite que tinham (vigências). A categoria não muda (enviá-la responde 422). Orçamento inexistente ou de outro usuário responde 404.',
         params: budgetParamsSchema,
+        headers: ifMatchHeadersSchema,
         body: updateBudgetBodySchema,
         response: {
           200: budgetSchema,
           401: problemDetailsSchema,
           404: problemDetailsSchema,
+          412: problemDetailsSchema,
           422: problemDetailsSchema,
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const budget = await service.update(
         currentAuth(request).user.id,
         request.params.id,
         request.body,
+        parseIfMatch(request.headers['if-match']),
       );
+      setEntityTag(reply, budget);
       return toBudgetDto(budget);
     },
   );

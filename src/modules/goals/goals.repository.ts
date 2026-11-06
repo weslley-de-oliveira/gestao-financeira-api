@@ -9,6 +9,7 @@ import {
   type NewGoal,
   type NewGoalContribution,
 } from '../../db/schema/index.ts';
+import { atVersion } from '../../shared/http/etag.ts';
 
 /** Campos que o usuário pode alterar: nunca o dono, o id ou as datas de registro. */
 export type GoalChanges = Partial<Omit<NewGoal, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>;
@@ -27,7 +28,13 @@ export interface GoalsRepository {
   findGoal(userId: string, goalId: string): Promise<Goal | null>;
   insertGoal(goal: NewGoal): Promise<Goal>;
   /** Altera a meta só se for do usuário; devolve `null` se não encontrar. */
-  updateGoal(userId: string, goalId: string, changes: GoalChanges): Promise<Goal | null>;
+  /** Com `version`, só altera se a meta ainda estiver nessa versão; `null` se não encontrar. */
+  updateGoal(
+    userId: string,
+    goalId: string,
+    changes: GoalChanges,
+    version?: Date,
+  ): Promise<Goal | null>;
   /** Aportes e retiradas das metas, das mais recentes para as mais antigas. */
   listContributions(goalIds: readonly string[]): Promise<GoalContribution[]>;
   /**
@@ -57,6 +64,11 @@ export function createGoalsRepository(db: Database): GoalsRepository {
   async function lockGoal(tx: Transaction, userId: string, goalId: string) {
     const [goal] = await tx.select().from(goals).where(ownedBy(userId, goalId)).for('update');
     return goal;
+  }
+
+  /** Aportes e retiradas mudam a meta (o acumulado): ela ganha uma versão nova (ETag). */
+  async function touchGoal(tx: Transaction, goalId: string): Promise<void> {
+    await tx.update(goals).set({ updatedAt: new Date() }).where(eq(goals.id, goalId));
   }
 
   /** Aportes − retiradas da meta (sem o valor inicial). */
@@ -92,11 +104,11 @@ export function createGoalsRepository(db: Database): GoalsRepository {
       return created;
     },
 
-    async updateGoal(userId, goalId, changes) {
+    async updateGoal(userId, goalId, changes, version) {
       const [updated] = await db
         .update(goals)
         .set(changes)
-        .where(ownedBy(userId, goalId))
+        .where(and(ownedBy(userId, goalId), version && atVersion(goals.updatedAt, version)))
         .returning();
       return updated ?? null;
     },
@@ -130,6 +142,7 @@ export function createGoalsRepository(db: Database): GoalsRepository {
           .values({ ...contribution, goalId })
           .returning();
         if (!created) throw new Error('A movimentação não foi inserida.');
+        await touchGoal(tx, goalId);
         return { status: 'ok', value: created };
       });
     },
@@ -154,6 +167,7 @@ export function createGoalsRepository(db: Database): GoalsRepository {
           return { status: 'negative-balance' };
         }
         await tx.delete(goalContributions).where(eq(goalContributions.id, contributionId));
+        await touchGoal(tx, goalId);
         return { status: 'ok', value: null };
       });
     },

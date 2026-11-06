@@ -35,6 +35,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Vulnerabilidades conhecidas nas dependências que vão para a imagem de produção.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Check formatting
         run: npm run format:check
 

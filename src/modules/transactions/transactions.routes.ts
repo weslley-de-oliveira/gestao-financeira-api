@@ -2,6 +2,7 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
+import { ifMatchHeadersSchema, parseIfMatch, setEntityTag } from '../../shared/http/etag.ts';
 import { createAccountsRepository } from '../accounts/accounts.repository.ts';
 import { createCategoriesRepository } from '../categories/categories.repository.ts';
 import { createCreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
@@ -70,6 +71,7 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
     },
     async (request, reply) => {
       const transaction = await service.create(currentAuth(request).user.id, request.body);
+      setEntityTag(reply, transaction);
       return reply.status(201).send(toTransactionDto(transaction));
     },
   );
@@ -91,8 +93,9 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const transaction = await service.get(currentAuth(request).user.id, request.params.id);
+      setEntityTag(reply, transaction);
       return toTransactionDto(transaction);
     },
   );
@@ -106,22 +109,26 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
         description:
           'Os campos enviados são aplicados sobre a transação e o resultado segue as regras do cadastro. Ao trocar o tipo, os campos que não servem ao novo tipo são descartados (a categoria, ao virar transferência; a conta de destino, ao virar receita ou despesa). `notes: null` remove as observações. Contas e categoria que a transação já tinha continuam aceitas mesmo se arquivadas depois; trocar por uma arquivada responde 409, assim como editar pagamento de fatura e editar compra de fatura já paga (ou movê-la para uma fatura paga).',
         params: transactionParamsSchema,
+        headers: ifMatchHeadersSchema,
         body: updateTransactionBodySchema,
         response: {
           200: transactionSchema,
           401: problemDetailsSchema,
           404: problemDetailsSchema,
+          412: problemDetailsSchema,
           409: problemDetailsSchema,
           422: problemDetailsSchema,
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const transaction = await service.update(
         currentAuth(request).user.id,
         request.params.id,
         request.body,
+        parseIfMatch(request.headers['if-match']),
       );
+      setEntityTag(reply, transaction);
       return toTransactionDto(transaction);
     },
   );

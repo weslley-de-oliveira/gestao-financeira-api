@@ -50,6 +50,27 @@ describe('plugin rate-limit', () => {
     expectTooManyRequests(await login(email));
   });
 
+  it('atrás de proxies (TRUST_PROXY), conta as tentativas pelo IP do cliente', async () => {
+    app = await createTestApp({ env: { RATE_LIMIT_ENABLED: 'true', TRUST_PROXY: '2' } });
+    const email = uniqueEmail();
+    // Vercel e Render na frente: todas as conexões chegam do mesmo IP (o do proxy).
+    const viaProxy = (client: string) =>
+      app.inject({
+        method: 'POST',
+        url: '/v1/auth/login',
+        payload: { email, password: 'senha-errada-1' },
+        remoteAddress: '10.0.0.1',
+        headers: { 'x-forwarded-for': `${client}, 10.0.0.2` },
+      });
+
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      expect((await viaProxy('203.0.113.10')).statusCode).toBe(401);
+    }
+
+    expectTooManyRequests(await viaProxy('203.0.113.10'));
+    expect((await viaProxy('203.0.113.20')).statusCode).toBe(401);
+  });
+
   it('depois do bloqueio, nem a senha certa entra (o limite vem antes de conferir a senha)', async () => {
     await createApp();
     const email = uniqueEmail();

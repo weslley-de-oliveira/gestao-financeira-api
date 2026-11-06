@@ -1,0 +1,9 @@
+# Só o necessário para o build entra no contexto da imagem.
+*
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.build.json
+!src/
+!scripts/copy-migrations.ts
+src/**/*.test.ts

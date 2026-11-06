@@ -1,6 +1,7 @@
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
+import { ifMatchHeadersSchema, parseIfMatch, setEntityTag } from '../../shared/http/etag.ts';
 import { createGoalsRepository } from './goals.repository.ts';
 import {
   contributionParamsSchema,
@@ -59,8 +60,9 @@ export const goalsRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const goal = await service.get(currentAuth(request).user.id, request.params.id);
+      setEntityTag(reply, goal);
       return toGoalDto(goal);
     },
   );
@@ -79,6 +81,7 @@ export const goalsRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
     },
     async (request, reply) => {
       const goal = await service.create(currentAuth(request).user.id, request.body);
+      setEntityTag(reply, goal);
       return reply.status(201).send(toGoalDto(goal));
     },
   );
@@ -92,21 +95,25 @@ export const goalsRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
         description:
           'Altera só os campos enviados; `description: null` e `deadline: null` removem os valores. Uma data-limite já vencida pode ser mantida, mas não definida de novo. `isPaused` pausa ou retoma e `isArchived` arquiva ou reativa: metas não são excluídas. Meta inexistente ou de outro usuário responde 404.',
         params: goalParamsSchema,
+        headers: ifMatchHeadersSchema,
         body: updateGoalBodySchema,
         response: {
           200: goalSchema,
           401: problemDetailsSchema,
           404: problemDetailsSchema,
+          412: problemDetailsSchema,
           422: problemDetailsSchema,
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const goal = await service.update(
         currentAuth(request).user.id,
         request.params.id,
         request.body,
+        parseIfMatch(request.headers['if-match']),
       );
+      setEntityTag(reply, goal);
       return toGoalDto(goal);
     },
   );
@@ -136,6 +143,7 @@ export const goalsRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
         request.params.id,
         request.body,
       );
+      setEntityTag(reply, goal);
       return reply.status(201).send(toGoalDto(goal));
     },
   );
@@ -158,13 +166,14 @@ export const goalsRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const { id, contributionId } = request.params;
       const goal = await service.removeContribution(
         currentAuth(request).user.id,
         id,
         contributionId,
       );
+      setEntityTag(reply, goal);
       return toGoalDto(goal);
     },
   );
