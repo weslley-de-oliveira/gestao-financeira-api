@@ -4845,6 +4845,62 @@
           }
         }
       }
+    },
+    "/v1/me/password": {
+      "post": {
+        "summary": "Troca a senha",
+        "tags": ["Perfil"],
+        "description": "Confirma com a senha atual (errada responde 422 em `currentPassword`). A senha nova segue as regras do cadastro e precisa ser diferente da atual. Esta sessão continua; as outras sessões da pessoa, em outros aparelhos, são encerradas.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "currentPassword": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "Senha atual, para confirmar a troca."
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128,
+                    "pattern": "^(?=.*\\p{L})(?=.*\\d).+$",
+                    "example": "senha1234",
+                    "description": "Senha nova: de 8 a 128 caracteres, com pelo menos uma letra e um número."
+                  }
+                },
+                "required": ["currentPassword", "newPassword"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": { "description": "Default Response" },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
     }
   },
   "tags": [

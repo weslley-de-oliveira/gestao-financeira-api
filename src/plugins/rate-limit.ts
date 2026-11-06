@@ -49,6 +49,12 @@ export const AUTH_RATE_LIMITS = {
     timeWindow: '1 minute',
     keyGenerator: (request: FastifyRequest) => `register:${request.ip}`,
   },
+  /** Troca de senha: confere a senha atual, então tem o mesmo limite do login. */
+  changePassword: {
+    max: 5,
+    timeWindow: '1 minute',
+    keyGenerator: (request: FastifyRequest) => `change-password:${request.ip}`,
+  },
   /** Exclusão da conta: confere a senha, então tem o mesmo limite do login (5 por minuto por IP). */
   deleteAccount: {
     max: 5,

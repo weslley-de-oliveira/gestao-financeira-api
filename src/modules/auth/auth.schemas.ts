@@ -19,7 +19,8 @@ const emailSchema = z
   .pipe(z.email('Informe um e-mail válido.'))
   .meta({ format: 'email', example: 'pessoa@exemplo.com' });
 
-const passwordSchema = z
+/** Senha nova (cadastro e troca): tamanho e pelo menos uma letra e um número. */
+export const passwordSchema = z
   .string()
   .min(PASSWORD_MIN_LENGTH, `A senha deve ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres.`)
   .max(PASSWORD_MAX_LENGTH, `A senha deve ter no máximo ${PASSWORD_MAX_LENGTH} caracteres.`)
