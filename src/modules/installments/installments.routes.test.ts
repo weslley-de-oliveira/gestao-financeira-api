@@ -343,6 +343,40 @@ describe('rotas /v1/installment-purchases', () => {
     });
   });
 
+  describe('parcela avulsa em /v1/transactions', () => {
+    it.each([
+      ['alterar', 'PATCH', { amount: 1 }],
+      ['alterar com corpo vazio', 'PATCH', {}],
+      ['excluir', 'DELETE', undefined],
+    ] as const)('não deixa %s uma parcela sozinha (409)', async (_case, method, body) => {
+      const created = (await create(purchase())).json<InstallmentPurchaseDto>();
+      const parcel = created.installments[1]!;
+
+      const response = await user.api(method, `/v1/transactions/${parcel.id}`, body);
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toMatchObject({ type: '/problems/installment' });
+      const kept = (
+        await user.api('GET', `/v1/installment-purchases/${created.id}`)
+      ).json<InstallmentPurchaseDto>();
+      expect(kept.installments).toEqual(created.installments);
+    });
+
+    it('lista e detalha as parcelas como transações, com o número e o grupo', async () => {
+      const created = (await create(purchase())).json<InstallmentPurchaseDto>();
+
+      const detail = await user.api('GET', `/v1/transactions/${created.installments[2]!.id}`);
+      const list = await user.api('GET', `/v1/transactions?creditCardId=${cardId}`);
+
+      expect(detail.json()).toMatchObject({
+        installmentGroupId: created.id,
+        installmentNumber: 3,
+        installmentCount: 3,
+      });
+      expect(list.json<{ items: unknown[] }>().items).toHaveLength(3);
+    });
+  });
+
   describe('GET /:id', () => {
     it('responde 404 para compra inexistente ou de outra pessoa', async () => {
       const created = (await create(purchase())).json<InstallmentPurchaseDto>();

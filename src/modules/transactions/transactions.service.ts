@@ -8,6 +8,7 @@ import {
 } from '../../shared/errors/domain-error.ts';
 import {
   ARCHIVED_REFERENCE_PROBLEM_TYPE,
+  INSTALLMENT_PROBLEM_TYPE,
   PAID_INVOICE_PROBLEM_TYPE,
 } from '../../shared/http/problem.ts';
 import { monthLabel } from '../../shared/utils/date.ts';
@@ -67,6 +68,18 @@ export class PaidInvoiceError extends DomainError {
 }
 
 /** Conta ou categoria arquivada numa transação nova (ou trocada na edição). */
+/** Parcela alterada ou excluída sozinha: as parcelas só mudam pela compra parcelada. */
+export class InstallmentNotEditableError extends DomainError {
+  readonly kind = 'conflict';
+  override readonly problemType = INSTALLMENT_PROBLEM_TYPE;
+
+  constructor() {
+    super(
+      'Esta transação é uma parcela: altere ou exclua a compra parcelada inteira (/v1/installment-purchases).',
+    );
+  }
+}
+
 /** Compra parcelada inexistente ou de outro usuário. */
 export class InstallmentPurchaseNotFoundError extends DomainError {
   readonly kind = 'not-found';
@@ -166,13 +179,16 @@ export function createTransactionsService({
   }
 
   /**
-   * Transação que pode ser alterada ou apagada por aqui: não é pagamento de fatura nem compra de
-   * uma fatura já paga.
+   * Transação que pode ser alterada ou apagada por aqui: não é pagamento de fatura, parcela de
+   * compra parcelada (muda pela compra) nem compra de uma fatura já paga.
    */
   async function getEditable(userId: string, transactionId: string): Promise<Transaction> {
     const transaction = await get(userId, transactionId);
     if (transaction.type === 'invoice-payment') {
       throw new InvoicePaymentNotEditableError();
+    }
+    if (transaction.installmentGroupId) {
+      throw new InstallmentNotEditableError();
     }
     if (transaction.creditCardId) {
       await assertInvoiceNotPaid(userId, transaction.creditCardId, transaction.date);
