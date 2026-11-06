@@ -61,42 +61,34 @@ export async function seedDemo(db: Database, today: IsoDate): Promise<DemoSeedSu
     });
 
     await tx.insert(accounts).values(
-      data.accounts.map(
-        (account): NewAccount => ({
-          ...account,
-          type: account.type as NewAccount['type'],
-          createdAt: new Date(account.createdAt),
-        }),
-      ),
+      data.accounts.map((account): NewAccount => ({
+        ...account,
+        type: account.type as NewAccount['type'],
+        createdAt: new Date(account.createdAt),
+      })),
     );
     await tx.insert(categories).values(
-      data.categories.map(
-        (category): NewCategory => ({
-          ...category,
-          type: category.type as NewCategory['type'],
-          nameNormalized: categoryNameKey(category.name),
-          createdAt: new Date(category.createdAt),
-        }),
-      ),
+      data.categories.map((category): NewCategory => ({
+        ...category,
+        type: category.type as NewCategory['type'],
+        nameNormalized: categoryNameKey(category.name),
+        createdAt: new Date(category.createdAt),
+      })),
     );
     await tx.insert(creditCards).values(
-      data.creditCards.map(
-        (card): NewCreditCard => ({
-          ...card,
-          brand: card.brand as NewCreditCard['brand'],
-          createdAt: new Date(card.createdAt),
-        }),
-      ),
+      data.creditCards.map((card): NewCreditCard => ({
+        ...card,
+        brand: card.brand as NewCreditCard['brand'],
+        createdAt: new Date(card.createdAt),
+      })),
     );
     await tx.insert(transactions).values(
-      data.transactions.map(
-        (transaction): NewTransaction => ({
-          ...transaction,
-          type: transaction.type as NewTransaction['type'],
-          status: transaction.status as NewTransaction['status'],
-          createdAt: new Date(transaction.createdAt),
-        }),
-      ),
+      data.transactions.map((transaction): NewTransaction => ({
+        ...transaction,
+        type: transaction.type as NewTransaction['type'],
+        status: transaction.status as NewTransaction['status'],
+        createdAt: new Date(transaction.createdAt),
+      })),
     );
 
     for (const { limits, ...budget } of data.budgets) {

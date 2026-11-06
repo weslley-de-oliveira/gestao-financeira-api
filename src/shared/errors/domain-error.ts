@@ -3,11 +3,7 @@
  * converte o `kind` no status (ex.: `conflict` → 409) e usa a mensagem como `detail`.
  */
 export type DomainErrorKind =
-  | 'unauthorized'
-  | 'not-found'
-  | 'conflict'
-  | 'precondition'
-  | 'invalid';
+  'unauthorized' | 'not-found' | 'conflict' | 'precondition' | 'invalid';
 
 export abstract class DomainError extends Error {
   abstract readonly kind: DomainErrorKind;

@@ -82,7 +82,7 @@ export function periodBuckets(range: { start: IsoDate; end: IsoDate }): PeriodBu
   const singleMonth = range.start.slice(0, 7) === range.end.slice(0, 7);
   const buckets: PeriodBucket[] = [];
 
-  for (let first = start; first <= end; ) {
+  for (let first = start; first <= end;) {
     const blockEnd = singleMonth
       ? addDays(first, DAYS_PER_BLOCK - 1)
       : dayOfMonth(first.getUTCFullYear(), first.getUTCMonth(), 31);
