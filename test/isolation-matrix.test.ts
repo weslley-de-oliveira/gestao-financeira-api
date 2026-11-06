@@ -62,6 +62,17 @@ const CASES: Case[] = [
     path: '/v1/installment-purchases/{id}',
     params: (ids) => ({ id: ids.installmentPurchase }),
   },
+  {
+    method: 'PATCH',
+    path: '/v1/installment-purchases/{id}',
+    params: (ids) => ({ id: ids.installmentPurchase }),
+    body: { description: 'Invasão' },
+  },
+  {
+    method: 'DELETE',
+    path: '/v1/installment-purchases/{id}',
+    params: (ids) => ({ id: ids.installmentPurchase }),
+  },
   { method: 'GET', path: '/v1/credit-cards/{id}', params: (ids) => ({ id: ids.card }) },
   {
     method: 'PATCH',

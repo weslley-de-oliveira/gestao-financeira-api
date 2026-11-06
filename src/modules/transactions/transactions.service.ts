@@ -16,7 +16,10 @@ import type { AccountsRepository } from '../accounts/accounts.repository.ts';
 import type { CategoriesRepository } from '../categories/categories.repository.ts';
 import type { CreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
 import { planInstallments } from '../installments/installment-plan.ts';
-import type { CreateInstallmentPurchaseInput } from '../installments/installments.schemas.ts';
+import type {
+  CreateInstallmentPurchaseInput,
+  UpdateInstallmentPurchaseInput,
+} from '../installments/installments.schemas.ts';
 import type { TransactionsRepository } from './transactions.repository.ts';
 import {
   createTransactionBodySchema,
@@ -135,6 +138,17 @@ export interface TransactionsService {
   ): Promise<Transaction[]>;
   /** Parcelas da compra; inexistente ou de outro usuário → `InstallmentPurchaseNotFoundError`. */
   getInstallmentPurchase(userId: string, groupId: string): Promise<Transaction[]>;
+  /**
+   * Altera descrição, categoria e observações de todas as parcelas. Vale mesmo com faturas pagas:
+   * esses campos não mudam os valores. Categoria nova precisa ser de despesa, do usuário e ativa.
+   */
+  updateInstallmentPurchase(
+    userId: string,
+    groupId: string,
+    changes: UpdateInstallmentPurchaseInput,
+  ): Promise<Transaction[]>;
+  /** Apaga todas as parcelas; alguma numa fatura já paga → `PaidInvoiceError`. */
+  removeInstallmentPurchase(userId: string, groupId: string): Promise<void>;
 }
 
 export function createTransactionsService({
@@ -489,5 +503,54 @@ export function createTransactionsService({
     },
 
     getInstallmentPurchase: getInstallments,
+
+    async updateInstallmentPurchase(userId, groupId, { description, categoryId, notes }) {
+      const installments = await getInstallments(userId, groupId);
+      const current = installments[0];
+      if (categoryId !== undefined && categoryId !== current?.categoryId) {
+        const category = await categories.findCategory(userId, categoryId);
+        if (category?.type !== 'expense') {
+          throw new InvalidInputError([
+            {
+              field: 'categoryId',
+              message: category
+                ? 'Selecione uma categoria de despesa.'
+                : 'Categoria não encontrada.',
+            },
+          ]);
+        }
+        if (category.isArchived) {
+          throw new ArchivedReferenceError(
+            `A categoria "${category.name}" está arquivada. Reative-a para usá-la.`,
+          );
+        }
+      }
+      const changes = {
+        ...(description !== undefined && { description }),
+        ...(categoryId !== undefined && { categoryId }),
+        ...(notes !== undefined && { notes }),
+      };
+      // Corpo vazio: nada a gravar (nem uma versão nova).
+      if (Object.keys(changes).length === 0) {
+        return installments;
+      }
+      return transactions.updateInstallments(userId, groupId, changes);
+    },
+
+    async removeInstallmentPurchase(userId, groupId) {
+      const installments = await getInstallments(userId, groupId);
+      const cardId = installments[0]?.creditCardId;
+      const card = cardId ? await creditCards.findCreditCard(userId, cardId) : null;
+      if (card) {
+        await assertInvoicesNotPaid(
+          userId,
+          card,
+          installments.map((installment) => invoiceCycleFor(card, installment.date).referenceMonth),
+        );
+      }
+      if ((await transactions.deleteInstallments(userId, groupId)) === 0) {
+        throw new InstallmentPurchaseNotFoundError();
+      }
+    },
   };
 }

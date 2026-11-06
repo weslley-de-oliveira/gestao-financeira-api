@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import type { Transaction } from '../../db/schema/index.ts';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
@@ -13,6 +14,7 @@ import {
   createInstallmentPurchaseBodySchema,
   installmentPurchaseParamsSchema,
   installmentPurchaseSchema,
+  updateInstallmentPurchaseBodySchema,
   type InstallmentPurchaseDto,
 } from './installments.schemas.ts';
 
@@ -103,6 +105,59 @@ export const installmentsRoutes: FastifyPluginCallbackZod = (app, _options, done
       toInstallmentPurchaseDto(
         await service.getInstallmentPurchase(currentAuth(request).user.id, request.params.id),
       ),
+  );
+
+  app.patch(
+    '/:id',
+    {
+      schema: {
+        tags: [INSTALLMENTS_TAG],
+        summary: 'Altera a compra parcelada',
+        description:
+          'Altera descrição, categoria e observações de todas as parcelas, inclusive as de faturas já pagas (esses campos não mudam os valores). Valor, número de parcelas, cartão e data não mudam: exclua a compra e registre de novo. Categoria nova precisa ser de despesa, do usuário (senão, 422) e ativa (arquivada responde 409).',
+        params: installmentPurchaseParamsSchema,
+        body: updateInstallmentPurchaseBodySchema,
+        response: {
+          200: installmentPurchaseSchema,
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          409: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request) =>
+      toInstallmentPurchaseDto(
+        await service.updateInstallmentPurchase(
+          currentAuth(request).user.id,
+          request.params.id,
+          request.body,
+        ),
+      ),
+  );
+
+  app.delete(
+    '/:id',
+    {
+      schema: {
+        tags: [INSTALLMENTS_TAG],
+        summary: 'Exclui a compra parcelada',
+        description:
+          'Apaga todas as parcelas. Se alguma estiver numa fatura já paga, responde 409 e nada muda: desfaça o pagamento antes.',
+        params: installmentPurchaseParamsSchema,
+        response: {
+          204: z.null().meta({ description: 'Compra excluída.' }),
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          409: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      await service.removeInstallmentPurchase(currentAuth(request).user.id, request.params.id);
+      return reply.status(204).send(null);
+    },
   );
 
   done();
