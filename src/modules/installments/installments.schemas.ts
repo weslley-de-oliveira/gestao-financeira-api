@@ -59,6 +59,19 @@ export const installmentPurchaseSchema = z
     categoryId: z.uuid(),
     notes: z.string().nullable(),
     installments: z.array(transactionSchema),
+    anticipatableCount: z.int().meta({
+      description:
+        'Quantas parcelas podem ir para a fatura atual (a que contém hoje): as de faturas seguintes e sem estornos.',
+    }),
+    cancellable: z
+      .object({
+        count: z.int(),
+        amount: z.int().meta({ description: 'Em centavos.' }),
+      })
+      .meta({
+        description:
+          'O que o cancelamento estornaria: o que falta estornar das parcelas da fatura atual e das futuras.',
+      }),
   })
   .meta({ id: 'InstallmentPurchase' });
 

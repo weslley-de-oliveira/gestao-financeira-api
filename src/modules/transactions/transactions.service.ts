@@ -12,13 +12,18 @@ import {
   INSTALLMENT_PROBLEM_TYPE,
   PAID_INVOICE_PROBLEM_TYPE,
 } from '../../shared/http/problem.ts';
-import { monthLabel } from '../../shared/utils/date.ts';
+import { monthLabel, type IsoDate } from '../../shared/utils/date.ts';
 import { formatCents } from '../../shared/utils/money.ts';
 import { TRANSACTION_DESCRIPTION_MAX_LENGTH } from './transactions.constants.ts';
 import { invoiceCycleFor } from '../../shared/utils/invoice-cycle.ts';
 import type { AccountsRepository } from '../accounts/accounts.repository.ts';
 import type { CategoriesRepository } from '../categories/categories.repository.ts';
 import type { CreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
+import {
+  anticipatableInstallments,
+  plannedCancellations,
+  type PlannedCancellation,
+} from '../installments/installment-actions.ts';
 import { planInstallments } from '../installments/installment-plan.ts';
 import type {
   CreateInstallmentPurchaseInput,
@@ -138,6 +143,20 @@ export interface TransactionsServiceDependencies {
   accounts: AccountsRepository;
   categories: CategoriesRepository;
   creditCards: CreditCardsRepository;
+  /** Data de hoje no fuso do app: define a fatura atual de uma compra parcelada. */
+  today: () => IsoDate;
+}
+
+/**
+ * As parcelas de uma compra, da 1ª à última, com o que a pessoa ainda pode fazer com elas hoje:
+ * antecipar as de faturas futuras e cancelar o que não foi cobrado.
+ */
+export interface InstallmentPurchaseDetails {
+  installments: Transaction[];
+  /** Parcelas que podem ir para a fatura atual, da última para a primeira. */
+  anticipatable: Transaction[];
+  /** Os estornos que o cancelamento criaria, da primeira parcela à última. */
+  cancellations: PlannedCancellation[];
 }
 
 export interface TransactionsService {
@@ -173,7 +192,7 @@ export interface TransactionsService {
   createInstallmentPurchase(
     userId: string,
     input: CreateInstallmentPurchaseInput,
-  ): Promise<Transaction[]>;
+  ): Promise<InstallmentPurchaseDetails>;
   /**
    * Registra o estorno de uma despesa realizada (inclusive uma parcela): na conta ou no cartão dela,
    * até o valor que falta estornar e não antes da data dela. Outro tipo, ou pendente →
@@ -187,7 +206,7 @@ export interface TransactionsService {
   /** Estornos de uma despesa do usuário; inexistente → `TransactionNotFoundError`. */
   listRefunds(userId: string, transactionId: string): Promise<Transaction[]>;
   /** Parcelas da compra; inexistente ou de outro usuário → `InstallmentPurchaseNotFoundError`. */
-  getInstallmentPurchase(userId: string, groupId: string): Promise<Transaction[]>;
+  getInstallmentPurchase(userId: string, groupId: string): Promise<InstallmentPurchaseDetails>;
   /**
    * Altera descrição, categoria e observações de todas as parcelas. Vale mesmo com faturas pagas:
    * esses campos não mudam os valores. Categoria nova precisa ser de despesa, do usuário e ativa.
@@ -196,7 +215,7 @@ export interface TransactionsService {
     userId: string,
     groupId: string,
     changes: UpdateInstallmentPurchaseInput,
-  ): Promise<Transaction[]>;
+  ): Promise<InstallmentPurchaseDetails>;
   /** Apaga todas as parcelas; alguma numa fatura já paga → `PaidInvoiceError`. */
   removeInstallmentPurchase(userId: string, groupId: string): Promise<void>;
 }
@@ -206,6 +225,7 @@ export function createTransactionsService({
   accounts,
   categories,
   creditCards,
+  today,
 }: TransactionsServiceDependencies): TransactionsService {
   async function get(userId: string, transactionId: string): Promise<Transaction> {
     const transaction = await transactions.findTransaction(userId, transactionId);
@@ -307,6 +327,33 @@ export function createTransactionsService({
       throw new InstallmentPurchaseNotFoundError();
     }
     return installments;
+  }
+
+  /** As parcelas com o que dá para antecipar e cancelar hoje, pelos estornos de cada uma. */
+  async function describeInstallments(
+    userId: string,
+    installments: Transaction[],
+  ): Promise<InstallmentPurchaseDetails> {
+    const cardId = installments[0]?.creditCardId;
+    const card = cardId ? await creditCards.findCreditCard(userId, cardId) : null;
+    if (!card) {
+      return { installments, anticipatable: [], cancellations: [] };
+    }
+    const refunded = await transactions.refundedTotals(
+      userId,
+      installments.map((installment) => installment.id),
+    );
+    const states = installments.map((installment) => ({
+      ...installment,
+      installmentNumber: installment.installmentNumber ?? 0,
+      refunded: refunded.get(installment.id) ?? 0,
+    }));
+    const date = today();
+    return {
+      installments,
+      anticipatable: anticipatableInstallments(card, states, date),
+      cancellations: plannedCancellations(card, states, date),
+    };
   }
 
   /** Nenhuma destas faturas do cartão pode estar paga; a primeira paga → `PaidInvoiceError`. */
@@ -618,7 +665,7 @@ export function createTransactionsService({
         plan.map((installment) => installment.referenceMonth),
       );
       const installmentGroupId = randomUUIDv7();
-      return transactions.insertTransactions(
+      const installments = await transactions.insertTransactions(
         plan.map((installment) => ({
           userId,
           type: 'expense',
@@ -634,9 +681,12 @@ export function createTransactionsService({
           installmentCount: input.installmentCount,
         })),
       );
+      return describeInstallments(userId, installments);
     },
 
-    getInstallmentPurchase: getInstallments,
+    async getInstallmentPurchase(userId, groupId) {
+      return describeInstallments(userId, await getInstallments(userId, groupId));
+    },
 
     async createRefund(userId, transactionId, input) {
       const original = await get(userId, transactionId);
@@ -716,9 +766,12 @@ export function createTransactionsService({
       };
       // Corpo vazio: nada a gravar (nem uma versão nova).
       if (Object.keys(changes).length === 0) {
-        return installments;
+        return describeInstallments(userId, installments);
       }
-      return transactions.updateInstallments(userId, groupId, changes);
+      return describeInstallments(
+        userId,
+        await transactions.updateInstallments(userId, groupId, changes),
+      );
     },
 
     async removeInstallmentPurchase(userId, groupId) {

@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
-import type { Transaction } from '../../db/schema/index.ts';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
 import { idempotencyHeadersSchema, idempotent } from '../../shared/http/idempotency.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
@@ -9,7 +8,10 @@ import { createCategoriesRepository } from '../categories/categories.repository.
 import { createCreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
 import { createTransactionsRepository } from '../transactions/transactions.repository.ts';
 import { toTransactionDto } from '../transactions/transactions.schemas.ts';
-import { createTransactionsService } from '../transactions/transactions.service.ts';
+import {
+  createTransactionsService,
+  type InstallmentPurchaseDetails,
+} from '../transactions/transactions.service.ts';
 import {
   createInstallmentPurchaseBodySchema,
   installmentPurchaseParamsSchema,
@@ -21,7 +23,11 @@ import {
 export const INSTALLMENTS_TAG = 'Compras parceladas';
 
 /** A compra parcelada a partir das parcelas (todas do mesmo grupo, da 1ª à última). */
-export function toInstallmentPurchaseDto(installments: Transaction[]): InstallmentPurchaseDto {
+export function toInstallmentPurchaseDto({
+  installments,
+  anticipatable,
+  cancellations,
+}: InstallmentPurchaseDetails): InstallmentPurchaseDto {
   const [first] = installments;
   if (!first?.installmentGroupId || !first.creditCardId || !first.categoryId) {
     throw new Error('Parcelas sem grupo, cartão ou categoria.');
@@ -35,6 +41,11 @@ export function toInstallmentPurchaseDto(installments: Transaction[]): Installme
     categoryId: first.categoryId,
     notes: first.notes,
     installments: installments.map(toTransactionDto),
+    anticipatableCount: anticipatable.length,
+    cancellable: {
+      count: cancellations.length,
+      amount: cancellations.reduce((total, cancellation) => total + cancellation.amount, 0),
+    },
   };
 }
 
@@ -49,6 +60,7 @@ export const installmentsRoutes: FastifyPluginCallbackZod = (app, _options, done
     accounts: createAccountsRepository(app.db),
     categories: createCategoriesRepository(app.db),
     creditCards: createCreditCardsRepository(app.db),
+    today: () => app.today(),
   });
 
   app.post(

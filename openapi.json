@@ -1364,6 +1364,30 @@
           "installments": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/TransactionInput" }
+          },
+          "anticipatableCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Quantas parcelas podem ir para a fatura atual (a que contém hoje): as de faturas seguintes e sem estornos."
+          },
+          "cancellable": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Em centavos."
+              }
+            },
+            "required": ["count", "amount"],
+            "description": "O que o cancelamento estornaria: o que falta estornar das parcelas da fatura atual e das futuras."
           }
         },
         "required": [
@@ -1374,7 +1398,9 @@
           "creditCardId",
           "categoryId",
           "notes",
-          "installments"
+          "installments",
+          "anticipatableCount",
+          "cancellable"
         ]
       },
       "ProblemDetails": {
@@ -2760,6 +2786,31 @@
           "installments": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/Transaction" }
+          },
+          "anticipatableCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Quantas parcelas podem ir para a fatura atual (a que contém hoje): as de faturas seguintes e sem estornos."
+          },
+          "cancellable": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Em centavos."
+              }
+            },
+            "required": ["count", "amount"],
+            "additionalProperties": false,
+            "description": "O que o cancelamento estornaria: o que falta estornar das parcelas da fatura atual e das futuras."
           }
         },
         "required": [
@@ -2770,7 +2821,9 @@
           "creditCardId",
           "categoryId",
           "notes",
-          "installments"
+          "installments",
+          "anticipatableCount",
+          "cancellable"
         ],
         "additionalProperties": false
       }

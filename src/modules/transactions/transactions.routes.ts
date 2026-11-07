@@ -32,6 +32,7 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
     accounts: createAccountsRepository(app.db),
     categories: createCategoriesRepository(app.db),
     creditCards: createCreditCardsRepository(app.db),
+    today: () => app.today(),
   });
 
   app.get(
