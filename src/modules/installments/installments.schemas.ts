@@ -44,6 +44,19 @@ export const updateInstallmentPurchaseBodySchema = z
 
 export type UpdateInstallmentPurchaseInput = z.infer<typeof updateInstallmentPurchaseBodySchema>;
 
+/** Quantas das últimas parcelas vão para a fatura atual. */
+export const anticipateInstallmentsBodySchema = z
+  .strictObject({
+    count: z
+      .int('Informe quantas parcelas antecipar.')
+      .min(1, 'Antecipe pelo menos 1 parcela.')
+      .max(MAX_INSTALLMENTS - 1, `Antecipe no máximo ${MAX_INSTALLMENTS - 1} parcelas.`)
+      .meta({ description: 'Quantas parcelas antecipar, a partir da última.' }),
+  })
+  .meta({ id: 'AnticipateInstallments' });
+
+export type AnticipateInstallmentsInput = z.infer<typeof anticipateInstallmentsBodySchema>;
+
 export const installmentPurchaseParamsSchema = z.object({
   id: z.uuid('Identificador de compra parcelada inválido.'),
 });

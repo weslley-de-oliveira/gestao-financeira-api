@@ -53,6 +53,8 @@ export interface TransactionsRepository {
   ): Promise<Transaction[]>;
   /** Apaga todas as parcelas da compra; devolve quantas apagou. */
   deleteInstallments(userId: string, groupId: string): Promise<number>;
+  /** Muda a data destas transações do usuário, numa só gravação. */
+  moveTransactions(userId: string, transactionIds: readonly string[], date: string): Promise<void>;
   /** O primeiro destes meses de referência do cartão cuja fatura já tem pagamento, ou `null`. */
   firstPaidInvoiceMonth(
     userId: string,
@@ -185,6 +187,16 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
         .where(and(eq(transactions.userId, userId), eq(transactions.installmentGroupId, groupId)))
         .returning({ id: transactions.id });
       return deleted.length;
+    },
+
+    async moveTransactions(userId, transactionIds, date) {
+      if (transactionIds.length === 0) {
+        return;
+      }
+      await db
+        .update(transactions)
+        .set({ date })
+        .where(and(eq(transactions.userId, userId), inArray(transactions.id, [...transactionIds])));
     },
 
     async firstPaidInvoiceMonth(userId, creditCardId, invoiceMonths) {

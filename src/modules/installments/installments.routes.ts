@@ -13,6 +13,7 @@ import {
   type InstallmentPurchaseDetails,
 } from '../transactions/transactions.service.ts';
 import {
+  anticipateInstallmentsBodySchema,
   createInstallmentPurchaseBodySchema,
   installmentPurchaseParamsSchema,
   installmentPurchaseSchema,
@@ -169,6 +170,41 @@ export const installmentsRoutes: FastifyPluginCallbackZod = (app, _options, done
     async (request, reply) => {
       await service.removeInstallmentPurchase(currentAuth(request).user.id, request.params.id);
       return reply.status(204).send(null);
+    },
+  );
+
+  app.post(
+    '/:id/anticipation',
+    {
+      schema: {
+        tags: [INSTALLMENTS_TAG],
+        summary: 'Antecipa parcelas',
+        description:
+          'Leva as últimas `count` parcelas para a fatura atual (a que contém hoje): a data delas passa a ser hoje, sem mudar número nem valor. Só as parcelas de faturas seguintes e sem estornos podem ser antecipadas (`anticipatableCount`); pedir mais responde 422 no `count`, e não haver nenhuma responde 409. Desconto do banco é registrado como estorno da parcela antecipada. Com `Idempotency-Key`, repetir o pedido não antecipa outras parcelas.',
+        headers: idempotencyHeadersSchema,
+        params: installmentPurchaseParamsSchema,
+        body: anticipateInstallmentsBodySchema,
+        response: {
+          200: installmentPurchaseSchema,
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          409: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = currentAuth(request).user.id;
+      return idempotent(
+        reply,
+        { db: app.db, userId, key: request.headers['idempotency-key'], request, now: new Date() },
+        async () => ({
+          statusCode: 200,
+          body: toInstallmentPurchaseDto(
+            await service.anticipateInstallments(userId, request.params.id, request.body),
+          ),
+        }),
+      );
     },
   );
 

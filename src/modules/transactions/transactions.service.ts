@@ -26,6 +26,7 @@ import {
 } from '../installments/installment-actions.ts';
 import { planInstallments } from '../installments/installment-plan.ts';
 import type {
+  AnticipateInstallmentsInput,
   CreateInstallmentPurchaseInput,
   UpdateInstallmentPurchaseInput,
 } from '../installments/installments.schemas.ts';
@@ -107,6 +108,15 @@ export class InstallmentNotEditableError extends DomainError {
     super(
       'Esta transação é uma parcela: altere ou exclua a compra parcelada inteira (/v1/installment-purchases).',
     );
+  }
+}
+
+/** Nenhuma parcela de fatura futura sem estornos: não há o que antecipar. */
+export class NothingToAnticipateError extends DomainError {
+  readonly kind = 'conflict';
+
+  constructor() {
+    super('Não há parcelas a antecipar: as que faltam já estão na fatura atual ou têm estornos.');
   }
 }
 
@@ -218,6 +228,16 @@ export interface TransactionsService {
   ): Promise<InstallmentPurchaseDetails>;
   /** Apaga todas as parcelas; alguma numa fatura já paga → `PaidInvoiceError`. */
   removeInstallmentPurchase(userId: string, groupId: string): Promise<void>;
+  /**
+   * Leva as últimas `count` parcelas que podem ser antecipadas para a fatura atual (a data delas
+   * passa a ser hoje). Nenhuma → `NothingToAnticipateError`; mais do que as possíveis →
+   * `InvalidInputError` no `count`.
+   */
+  anticipateInstallments(
+    userId: string,
+    groupId: string,
+    input: AnticipateInstallmentsInput,
+  ): Promise<InstallmentPurchaseDetails>;
 }
 
 export function createTransactionsService({
@@ -794,6 +814,38 @@ export function createTransactionsService({
       if ((await transactions.deleteInstallments(userId, groupId)) === 0) {
         throw new InstallmentPurchaseNotFoundError();
       }
+    },
+
+    async anticipateInstallments(userId, groupId, { count }) {
+      const { installments, anticipatable } = await describeInstallments(
+        userId,
+        await getInstallments(userId, groupId),
+      );
+      if (anticipatable.length === 0) {
+        throw new NothingToAnticipateError();
+      }
+      if (count > anticipatable.length) {
+        throw new InvalidInputError([
+          {
+            field: 'count',
+            message:
+              anticipatable.length === 1
+                ? 'Só 1 parcela pode ser antecipada.'
+                : `Só ${anticipatable.length} parcelas podem ser antecipadas.`,
+          },
+        ]);
+      }
+      const date = today();
+      const cardId = installments[0]?.creditCardId;
+      if (cardId) {
+        await assertInvoiceNotPaid(userId, cardId, date);
+      }
+      await transactions.moveTransactions(
+        userId,
+        anticipatable.slice(0, count).map((installment) => installment.id),
+        date,
+      );
+      return describeInstallments(userId, await getInstallments(userId, groupId));
     },
   };
 }

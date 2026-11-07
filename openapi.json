@@ -1329,6 +1329,19 @@
         },
         "additionalProperties": false
       },
+      "AnticipateInstallmentsInput": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 23,
+            "description": "Quantas parcelas antecipar, a partir da última."
+          }
+        },
+        "required": ["count"],
+        "additionalProperties": false
+      },
       "InstallmentPurchaseInput": {
         "type": "object",
         "properties": {
@@ -2749,6 +2762,19 @@
           },
           "notes": {}
         },
+        "additionalProperties": false
+      },
+      "AnticipateInstallments": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 23,
+            "description": "Quantas parcelas antecipar, a partir da última."
+          }
+        },
+        "required": ["count"],
         "additionalProperties": false
       },
       "InstallmentPurchase": {
@@ -4435,6 +4461,79 @@
         ],
         "responses": {
           "204": { "description": "Compra excluída." },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/installment-purchases/{id}/anticipation": {
+      "post": {
+        "summary": "Antecipa parcelas",
+        "tags": ["Compras parceladas"],
+        "description": "Leva as últimas `count` parcelas para a fatura atual (a que contém hoje): a data delas passa a ser hoje, sem mudar número nem valor. Só as parcelas de faturas seguintes e sem estornos podem ser antecipadas (`anticipatableCount`); pedir mais responde 422 no `count`, e não haver nenhuma responde 409. Desconto do banco é registrado como estorno da parcela antecipada. Com `Idempotency-Key`, repetir o pedido não antecipa outras parcelas.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AnticipateInstallmentsInput" }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "example": "0b9d6a3e-6c1f-4f7a-9d1e-2f0f5d7c9a11",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false,
+            "description": "Chave única por operação (ex.: um UUID gerado ao abrir a confirmação). Repetir a requisição com a mesma chave em até 24 horas devolve a resposta da primeira, sem executar de novo."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InstallmentPurchase" }
+              }
+            }
+          },
           "401": {
             "description": "Default Response",
             "content": {
