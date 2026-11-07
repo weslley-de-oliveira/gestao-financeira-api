@@ -1,4 +1,5 @@
 import { and, asc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { Database } from '../../db/client.ts';
 import { isUniqueViolation } from '../../db/errors.ts';
 import { alphabetical } from '../../db/order.ts';
@@ -21,7 +22,7 @@ export interface BudgetsRepository {
   listBudgets(userId: string): Promise<BudgetWithLimits[]>;
   /**
    * Despesas do usuário no período, somadas por categoria: realizadas (`spent`) e pendentes
-   * (`pending`). Compras no cartão entram pela data da compra (parcelas, pela data de cada parcela). Mesma regra de `budgetProgress`.
+   * (`pending`). Compras no cartão entram pela data da compra (parcelas, pela data de cada parcela); estornos, na categoria da despesa estornada, descontam o gasto do mês deles (sem passar de zero). Mesma regra de `budgetProgress`.
    */
   spendingByCategory(
     userId: string,
@@ -94,28 +95,39 @@ export function createBudgetsRepository(db: Database): BudgetsRepository {
       if (categoryIds.length === 0) {
         return new Map();
       }
+      // O estorno não guarda a categoria: é a da despesa estornada.
+      const refunded = alias(transactions, 'refunded');
+      const category = sql<string>`coalesce(${transactions.categoryId}, ${refunded.categoryId})`;
       const rows = await db
         .select({
-          categoryId: transactions.categoryId,
-          spent: sql<string>`coalesce(sum(${transactions.amount}) filter (where ${transactions.status} = 'completed'), 0)`,
-          pending: sql<string>`coalesce(sum(${transactions.amount}) filter (where ${transactions.status} = 'pending'), 0)`,
+          categoryId: category,
+          spent: sql<string>`coalesce(sum(case
+            when ${transactions.type} = 'expense' and ${transactions.status} = 'completed'
+              then ${transactions.amount}
+            when ${transactions.type} = 'refund' then -${transactions.amount}
+          end), 0)`,
+          pending: sql<string>`coalesce(sum(${transactions.amount}) filter (
+            where ${transactions.type} = 'expense' and ${transactions.status} = 'pending'
+          ), 0)`,
         })
         .from(transactions)
+        .leftJoin(refunded, eq(refunded.id, transactions.refundedTransactionId))
         .where(
           and(
             eq(transactions.userId, userId),
-            eq(transactions.type, 'expense'),
-            inArray(transactions.categoryId, [...categoryIds]),
+            inArray(transactions.type, ['expense', 'refund']),
+            inArray(category, [...categoryIds]),
             gte(transactions.date, start),
             lte(transactions.date, end),
           ),
         )
-        .groupBy(transactions.categoryId);
-      // `sum` de bigint vem como texto (numeric); os valores cabem com folga em um `number`.
+        .groupBy(category);
+      // `sum` de bigint vem como texto (numeric); os valores cabem com folga em um `number`. Um
+      // mês com mais estornos que despesas não fica com gasto negativo.
       return new Map(
         rows.map((row) => [
-          row.categoryId ?? '',
-          { spent: Number(row.spent), pending: Number(row.pending) },
+          row.categoryId,
+          { spent: Math.max(0, Number(row.spent)), pending: Number(row.pending) },
         ]),
       );
     },

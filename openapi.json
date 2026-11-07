@@ -12,7 +12,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "description": "Tipo do problema: `/problems/validation-error` (422 com `errors`), `/problems/paid-invoice` (409: compra de fatura já paga), `/problems/archived-reference` (409: conta, cartão ou categoria arquivada), `/problems/installment` (409: parcela alterada sozinha; use a compra parcelada); `about:blank` quando o status já basta.",
+            "description": "Tipo do problema: `/problems/validation-error` (422 com `errors`), `/problems/paid-invoice` (409: compra de fatura já paga), `/problems/archived-reference` (409: conta, cartão ou categoria arquivada), `/problems/installment` (409: parcela alterada sozinha; use a compra parcelada), `/problems/has-refunds` (409: despesa com estornos); `about:blank` quando o status já basta.",
             "example": "about:blank"
           },
           "title": { "type": "string", "example": "Recurso não encontrado" },
@@ -668,7 +668,7 @@
           },
           "type": {
             "type": "string",
-            "enum": ["expense", "income", "transfer", "invoice-payment"],
+            "enum": ["expense", "income", "transfer", "invoice-payment", "refund"],
             "description": "`expense` (despesa), `income` (receita), `transfer` (transferência) ou `invoice-payment` (pagamento de fatura)."
           },
           "description": { "type": "string" },
@@ -759,6 +759,17 @@
             ],
             "description": "Total de parcelas da compra."
           },
+          "refundedTransactionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              { "type": "null" }
+            ],
+            "description": "Despesa estornada; só em `refund` (a categoria do estorno é a dela)."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -787,6 +798,7 @@
           "installmentGroupId",
           "installmentNumber",
           "installmentCount",
+          "refundedTransactionId",
           "createdAt",
           "updatedAt"
         ]
@@ -937,6 +949,35 @@
           }
         },
         "required": ["count", "income", "expense", "net", "pendingCount"]
+      },
+      "CreateRefundInput": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "description": "Padrão: \"Estorno: \" seguido da descrição da despesa.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "example": "Mercado do mês"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000000,
+            "description": "Valor estornado, em centavos; no máximo o que falta estornar da despesa.",
+            "example": 123456
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "example": "2026-11-05",
+            "description": "Data do estorno; não pode ser anterior à despesa."
+          },
+          "notes": { "anyOf": [{ "type": "string", "maxLength": 500 }, { "type": "null" }] }
+        },
+        "required": ["amount", "date"],
+        "additionalProperties": false
       },
       "DashboardInput": {
         "type": "object",
@@ -1203,6 +1244,11 @@
           "purchases": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/TransactionInput" }
+          },
+          "refunds": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TransactionInput" },
+            "description": "Estornos lançados no ciclo."
           }
         },
         "required": [
@@ -1215,7 +1261,8 @@
           "total",
           "status",
           "payment",
-          "purchases"
+          "purchases",
+          "refunds"
         ]
       },
       "CreateInstallmentPurchaseInput": {
@@ -1335,7 +1382,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "description": "Tipo do problema: `/problems/validation-error` (422 com `errors`), `/problems/paid-invoice` (409: compra de fatura já paga), `/problems/archived-reference` (409: conta, cartão ou categoria arquivada), `/problems/installment` (409: parcela alterada sozinha; use a compra parcelada); `about:blank` quando o status já basta.",
+            "description": "Tipo do problema: `/problems/validation-error` (422 com `errors`), `/problems/paid-invoice` (409: compra de fatura já paga), `/problems/archived-reference` (409: conta, cartão ou categoria arquivada), `/problems/installment` (409: parcela alterada sozinha; use a compra parcelada), `/problems/has-refunds` (409: despesa com estornos); `about:blank` quando o status já basta.",
             "example": "about:blank"
           },
           "title": { "type": "string", "example": "Recurso não encontrado" },
@@ -2003,7 +2050,7 @@
           },
           "type": {
             "type": "string",
-            "enum": ["expense", "income", "transfer", "invoice-payment"],
+            "enum": ["expense", "income", "transfer", "invoice-payment", "refund"],
             "description": "`expense` (despesa), `income` (receita), `transfer` (transferência) ou `invoice-payment` (pagamento de fatura)."
           },
           "description": { "type": "string" },
@@ -2094,6 +2141,17 @@
             ],
             "description": "Total de parcelas da compra."
           },
+          "refundedTransactionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              { "type": "null" }
+            ],
+            "description": "Despesa estornada; só em `refund` (a categoria do estorno é a dela)."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -2122,6 +2180,7 @@
           "installmentGroupId",
           "installmentNumber",
           "installmentCount",
+          "refundedTransactionId",
           "createdAt",
           "updatedAt"
         ],
@@ -2280,6 +2339,35 @@
           }
         },
         "required": ["count", "income", "expense", "net", "pendingCount"],
+        "additionalProperties": false
+      },
+      "CreateRefund": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "description": "Padrão: \"Estorno: \" seguido da descrição da despesa.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "example": "Mercado do mês"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000000,
+            "description": "Valor estornado, em centavos; no máximo o que falta estornar da despesa.",
+            "example": 123456
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "example": "2026-11-05",
+            "description": "Data do estorno; não pode ser anterior à despesa."
+          },
+          "notes": {}
+        },
+        "required": ["amount", "date", "notes"],
         "additionalProperties": false
       },
       "Dashboard": {
@@ -2550,7 +2638,12 @@
             "anyOf": [{ "$ref": "#/components/schemas/Transaction" }, { "type": "null" }],
             "description": "A transação `invoice-payment` da fatura, se paga."
           },
-          "purchases": { "type": "array", "items": { "$ref": "#/components/schemas/Transaction" } }
+          "purchases": { "type": "array", "items": { "$ref": "#/components/schemas/Transaction" } },
+          "refunds": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Transaction" },
+            "description": "Estornos lançados no ciclo."
+          }
         },
         "required": [
           "referenceMonth",
@@ -2562,7 +2655,8 @@
           "total",
           "status",
           "payment",
-          "purchases"
+          "purchases",
+          "refunds"
         ],
         "additionalProperties": false
       },
@@ -3548,7 +3642,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["expense", "income", "transfer", "invoice-payment"]
+              "enum": ["expense", "income", "transfer", "invoice-payment", "refund"]
             },
             "in": "query",
             "name": "type",
@@ -3701,7 +3795,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["expense", "income", "transfer", "invoice-payment"]
+              "enum": ["expense", "income", "transfer", "invoice-payment", "refund"]
             },
             "in": "query",
             "name": "type",
@@ -3826,7 +3920,7 @@
       "patch": {
         "summary": "Edita uma transação",
         "tags": ["Transações"],
-        "description": "Os campos enviados são aplicados sobre a transação e o resultado segue as regras do cadastro. Ao trocar o tipo, os campos que não servem ao novo tipo são descartados (a categoria, ao virar transferência; a conta de destino, ao virar receita ou despesa). `notes: null` remove as observações. Contas e categoria que a transação já tinha continuam aceitas mesmo se arquivadas depois; trocar por uma arquivada responde 409, assim como editar pagamento de fatura e editar compra de fatura já paga (ou movê-la para uma fatura paga) e editar uma parcela sozinha (`/problems/installment`: altere a compra parcelada).",
+        "description": "Os campos enviados são aplicados sobre a transação e o resultado segue as regras do cadastro. Ao trocar o tipo, os campos que não servem ao novo tipo são descartados (a categoria, ao virar transferência; a conta de destino, ao virar receita ou despesa). `notes: null` remove as observações. Contas e categoria que a transação já tinha continuam aceitas mesmo se arquivadas depois; trocar por uma arquivada responde 409, assim como editar pagamento de fatura e editar compra de fatura já paga (ou movê-la para uma fatura paga) e editar uma parcela sozinha (`/problems/installment`: altere a compra parcelada). Num estorno, só mudam descrição, valor (até o que falta estornar) e data. Uma despesa com estornos só muda descrição, categoria e observações; o resto responde 409 (`/problems/has-refunds`).",
         "requestBody": {
           "required": true,
           "content": {
@@ -3949,7 +4043,7 @@
       "delete": {
         "summary": "Exclui uma transação",
         "tags": ["Transações"],
-        "description": "Remove a transação de vez. Pagamento de fatura responde 409 (é desfeito pela fatura), assim como compra de fatura já paga (desfaça o pagamento antes) e parcela de compra parcelada (`/problems/installment`: exclua a compra inteira).",
+        "description": "Remove a transação de vez. Pagamento de fatura responde 409 (é desfeito pela fatura), assim como compra de fatura já paga (desfaça o pagamento antes) e parcela de compra parcelada (`/problems/installment`: exclua a compra inteira). Despesa com estornos também responde 409 (`/problems/has-refunds`): exclua os estornos antes.",
         "parameters": [
           {
             "schema": {
@@ -3977,6 +4071,123 @@
             }
           },
           "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/transactions/{id}/refunds": {
+      "post": {
+        "summary": "Estorna uma despesa",
+        "tags": ["Transações"],
+        "description": "Cria um estorno (`refund`) da despesa realizada, na conta ou no cartão dela: devolve o valor à conta ou abate a fatura em que a data do estorno cai, e reduz o gasto da categoria da despesa no mês do estorno. Pode haver vários estornos, até o valor da despesa (passar disso, ou data anterior à despesa, responde 422 no campo). Outro tipo de transação, ou despesa pendente, responde 409; no cartão, estorno numa fatura já paga também. Com `Idempotency-Key`, repetir o pedido devolve o mesmo estorno.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreateRefundInput" } }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "example": "0b9d6a3e-6c1f-4f7a-9d1e-2f0f5d7c9a11",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false,
+            "description": "Chave única por operação (ex.: um UUID gerado ao abrir a confirmação). Repetir a requisição com a mesma chave em até 24 horas devolve a resposta da primeira, sem executar de novo."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Transaction" } }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Lista os estornos de uma despesa",
+        "tags": ["Transações"],
+        "description": "Estornos da despesa, dos mais antigos aos mais recentes.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Transaction" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
             "description": "Default Response",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }

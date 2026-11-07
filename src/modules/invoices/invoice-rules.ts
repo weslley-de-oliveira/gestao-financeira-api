@@ -16,20 +16,26 @@ export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 type Card = CardDays & { id: string };
 
 /**
- * Fatura calculada a partir das transações: não é persistida. O total é sempre a soma das compras
- * do ciclo, e o pagamento é a transação `invoice-payment` do cartão e do mês de referência.
+ * Fatura calculada a partir das transações: não é persistida. O total é a soma das compras do
+ * ciclo menos os estornos lançados nele (negativo: a fatura tem crédito, que não passa para a
+ * seguinte), e o pagamento é a transação `invoice-payment` do cartão e do mês de referência.
  */
 export interface Invoice extends InvoiceCycle {
   creditCardId: string;
   total: Cents;
   /** Compras do ciclo, das mais recentes para as mais antigas. */
   purchases: Transaction[];
+  /** Estornos lançados no ciclo, dos mais recentes para os mais antigos. */
+  refunds: Transaction[];
   payment: Transaction | null;
   status: InvoiceStatus;
 }
 
 const isCardPurchase = (transaction: Transaction, creditCardId: string) =>
   transaction.type === 'expense' && transaction.creditCardId === creditCardId;
+
+const isCardRefund = (transaction: Transaction, creditCardId: string) =>
+  transaction.type === 'refund' && transaction.creditCardId === creditCardId;
 
 const isInvoicePayment = (transaction: Transaction, creditCardId: string) =>
   transaction.type === 'invoice-payment' && transaction.creditCardId === creditCardId;
@@ -59,22 +65,26 @@ export function buildInvoice(
   today: IsoDate,
 ): Invoice {
   const cycle = invoiceCycleForMonth(card, referenceMonth);
-  const purchases = transactions
-    .filter(
-      (transaction) =>
-        isCardPurchase(transaction, card.id) &&
-        transaction.date >= cycle.start &&
-        transaction.date <= cycle.end,
-    )
-    // O id é UUID v7: no mesmo dia, a registrada por último vem primeiro.
-    .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  const inCycle = (matches: (transaction: Transaction, creditCardId: string) => boolean) =>
+    transactions
+      .filter(
+        (transaction) =>
+          matches(transaction, card.id) &&
+          transaction.date >= cycle.start &&
+          transaction.date <= cycle.end,
+      )
+      // O id é UUID v7: no mesmo dia, a registrada por último vem primeiro.
+      .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  const purchases = inCycle(isCardPurchase);
+  const refunds = inCycle(isCardRefund);
   const payment = findPayment(card.id, transactions, referenceMonth);
 
   return {
     ...cycle,
     creditCardId: card.id,
-    total: purchases.reduce((total, purchase) => total + purchase.amount, 0),
+    total: sum(purchases) - sum(refunds),
     purchases,
+    refunds,
     payment,
     status: invoiceStatus(cycle, payment, today),
   };
@@ -91,7 +101,7 @@ export function listInvoices(
 ): Invoice[] {
   const months = new Set([invoiceCycleFor(card, today).referenceMonth]);
   for (const transaction of transactions) {
-    if (isCardPurchase(transaction, card.id)) {
+    if (isCardPurchase(transaction, card.id) || isCardRefund(transaction, card.id)) {
       months.add(invoiceCycleFor(card, transaction.date).referenceMonth);
     } else if (isInvoicePayment(transaction, card.id) && transaction.invoiceMonth) {
       months.add(transaction.invoiceMonth);
@@ -118,6 +128,10 @@ export function isInvoicePaidFor(
 ): boolean {
   const { referenceMonth } = invoiceCycleFor(card, purchaseDate);
   return findPayment(card.id, transactions, referenceMonth) !== null;
+}
+
+function sum(transactions: readonly Transaction[]): Cents {
+  return transactions.reduce((total, transaction) => total + transaction.amount, 0);
 }
 
 function findPayment(

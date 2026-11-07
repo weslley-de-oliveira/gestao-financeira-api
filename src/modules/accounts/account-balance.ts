@@ -33,7 +33,9 @@ export function movementEffect(movement: BalanceMovement, accountId: string): Ce
   }
 
   switch (movement.type) {
+    // O estorno de uma despesa em conta devolve o valor a ela (o do cartão abate a fatura).
     case 'income':
+    case 'refund':
       return movement.accountId === accountId ? movement.amount : 0;
     // O pagamento de fatura sai da conta como uma despesa, mas não é contado como despesa nos
     // totais: as compras do cartão já foram.

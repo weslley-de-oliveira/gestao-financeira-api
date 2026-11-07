@@ -168,6 +168,73 @@ describe('tabela transactions', () => {
     await expect(insert(values())).rejects.toMatchObject(shapeViolation);
   });
 
+  describe('estornos', () => {
+    const refundOf = async (original: NewTransaction, overrides: Partial<NewTransaction> = {}) => {
+      const [expenseRow] = await insert(original);
+      return {
+        userId: original.userId,
+        description: 'Estorno',
+        amount: 1_000,
+        type: 'refund' as const,
+        date: '2026-11-08',
+        accountId: original.accountId ?? null,
+        creditCardId: original.creditCardId ?? null,
+        categoryId: null,
+        refundedTransactionId: expenseRow!.id,
+        ...overrides,
+      };
+    };
+
+    it('aceita o estorno de uma despesa em conta e de uma compra no cartão', async () => {
+      await expect(insert(await refundOf(expense))).resolves.toHaveLength(1);
+      await expect(insert(await refundOf(cardPurchase))).resolves.toHaveLength(1);
+    });
+
+    it.each([
+      [
+        'estorno sem despesa',
+        (refund: NewTransaction) => ({ ...refund, refundedTransactionId: null }),
+        'transactions_refund_link',
+      ],
+      [
+        'despesa apontando para outra',
+        (refund: NewTransaction) => ({
+          ...expense,
+          refundedTransactionId: refund.refundedTransactionId,
+        }),
+        'transactions_refund_link',
+      ],
+      [
+        'estorno com categoria',
+        (refund: NewTransaction) => ({ ...refund, categoryId: owner.food.id }),
+        'transactions_shape',
+      ],
+      [
+        'estorno sem conta nem cartão',
+        (refund: NewTransaction) => ({ ...refund, accountId: null }),
+        'transactions_shape',
+      ],
+      [
+        'estorno pendente',
+        (refund: NewTransaction) => ({ ...refund, status: 'pending' as const }),
+        'transactions_shape',
+      ],
+    ])('rejeita %s', async (_case, change, constraint) => {
+      const refund = await refundOf(expense);
+
+      await expect(insert(change(refund))).rejects.toMatchObject(violation('23514', constraint));
+    });
+
+    it('rejeita estorno de despesa de outro usuário', async () => {
+      const other = await createOwner();
+      const refund = await refundOf(expense);
+
+      await expect(
+        insert({ ...refund, userId: other.user.id, accountId: other.checking.id }),
+      ).rejects.toMatchObject(violation('23503', 'transactions_refunded_transaction_fk'));
+    });
+  });
+
   describe('parcelas', () => {
     const installmentViolation = violation('23514', 'transactions_installment_shape');
     const parcel = (overrides: Partial<NewTransaction> = {}): NewTransaction => ({

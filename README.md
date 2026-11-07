@@ -41,7 +41,7 @@ test/                # Postgres de teste, helpers e testes que cruzam módulos (
 
 - **Isolamento entre usuários:** toda consulta filtra pelo usuário da sessão; o recurso de outra pessoa responde 404, como um id que não existe (`test/isolation-matrix.test.ts` cobre cada rota com id).
 - **Regras iguais às do front:** saldos, faturas, orçamentos e metas seguem as mesmas regras do front, com testes de paridade (`*.parity.test.ts`); somas grandes são feitas em SQL.
-- **Erros:** sempre Problem Details (RFC 9457), com `errors[]` por campo nos 422 e o `x-request-id` para encontrar o log. Os conflitos que o cliente trata de forma diferente têm `type` próprio: `/problems/paid-invoice` (compra de fatura já paga), `/problems/archived-reference` (conta, cartão ou categoria arquivada) e `/problems/installment` (parcela alterada sozinha).
+- **Erros:** sempre Problem Details (RFC 9457), com `errors[]` por campo nos 422 e o `x-request-id` para encontrar o log. Os conflitos que o cliente trata de forma diferente têm `type` próprio: `/problems/paid-invoice` (compra de fatura já paga), `/problems/archived-reference` (conta, cartão ou categoria arquivada), `/problems/installment` (parcela alterada sozinha) e `/problems/has-refunds` (despesa com estornos).
 
 ## Listagem de transações
 
@@ -60,6 +60,24 @@ test/                # Postgres de teste, helpers e testes que cruzam módulos (
   - `POST /v1/installment-purchases`, com `Idempotency-Key`: repetir o pedido não duplica as parcelas.
   - `GET`, `PATCH` e `DELETE /v1/installment-purchases/{id}`. O `PATCH` muda só descrição, categoria e observações, em todas as parcelas, inclusive as de faturas pagas, porque esses campos não mudam valores. O `DELETE` recusa (409) se alguma parcela estiver numa fatura paga.
   - Alterar ou excluir uma parcela sozinha em `/v1/transactions/{id}` responde 409 (`/problems/installment`). Para mudar valor, número de parcelas, cartão ou data, exclua a compra e registre de novo.
+
+## Estornos
+
+- **Tipo `refund`**, ligado à despesa estornada (`refundedTransactionId`, chave estrangeira composta com o dono). Leva a conta ou o cartão da despesa e não guarda categoria: usa a da despesa, buscada na consulta.
+- **Regras:**
+  - Só despesas realizadas recebem estorno, inclusive uma parcela.
+  - Pode haver vários estornos, até o valor da despesa, e a data não pode ser anterior à dela.
+  - `POST /v1/transactions/{id}/refunds` (com `Idempotency-Key`) cria o estorno, e `GET` lista os estornos da despesa.
+  - O estorno é uma transação: edita-se (descrição, valor, data) e exclui-se por `/v1/transactions/{id}`.
+- **Efeitos, no mês da data do estorno:**
+  - A conta recebe o valor.
+  - No cartão, o estorno abate a fatura em que cai e libera o limite. A fatura pode ficar com crédito, que não passa para a seguinte.
+  - O orçamento desconta o gasto da categoria, sem ficar negativo.
+  - Totais e dashboard tratam o estorno como despesa negativa.
+- **Travas:**
+  - Estorno em fatura paga responde 409 (`/problems/paid-invoice`).
+  - A despesa com estornos só muda descrição, categoria e observações.
+  - Ela não é excluída, nem a compra parcelada com parcela estornada, até os estornos saírem (409, `/problems/has-refunds`).
 
 ## Segurança
 

@@ -34,6 +34,7 @@ function transaction(overrides: Partial<Transaction>): Transaction {
     installmentGroupId: null,
     installmentNumber: null,
     installmentCount: null,
+    refundedTransactionId: null,
     createdAt: new Date('2026-11-01T10:00:00.000Z'),
     updatedAt: new Date('2026-11-01T10:00:00.000Z'),
     ...overrides,

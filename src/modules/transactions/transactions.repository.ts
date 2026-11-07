@@ -22,7 +22,8 @@ export interface TransactionsRepository {
   listTransactions(userId: string, query: ListTransactionsQuery): Promise<Page<Transaction>>;
   /**
    * Totais de todas as transações do usuário que passam nos filtros: receitas e despesas só
-   * realizadas (transferências e pagamentos de fatura ficam fora) e a quantidade de pendentes.
+   * realizadas (transferências e pagamentos de fatura ficam fora; estornos reduzem as despesas) e
+   * a quantidade de pendentes.
    */
   summarizeTransactions(userId: string, filters: TransactionFilters): Promise<TransactionSummary>;
   /** Transação pelo id, só se for do usuário: a de outro usuário é tratada como inexistente. */
@@ -58,6 +59,8 @@ export interface TransactionsRepository {
     creditCardId: string,
     invoiceMonths: readonly string[],
   ): Promise<string | null>;
+  /** Estornos de uma despesa do usuário, dos mais antigos aos mais recentes. */
+  listRefunds(userId: string, transactionId: string): Promise<Transaction[]>;
   /** Se a fatura (cartão e mês de referência) do usuário já tem pagamento. */
   hasInvoicePayment(userId: string, creditCardId: string, invoiceMonth: string): Promise<boolean>;
 }
@@ -96,7 +99,7 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
     },
 
     async summarizeTransactions(userId, filters) {
-      const completedSum = (type: 'income' | 'expense') =>
+      const completedSum = (type: 'income' | 'expense' | 'refund') =>
         sql<number>`coalesce(sum(${transactions.amount}) filter (where ${transactions.status} = 'completed' and ${transactions.type} = ${type}), 0)`.mapWith(
           Number,
         );
@@ -105,12 +108,15 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
           count: sql<number>`count(*)`.mapWith(Number),
           income: completedSum('income'),
           expense: completedSum('expense'),
+          refunds: completedSum('refund'),
           pendingCount:
             sql<number>`count(*) filter (where ${transactions.status} = 'pending')`.mapWith(Number),
         })
         .from(transactions)
         .where(and(eq(transactions.userId, userId), ...filterConditions(filters)));
-      const { count = 0, income = 0, expense = 0, pendingCount = 0 } = totals ?? {};
+      const { count = 0, income = 0, refunds = 0, pendingCount = 0 } = totals ?? {};
+      // Estornos são despesa negativa (`summarizeTransactions`).
+      const expense = (totals?.expense ?? 0) - refunds;
       return { count, income, expense, net: income - expense, pendingCount };
     },
 
@@ -197,6 +203,19 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
         .orderBy(asc(transactions.invoiceMonth))
         .limit(1);
       return payment?.invoiceMonth ?? null;
+    },
+
+    async listRefunds(userId, transactionId) {
+      return db
+        .select()
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            eq(transactions.refundedTransactionId, transactionId),
+          ),
+        )
+        .orderBy(asc(transactions.date), asc(transactions.id));
     },
 
     async hasInvoicePayment(userId, creditCardId, invoiceMonth) {

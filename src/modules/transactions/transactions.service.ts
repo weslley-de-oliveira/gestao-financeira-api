@@ -8,10 +8,13 @@ import {
 } from '../../shared/errors/domain-error.ts';
 import {
   ARCHIVED_REFERENCE_PROBLEM_TYPE,
+  HAS_REFUNDS_PROBLEM_TYPE,
   INSTALLMENT_PROBLEM_TYPE,
   PAID_INVOICE_PROBLEM_TYPE,
 } from '../../shared/http/problem.ts';
 import { monthLabel } from '../../shared/utils/date.ts';
+import { formatCents } from '../../shared/utils/money.ts';
+import { TRANSACTION_DESCRIPTION_MAX_LENGTH } from './transactions.constants.ts';
 import { invoiceCycleFor } from '../../shared/utils/invoice-cycle.ts';
 import type { AccountsRepository } from '../accounts/accounts.repository.ts';
 import type { CategoriesRepository } from '../categories/categories.repository.ts';
@@ -30,6 +33,7 @@ import {
   type ListTransactionsQuery,
   type TransactionFilters,
   type TransactionSummary,
+  type CreateRefundInput,
   type UpdateTransactionInput,
 } from './transactions.schemas.ts';
 import { assertIfMatch, PreconditionFailedError, type IfMatch } from '../../shared/http/etag.ts';
@@ -68,6 +72,27 @@ export class PaidInvoiceError extends DomainError {
 }
 
 /** Conta ou categoria arquivada numa transação nova (ou trocada na edição). */
+/** A despesa tem estornos: exclua-os antes de excluí-la ou de mudar valor, data, conta ou tipo. */
+export class HasRefundsError extends DomainError {
+  readonly kind = 'conflict';
+  override readonly problemType = HAS_REFUNDS_PROBLEM_TYPE;
+
+  constructor() {
+    super(
+      'Esta despesa tem estornos: exclua os estornos antes de excluí-la ou de mudar valor, data, conta, cartão ou tipo.',
+    );
+  }
+}
+
+/** Só despesas realizadas recebem estorno. */
+export class NotRefundableError extends DomainError {
+  readonly kind = 'conflict';
+
+  constructor() {
+    super('Só despesas realizadas podem ser estornadas.');
+  }
+}
+
 /** Parcela alterada ou excluída sozinha: as parcelas só mudam pela compra parcelada. */
 export class InstallmentNotEditableError extends DomainError {
   readonly kind = 'conflict';
@@ -149,6 +174,18 @@ export interface TransactionsService {
     userId: string,
     input: CreateInstallmentPurchaseInput,
   ): Promise<Transaction[]>;
+  /**
+   * Registra o estorno de uma despesa realizada (inclusive uma parcela): na conta ou no cartão dela,
+   * até o valor que falta estornar e não antes da data dela. Outro tipo, ou pendente →
+   * `NotRefundableError`; no cartão, fatura já paga → `PaidInvoiceError`.
+   */
+  createRefund(
+    userId: string,
+    transactionId: string,
+    input: CreateRefundInput,
+  ): Promise<Transaction>;
+  /** Estornos de uma despesa do usuário; inexistente → `TransactionNotFoundError`. */
+  listRefunds(userId: string, transactionId: string): Promise<Transaction[]>;
   /** Parcelas da compra; inexistente ou de outro usuário → `InstallmentPurchaseNotFoundError`. */
   getInstallmentPurchase(userId: string, groupId: string): Promise<Transaction[]>;
   /**
@@ -194,6 +231,74 @@ export function createTransactionsService({
       await assertInvoiceNotPaid(userId, transaction.creditCardId, transaction.date);
     }
     return transaction;
+  }
+
+  /**
+   * Edição de um estorno: só descrição, valor, data e observações (a conta, o cartão e a categoria
+   * são os da despesa). Valor até o que falta estornar (contando o dele), data não anterior à
+   * despesa e, no cartão, fora de fatura paga.
+   */
+  async function updateRefund(
+    userId: string,
+    current: Transaction,
+    changes: UpdateTransactionInput,
+    ifMatch: IfMatch | undefined,
+  ): Promise<Transaction> {
+    const fixed = Object.keys(changes).filter(
+      (key) => !['description', 'amount', 'date', 'notes'].includes(key),
+    );
+    if (fixed.length > 0) {
+      throw new InvalidInputError(
+        fixed.map((field) => ({
+          field,
+          message: 'Num estorno, só mudam descrição, valor, data e observações.',
+        })),
+      );
+    }
+    const original = await get(userId, current.refundedTransactionId ?? '');
+    const others = (await transactions.listRefunds(userId, original.id))
+      .filter((refund) => refund.id !== current.id)
+      .reduce((total, refund) => total + refund.amount, 0);
+    const amount = changes.amount ?? current.amount;
+    const date = changes.date ?? current.date;
+    const invalid: InvalidField[] = [];
+    if (amount > original.amount - others) {
+      invalid.push({
+        field: 'amount',
+        message: `O estorno pode ser de no máximo ${formatCents(original.amount - others)}, o que falta estornar.`,
+      });
+    }
+    if (date < original.date) {
+      invalid.push({ field: 'date', message: 'O estorno não pode ser anterior à despesa.' });
+    }
+    if (invalid.length > 0) {
+      throw new InvalidInputError(invalid);
+    }
+    if (current.creditCardId) {
+      await assertInvoiceNotPaid(userId, current.creditCardId, date);
+    }
+    const updated = await transactions.updateTransaction(
+      userId,
+      current.id,
+      {
+        type: 'refund',
+        description: changes.description ?? current.description,
+        amount,
+        date,
+        accountId: current.accountId,
+        creditCardId: current.creditCardId,
+        categoryId: null,
+        destinationAccountId: null,
+        status: 'completed',
+        notes: changes.notes === undefined ? current.notes : changes.notes,
+        refundedTransactionId: current.refundedTransactionId,
+      },
+      ifMatch && current.updatedAt,
+    );
+    if (!updated) {
+      throw ifMatch ? new PreconditionFailedError() : new TransactionNotFoundError();
+    }
+    return updated;
   }
 
   async function getInstallments(userId: string, groupId: string): Promise<Transaction[]> {
@@ -446,6 +551,16 @@ export function createTransactionsService({
       if (Object.keys(changes).length === 0) {
         return current;
       }
+      if (current.type === 'refund') {
+        return updateRefund(userId, current, changes, ifMatch);
+      }
+      // Com estornos, a despesa só muda descrição, categoria e observações.
+      const keepsRefunds = Object.keys(changes).every((key) =>
+        ['description', 'categoryId', 'notes'].includes(key),
+      );
+      if (!keepsRefunds && (await transactions.listRefunds(userId, transactionId)).length > 0) {
+        throw new HasRefundsError();
+      }
       const next = mergeChanges(current, changes);
       await checkReferences(userId, next, current);
       if (next.type !== 'transfer' && next.creditCardId) {
@@ -472,6 +587,9 @@ export function createTransactionsService({
 
     async remove(userId, transactionId) {
       await getEditable(userId, transactionId);
+      if ((await transactions.listRefunds(userId, transactionId)).length > 0) {
+        throw new HasRefundsError();
+      }
       if (!(await transactions.deleteTransaction(userId, transactionId))) {
         throw new TransactionNotFoundError();
       }
@@ -520,6 +638,56 @@ export function createTransactionsService({
 
     getInstallmentPurchase: getInstallments,
 
+    async createRefund(userId, transactionId, input) {
+      const original = await get(userId, transactionId);
+      if (original.type !== 'expense' || original.status !== 'completed') {
+        throw new NotRefundableError();
+      }
+      const refunded = (await transactions.listRefunds(userId, transactionId)).reduce(
+        (total, refund) => total + refund.amount,
+        0,
+      );
+      const remaining = original.amount - refunded;
+      const invalid: InvalidField[] = [];
+      if (input.amount > remaining) {
+        invalid.push({
+          field: 'amount',
+          message:
+            remaining > 0
+              ? `O estorno pode ser de no máximo ${formatCents(remaining)}, o que falta estornar.`
+              : 'Esta despesa já foi estornada por inteiro.',
+        });
+      }
+      if (input.date < original.date) {
+        invalid.push({ field: 'date', message: 'O estorno não pode ser anterior à despesa.' });
+      }
+      if (invalid.length > 0) {
+        throw new InvalidInputError(invalid);
+      }
+      if (original.creditCardId) {
+        await assertInvoiceNotPaid(userId, original.creditCardId, input.date);
+      }
+      return transactions.insertTransaction({
+        userId,
+        type: 'refund',
+        description:
+          input.description ??
+          `Estorno: ${original.description}`.slice(0, TRANSACTION_DESCRIPTION_MAX_LENGTH),
+        amount: input.amount,
+        date: input.date,
+        accountId: original.accountId,
+        creditCardId: original.creditCardId,
+        status: 'completed',
+        notes: input.notes ?? null,
+        refundedTransactionId: original.id,
+      });
+    },
+
+    async listRefunds(userId, transactionId) {
+      await get(userId, transactionId);
+      return transactions.listRefunds(userId, transactionId);
+    },
+
     async updateInstallmentPurchase(userId, groupId, { description, categoryId, notes }) {
       const installments = await getInstallments(userId, groupId);
       const current = installments[0];
@@ -555,6 +723,12 @@ export function createTransactionsService({
 
     async removeInstallmentPurchase(userId, groupId) {
       const installments = await getInstallments(userId, groupId);
+      const refunds = await Promise.all(
+        installments.map((installment) => transactions.listRefunds(userId, installment.id)),
+      );
+      if (refunds.some((list) => list.length > 0)) {
+        throw new HasRefundsError();
+      }
       const cardId = installments[0]?.creditCardId;
       const card = cardId ? await creditCards.findCreditCard(userId, cardId) : null;
       if (card) {

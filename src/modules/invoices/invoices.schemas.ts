@@ -22,7 +22,10 @@ export const invoiceSummarySchema = invoiceFields
 
 /** Fatura completa, com as compras do ciclo (das mais recentes para as mais antigas). */
 export const invoiceSchema = invoiceFields
-  .extend({ purchases: z.array(transactionSchema) })
+  .extend({
+    purchases: z.array(transactionSchema),
+    refunds: z.array(transactionSchema).meta({ description: 'Estornos lançados no ciclo.' }),
+  })
   .meta({ id: 'Invoice' });
 
 export type InvoiceSummaryDto = z.infer<typeof invoiceSummarySchema>;
@@ -63,5 +66,9 @@ export function toInvoiceSummaryDto(invoice: Invoice): InvoiceSummaryDto {
 }
 
 export function toInvoiceDto(invoice: Invoice): InvoiceDto {
-  return { ...toInvoiceFields(invoice), purchases: invoice.purchases.map(toTransactionDto) };
+  return {
+    ...toInvoiceFields(invoice),
+    purchases: invoice.purchases.map(toTransactionDto),
+    refunds: invoice.refunds.map(toTransactionDto),
+  };
 }

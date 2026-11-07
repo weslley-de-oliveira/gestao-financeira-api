@@ -87,14 +87,14 @@ export function createAccountsRepository(db: Database): AccountsRepository {
         sql`, `,
       )}]::uuid[]`;
       const beforeDate = before ? sql`and ${transactions.date} < ${before}::date` : sql``;
-      // Mesma regra de `movementEffect`: pendentes não contam; receita credita a conta; despesa,
+      // Mesma regra de `movementEffect`: pendentes não contam; receita e estorno creditam a conta; despesa,
       // pagamento de fatura e transferência debitam a conta de origem; a transferência credita o
       // destino. Compras no cartão não têm conta e ficam de fora.
       const { rows } = await db.execute<{ account_id: string; total: string }>(sql`
         select account_id, sum(effect) as total
         from (
           select ${transactions.accountId} as account_id,
-            case when ${transactions.type} = 'income' then ${transactions.amount}
+            case when ${transactions.type} in ('income', 'refund') then ${transactions.amount}
               else -${transactions.amount} end as effect
           from ${transactions}
           where ${transactions.userId} = ${userId}

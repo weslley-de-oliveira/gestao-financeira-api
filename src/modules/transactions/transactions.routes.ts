@@ -1,6 +1,7 @@
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
+import { idempotencyHeadersSchema, idempotent } from '../../shared/http/idempotency.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
 import { ifMatchHeadersSchema, parseIfMatch, setEntityTag } from '../../shared/http/etag.ts';
 import { createAccountsRepository } from '../accounts/accounts.repository.ts';
@@ -8,6 +9,7 @@ import { createCategoriesRepository } from '../categories/categories.repository.
 import { createCreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
 import { createTransactionsRepository } from './transactions.repository.ts';
 import {
+  createRefundBodySchema,
   createTransactionBodySchema,
   listTransactionsQuerySchema,
   toTransactionDto,
@@ -128,7 +130,7 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
         tags: [TRANSACTIONS_TAG],
         summary: 'Edita uma transação',
         description:
-          'Os campos enviados são aplicados sobre a transação e o resultado segue as regras do cadastro. Ao trocar o tipo, os campos que não servem ao novo tipo são descartados (a categoria, ao virar transferência; a conta de destino, ao virar receita ou despesa). `notes: null` remove as observações. Contas e categoria que a transação já tinha continuam aceitas mesmo se arquivadas depois; trocar por uma arquivada responde 409, assim como editar pagamento de fatura e editar compra de fatura já paga (ou movê-la para uma fatura paga) e editar uma parcela sozinha (`/problems/installment`: altere a compra parcelada).',
+          'Os campos enviados são aplicados sobre a transação e o resultado segue as regras do cadastro. Ao trocar o tipo, os campos que não servem ao novo tipo são descartados (a categoria, ao virar transferência; a conta de destino, ao virar receita ou despesa). `notes: null` remove as observações. Contas e categoria que a transação já tinha continuam aceitas mesmo se arquivadas depois; trocar por uma arquivada responde 409, assim como editar pagamento de fatura e editar compra de fatura já paga (ou movê-la para uma fatura paga) e editar uma parcela sozinha (`/problems/installment`: altere a compra parcelada). Num estorno, só mudam descrição, valor (até o que falta estornar) e data. Uma despesa com estornos só muda descrição, categoria e observações; o resto responde 409 (`/problems/has-refunds`).',
         params: transactionParamsSchema,
         headers: ifMatchHeadersSchema,
         body: updateTransactionBodySchema,
@@ -161,7 +163,7 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
         tags: [TRANSACTIONS_TAG],
         summary: 'Exclui uma transação',
         description:
-          'Remove a transação de vez. Pagamento de fatura responde 409 (é desfeito pela fatura), assim como compra de fatura já paga (desfaça o pagamento antes) e parcela de compra parcelada (`/problems/installment`: exclua a compra inteira).',
+          'Remove a transação de vez. Pagamento de fatura responde 409 (é desfeito pela fatura), assim como compra de fatura já paga (desfaça o pagamento antes) e parcela de compra parcelada (`/problems/installment`: exclua a compra inteira). Despesa com estornos também responde 409 (`/problems/has-refunds`): exclua os estornos antes.',
         params: transactionParamsSchema,
         response: {
           204: z.null(),
@@ -176,6 +178,63 @@ export const transactionsRoutes: FastifyPluginCallbackZod = (app, _options, done
       await service.remove(currentAuth(request).user.id, request.params.id);
       return reply.status(204).send(null);
     },
+  );
+
+  app.post(
+    '/:id/refunds',
+    {
+      schema: {
+        tags: [TRANSACTIONS_TAG],
+        summary: 'Estorna uma despesa',
+        description:
+          'Cria um estorno (`refund`) da despesa realizada, na conta ou no cartão dela: devolve o valor à conta ou abate a fatura em que a data do estorno cai, e reduz o gasto da categoria da despesa no mês do estorno. Pode haver vários estornos, até o valor da despesa (passar disso, ou data anterior à despesa, responde 422 no campo). Outro tipo de transação, ou despesa pendente, responde 409; no cartão, estorno numa fatura já paga também. Com `Idempotency-Key`, repetir o pedido devolve o mesmo estorno.',
+        params: transactionParamsSchema,
+        headers: idempotencyHeadersSchema,
+        body: createRefundBodySchema,
+        response: {
+          201: transactionSchema,
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          409: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = currentAuth(request).user.id;
+      return idempotent(
+        reply,
+        { db: app.db, userId, key: request.headers['idempotency-key'], request, now: new Date() },
+        async () => ({
+          statusCode: 201,
+          body: toTransactionDto(
+            await service.createRefund(userId, request.params.id, request.body),
+          ),
+        }),
+      );
+    },
+  );
+
+  app.get(
+    '/:id/refunds',
+    {
+      schema: {
+        tags: [TRANSACTIONS_TAG],
+        summary: 'Lista os estornos de uma despesa',
+        description: 'Estornos da despesa, dos mais antigos aos mais recentes.',
+        params: transactionParamsSchema,
+        response: {
+          200: z.array(transactionSchema),
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request) =>
+      (await service.listRefunds(currentAuth(request).user.id, request.params.id)).map(
+        toTransactionDto,
+      ),
   );
 
   done();

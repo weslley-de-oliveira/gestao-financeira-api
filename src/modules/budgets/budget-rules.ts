@@ -97,14 +97,15 @@ export function progressFrom(
 
 /**
  * Consumo do orçamento no mês (porte de `budgetProgress` do front): despesas da categoria pela
- * data (compras no cartão incluídas, pela data da compra; numa compra parcelada, cada parcela pela data dela). Só as realizadas contam; as pendentes
+ * data (compras no cartão incluídas, pela data da compra; numa compra parcelada, cada parcela pela data dela). Só as realizadas contam, menos os estornos do mês (na categoria da despesa estornada; o gasto não fica negativo); as pendentes
  * ficam à parte como previstas. Transferências e pagamentos de fatura não são despesas e não
  * entram. `null` se o orçamento não vale no mês. A API soma no banco
  * (`BudgetsRepository.spendingByCategory`); esta função é a referência legível da regra.
  */
 export function budgetProgress(
   budget: { categoryId: string; alertThreshold: number; limits: readonly BudgetLimitPeriod[] },
-  transactions: readonly Pick<Transaction, 'type' | 'categoryId' | 'date' | 'status' | 'amount'>[],
+  transactions: readonly (Pick<Transaction, 'type' | 'categoryId' | 'date' | 'status' | 'amount'> &
+    Partial<Pick<Transaction, 'id' | 'refundedTransactionId'>>)[],
   month: IsoMonth,
 ): BudgetProgress | null {
   const limit = limitForMonth(budget.limits, month);
@@ -112,15 +113,20 @@ export function budgetProgress(
     return null;
   }
   const { start, end } = monthRange(month);
+  const categoryOf = new Map(transactions.map((item) => [item.id, item.categoryId]));
   let spent = 0;
   let pending = 0;
   for (const transaction of transactions) {
-    if (
-      transaction.type !== 'expense' ||
-      transaction.categoryId !== budget.categoryId ||
-      transaction.date < start ||
-      transaction.date > end
-    ) {
+    if (transaction.date < start || transaction.date > end) {
+      continue;
+    }
+    if (transaction.type === 'refund') {
+      if (categoryOf.get(transaction.refundedTransactionId ?? '') === budget.categoryId) {
+        spent -= transaction.amount;
+      }
+      continue;
+    }
+    if (transaction.type !== 'expense' || transaction.categoryId !== budget.categoryId) {
       continue;
     }
     if (transaction.status === 'pending') {
@@ -129,5 +135,5 @@ export function budgetProgress(
       spent += transaction.amount;
     }
   }
-  return progressFrom(month, limit, { spent, pending }, budget.alertThreshold);
+  return progressFrom(month, limit, { spent: Math.max(0, spent), pending }, budget.alertThreshold);
 }

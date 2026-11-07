@@ -113,6 +113,27 @@ describe('seed da demo', () => {
     expect(parcels.some((parcel) => parcel.date > '2027-01-15')).toBe(true);
   });
 
+  it('traz um estorno em conta e um no cartão, fora de faturas pagas', async () => {
+    const refunds = (await get<{ items: TransactionDto[] }>('/v1/transactions?type=refund')).items;
+
+    expect(refunds.map((item) => (item.accountId ? 'conta' : 'cartão')).toSorted()).toEqual([
+      'cartão',
+      'conta',
+    ]);
+    for (const item of refunds) {
+      const refunded = await get<TransactionDto[]>(
+        `/v1/transactions/${item.refundedTransactionId}/refunds`,
+      );
+      expect(refunded.map((refund) => refund.id)).toEqual([item.id]);
+    }
+    const card = refunds.find((item) => item.creditCardId)!;
+    const invoices = await get<{ start: string; end: string; status: string }[]>(
+      `/v1/credit-cards/${card.creditCardId}/invoices`,
+    );
+    const invoice = invoices.find((item) => item.start <= card.date && card.date <= item.end);
+    expect(invoice?.status).toBe('open');
+  });
+
   it('avança as datas até o mês atual', async () => {
     const rows = await app.db.select({ date: transactions.date }).from(transactions);
     const demoDates = (
@@ -123,7 +144,7 @@ describe('seed da demo', () => {
         .where(eq(users.email, DEMO_CREDENTIALS.email))
     ).map(({ date }) => date);
 
-    expect(rows.length).toBeGreaterThanOrEqual(180);
+    expect(rows.length).toBeGreaterThanOrEqual(182);
     // No seed original, de 02/06/2026 a 12/05/2027 (a última parcela do notebook); dois meses
     // depois.
     expect(demoDates.toSorted()[0]).toBe('2026-08-02');
@@ -142,7 +163,7 @@ describe('seed da demo', () => {
       cursor = page.nextCursor;
     } while (cursor);
 
-    expect(all).toHaveLength(180);
+    expect(all).toHaveLength(182);
     for (const account of accounts) {
       expect(account.currentBalance).toBe(calculateBalance(account, all));
     }
@@ -166,6 +187,6 @@ describe('seed da demo', () => {
       .select()
       .from(transactions)
       .where(eq(transactions.userId, demo[0]!.id));
-    expect(count).toHaveLength(180);
+    expect(count).toHaveLength(182);
   });
 });
