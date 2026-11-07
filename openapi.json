@@ -1329,6 +1329,19 @@
         },
         "additionalProperties": false
       },
+      "AnticipateInstallmentsInput": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 23,
+            "description": "Quantas parcelas antecipar, a partir da última."
+          }
+        },
+        "required": ["count"],
+        "additionalProperties": false
+      },
       "InstallmentPurchaseInput": {
         "type": "object",
         "properties": {
@@ -1364,6 +1377,30 @@
           "installments": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/TransactionInput" }
+          },
+          "anticipatableCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Quantas parcelas podem ir para a fatura atual (a que contém hoje): as de faturas seguintes e sem estornos."
+          },
+          "cancellable": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Em centavos."
+              }
+            },
+            "required": ["count", "amount"],
+            "description": "O que o cancelamento estornaria: o que falta estornar das parcelas da fatura atual e das futuras."
           }
         },
         "required": [
@@ -1374,7 +1411,9 @@
           "creditCardId",
           "categoryId",
           "notes",
-          "installments"
+          "installments",
+          "anticipatableCount",
+          "cancellable"
         ]
       },
       "ProblemDetails": {
@@ -2725,6 +2764,19 @@
         },
         "additionalProperties": false
       },
+      "AnticipateInstallments": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 23,
+            "description": "Quantas parcelas antecipar, a partir da última."
+          }
+        },
+        "required": ["count"],
+        "additionalProperties": false
+      },
       "InstallmentPurchase": {
         "type": "object",
         "properties": {
@@ -2760,6 +2812,31 @@
           "installments": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/Transaction" }
+          },
+          "anticipatableCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Quantas parcelas podem ir para a fatura atual (a que contém hoje): as de faturas seguintes e sem estornos."
+          },
+          "cancellable": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Em centavos."
+              }
+            },
+            "required": ["count", "amount"],
+            "additionalProperties": false,
+            "description": "O que o cancelamento estornaria: o que falta estornar das parcelas da fatura atual e das futuras."
           }
         },
         "required": [
@@ -2770,7 +2847,9 @@
           "creditCardId",
           "categoryId",
           "notes",
-          "installments"
+          "installments",
+          "anticipatableCount",
+          "cancellable"
         ],
         "additionalProperties": false
       }
@@ -4382,6 +4461,147 @@
         ],
         "responses": {
           "204": { "description": "Compra excluída." },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/installment-purchases/{id}/anticipation": {
+      "post": {
+        "summary": "Antecipa parcelas",
+        "tags": ["Compras parceladas"],
+        "description": "Leva as últimas `count` parcelas para a fatura atual (a que contém hoje): a data delas passa a ser hoje, sem mudar número nem valor. Só as parcelas de faturas seguintes e sem estornos podem ser antecipadas (`anticipatableCount`); pedir mais responde 422 no `count`, e não haver nenhuma responde 409. Desconto do banco é registrado como estorno da parcela antecipada. Com `Idempotency-Key`, repetir o pedido não antecipa outras parcelas.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AnticipateInstallmentsInput" }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "example": "0b9d6a3e-6c1f-4f7a-9d1e-2f0f5d7c9a11",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false,
+            "description": "Chave única por operação (ex.: um UUID gerado ao abrir a confirmação). Repetir a requisição com a mesma chave em até 24 horas devolve a resposta da primeira, sem executar de novo."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InstallmentPurchase" }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/installment-purchases/{id}/cancellation": {
+      "post": {
+        "summary": "Cancela as parcelas restantes",
+        "tags": ["Compras parceladas"],
+        "description": "Estorna, por inteiro, o que falta estornar de cada parcela da fatura atual e das futuras (`cancellable`): cada estorno (\"Cancelamento: …\") fica na data da parcela, ou hoje se ela já passou, e zera a parcela na fatura dela. Parcelas de faturas fechadas já foram cobradas e não mudam. Não haver o que cancelar responde 409. Os estornos são comuns: para desfazer, exclua-os por `/v1/transactions/{id}`. Com `Idempotency-Key`, repetir o pedido devolve os mesmos estornos.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "example": "0b9d6a3e-6c1f-4f7a-9d1e-2f0f5d7c9a11",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false,
+            "description": "Chave única por operação (ex.: um UUID gerado ao abrir a confirmação). Repetir a requisição com a mesma chave em até 24 horas devolve a resposta da primeira, sem executar de novo."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Transaction" }
+                }
+              }
+            }
+          },
           "401": {
             "description": "Default Response",
             "content": {

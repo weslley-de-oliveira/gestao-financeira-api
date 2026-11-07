@@ -53,6 +53,8 @@ export interface TransactionsRepository {
   ): Promise<Transaction[]>;
   /** Apaga todas as parcelas da compra; devolve quantas apagou. */
   deleteInstallments(userId: string, groupId: string): Promise<number>;
+  /** Muda a data destas transações do usuário, numa só gravação. */
+  moveTransactions(userId: string, transactionIds: readonly string[], date: string): Promise<void>;
   /** O primeiro destes meses de referência do cartão cuja fatura já tem pagamento, ou `null`. */
   firstPaidInvoiceMonth(
     userId: string,
@@ -61,6 +63,8 @@ export interface TransactionsRepository {
   ): Promise<string | null>;
   /** Estornos de uma despesa do usuário, dos mais antigos aos mais recentes. */
   listRefunds(userId: string, transactionId: string): Promise<Transaction[]>;
+  /** Soma dos estornos de cada despesa, pelo id dela; as sem estornos ficam de fora. */
+  refundedTotals(userId: string, transactionIds: readonly string[]): Promise<Map<string, number>>;
   /** Se a fatura (cartão e mês de referência) do usuário já tem pagamento. */
   hasInvoicePayment(userId: string, creditCardId: string, invoiceMonth: string): Promise<boolean>;
 }
@@ -185,6 +189,16 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
       return deleted.length;
     },
 
+    async moveTransactions(userId, transactionIds, date) {
+      if (transactionIds.length === 0) {
+        return;
+      }
+      await db
+        .update(transactions)
+        .set({ date })
+        .where(and(eq(transactions.userId, userId), inArray(transactions.id, [...transactionIds])));
+    },
+
     async firstPaidInvoiceMonth(userId, creditCardId, invoiceMonths) {
       if (invoiceMonths.length === 0) {
         return null;
@@ -216,6 +230,26 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
           ),
         )
         .orderBy(asc(transactions.date), asc(transactions.id));
+    },
+
+    async refundedTotals(userId, transactionIds) {
+      if (transactionIds.length === 0) {
+        return new Map();
+      }
+      const rows = await db
+        .select({
+          id: transactions.refundedTransactionId,
+          total: sql<number>`sum(${transactions.amount})::int`,
+        })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            inArray(transactions.refundedTransactionId, [...transactionIds]),
+          ),
+        )
+        .groupBy(transactions.refundedTransactionId);
+      return new Map(rows.map((row) => [row.id ?? '', row.total]));
     },
 
     async hasInvoicePayment(userId, creditCardId, invoiceMonth) {

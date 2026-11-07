@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
-import type { Transaction } from '../../db/schema/index.ts';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
 import { idempotencyHeadersSchema, idempotent } from '../../shared/http/idempotency.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
@@ -8,9 +7,13 @@ import { createAccountsRepository } from '../accounts/accounts.repository.ts';
 import { createCategoriesRepository } from '../categories/categories.repository.ts';
 import { createCreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
 import { createTransactionsRepository } from '../transactions/transactions.repository.ts';
-import { toTransactionDto } from '../transactions/transactions.schemas.ts';
-import { createTransactionsService } from '../transactions/transactions.service.ts';
+import { toTransactionDto, transactionSchema } from '../transactions/transactions.schemas.ts';
 import {
+  createTransactionsService,
+  type InstallmentPurchaseDetails,
+} from '../transactions/transactions.service.ts';
+import {
+  anticipateInstallmentsBodySchema,
   createInstallmentPurchaseBodySchema,
   installmentPurchaseParamsSchema,
   installmentPurchaseSchema,
@@ -21,7 +24,11 @@ import {
 export const INSTALLMENTS_TAG = 'Compras parceladas';
 
 /** A compra parcelada a partir das parcelas (todas do mesmo grupo, da 1ª à última). */
-export function toInstallmentPurchaseDto(installments: Transaction[]): InstallmentPurchaseDto {
+export function toInstallmentPurchaseDto({
+  installments,
+  anticipatable,
+  cancellations,
+}: InstallmentPurchaseDetails): InstallmentPurchaseDto {
   const [first] = installments;
   if (!first?.installmentGroupId || !first.creditCardId || !first.categoryId) {
     throw new Error('Parcelas sem grupo, cartão ou categoria.');
@@ -35,6 +42,11 @@ export function toInstallmentPurchaseDto(installments: Transaction[]): Installme
     categoryId: first.categoryId,
     notes: first.notes,
     installments: installments.map(toTransactionDto),
+    anticipatableCount: anticipatable.length,
+    cancellable: {
+      count: cancellations.length,
+      amount: cancellations.reduce((total, cancellation) => total + cancellation.amount, 0),
+    },
   };
 }
 
@@ -49,6 +61,7 @@ export const installmentsRoutes: FastifyPluginCallbackZod = (app, _options, done
     accounts: createAccountsRepository(app.db),
     categories: createCategoriesRepository(app.db),
     creditCards: createCreditCardsRepository(app.db),
+    today: () => app.today(),
   });
 
   app.post(
@@ -157,6 +170,73 @@ export const installmentsRoutes: FastifyPluginCallbackZod = (app, _options, done
     async (request, reply) => {
       await service.removeInstallmentPurchase(currentAuth(request).user.id, request.params.id);
       return reply.status(204).send(null);
+    },
+  );
+
+  app.post(
+    '/:id/anticipation',
+    {
+      schema: {
+        tags: [INSTALLMENTS_TAG],
+        summary: 'Antecipa parcelas',
+        description:
+          'Leva as últimas `count` parcelas para a fatura atual (a que contém hoje): a data delas passa a ser hoje, sem mudar número nem valor. Só as parcelas de faturas seguintes e sem estornos podem ser antecipadas (`anticipatableCount`); pedir mais responde 422 no `count`, e não haver nenhuma responde 409. Desconto do banco é registrado como estorno da parcela antecipada. Com `Idempotency-Key`, repetir o pedido não antecipa outras parcelas.',
+        headers: idempotencyHeadersSchema,
+        params: installmentPurchaseParamsSchema,
+        body: anticipateInstallmentsBodySchema,
+        response: {
+          200: installmentPurchaseSchema,
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          409: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = currentAuth(request).user.id;
+      return idempotent(
+        reply,
+        { db: app.db, userId, key: request.headers['idempotency-key'], request, now: new Date() },
+        async () => ({
+          statusCode: 200,
+          body: toInstallmentPurchaseDto(
+            await service.anticipateInstallments(userId, request.params.id, request.body),
+          ),
+        }),
+      );
+    },
+  );
+
+  app.post(
+    '/:id/cancellation',
+    {
+      schema: {
+        tags: [INSTALLMENTS_TAG],
+        summary: 'Cancela as parcelas restantes',
+        description:
+          'Estorna, por inteiro, o que falta estornar de cada parcela da fatura atual e das futuras (`cancellable`): cada estorno ("Cancelamento: …") fica na data da parcela, ou hoje se ela já passou, e zera a parcela na fatura dela. Parcelas de faturas fechadas já foram cobradas e não mudam. Não haver o que cancelar responde 409. Os estornos são comuns: para desfazer, exclua-os por `/v1/transactions/{id}`. Com `Idempotency-Key`, repetir o pedido devolve os mesmos estornos.',
+        headers: idempotencyHeadersSchema,
+        params: installmentPurchaseParamsSchema,
+        response: {
+          201: z.array(transactionSchema),
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          409: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = currentAuth(request).user.id;
+      return idempotent(
+        reply,
+        { db: app.db, userId, key: request.headers['idempotency-key'], request, now: new Date() },
+        async () => ({
+          statusCode: 201,
+          body: (await service.cancelInstallments(userId, request.params.id)).map(toTransactionDto),
+        }),
+      );
     },
   );
 

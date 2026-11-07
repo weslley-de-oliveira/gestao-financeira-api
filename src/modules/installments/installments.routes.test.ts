@@ -119,6 +119,29 @@ describe('rotas /v1/installment-purchases', () => {
       expect(card.usedLimit).toBe(10_000);
     });
 
+    it('resume o que dá para antecipar e cancelar hoje, descontando os estornos', async () => {
+      // Parcelas em 10/11 (fatura atual, de 12/2026), 10/12 e 10/01 (faturas futuras).
+      const created = (await create(purchase())).json<InstallmentPurchaseDto>();
+
+      expect(created).toMatchObject({
+        anticipatableCount: 2,
+        cancellable: { count: 3, amount: 10_000 },
+      });
+
+      await user.api('POST', `/v1/transactions/${created.installments[2]!.id}/refunds`, {
+        amount: 1_000,
+        date: '2027-01-10',
+      });
+      const detail = (
+        await user.api('GET', `/v1/installment-purchases/${created.id}`)
+      ).json<InstallmentPurchaseDto>();
+
+      expect(detail).toMatchObject({
+        anticipatableCount: 1,
+        cancellable: { count: 3, amount: 9_000 },
+      });
+    });
+
     it('detalha a compra pelo id do grupo', async () => {
       const created = (await create(purchase())).json<InstallmentPurchaseDto>();
 
