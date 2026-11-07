@@ -60,6 +60,10 @@ test/                # Postgres de teste, helpers e testes que cruzam módulos (
   - `POST /v1/installment-purchases`, com `Idempotency-Key`: repetir o pedido não duplica as parcelas.
   - `GET`, `PATCH` e `DELETE /v1/installment-purchases/{id}`. O `PATCH` muda só descrição, categoria e observações, em todas as parcelas, inclusive as de faturas pagas, porque esses campos não mudam valores. O `DELETE` recusa (409) se alguma parcela estiver numa fatura paga.
   - Alterar ou excluir uma parcela sozinha em `/v1/transactions/{id}` responde 409 (`/problems/installment`). Para mudar valor, número de parcelas, cartão ou data, exclua a compra e registre de novo.
+- **Antecipar e cancelar** (`modules/installments/installment-actions.ts`), a partir da fatura atual, a que contém hoje:
+  - `POST /v1/installment-purchases/{id}/anticipation` (`{ count }`) leva as últimas parcelas para a fatura atual: a data delas passa a ser hoje, sem mudar número nem valor. Só entram as de faturas seguintes e sem estornos. O desconto do banco é registrado como estorno da parcela antecipada.
+  - `POST /v1/installment-purchases/{id}/cancellation` estorna o que falta de cada parcela da fatura atual e das futuras ("Cancelamento: …"), na data da parcela ou hoje, se ela já passou. As parcelas de faturas fechadas já foram cobradas e não mudam. Para desfazer, exclua os estornos.
+  - As duas aceitam `Idempotency-Key`. A compra informa `anticipatableCount` e `cancellable` (`count` e `amount`), para o cliente mostrar as ações só quando servem.
 
 ## Estornos
 
