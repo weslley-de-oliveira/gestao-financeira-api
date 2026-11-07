@@ -120,6 +120,17 @@ export class NothingToAnticipateError extends DomainError {
   }
 }
 
+/** Nada a estornar na fatura atual nem nas futuras: não há o que cancelar. */
+export class NothingToCancelError extends DomainError {
+  readonly kind = 'conflict';
+
+  constructor() {
+    super(
+      'Não há parcelas a cancelar: as que faltam já estão em faturas fechadas ou foram estornadas.',
+    );
+  }
+}
+
 /** Compra parcelada inexistente ou de outro usuário. */
 export class InstallmentPurchaseNotFoundError extends DomainError {
   readonly kind = 'not-found';
@@ -238,6 +249,11 @@ export interface TransactionsService {
     groupId: string,
     input: AnticipateInstallmentsInput,
   ): Promise<InstallmentPurchaseDetails>;
+  /**
+   * Estorna o que falta de cada parcela da fatura atual e das futuras (`plannedCancellations`),
+   * numa só gravação. Nada a estornar → `NothingToCancelError`. Devolve os estornos criados.
+   */
+  cancelInstallments(userId: string, groupId: string): Promise<Transaction[]>;
 }
 
 export function createTransactionsService({
@@ -846,6 +862,48 @@ export function createTransactionsService({
         date,
       );
       return describeInstallments(userId, await getInstallments(userId, groupId));
+    },
+
+    async cancelInstallments(userId, groupId) {
+      const { installments, cancellations } = await describeInstallments(
+        userId,
+        await getInstallments(userId, groupId),
+      );
+      if (cancellations.length === 0) {
+        throw new NothingToCancelError();
+      }
+      const byId = new Map(installments.map((installment) => [installment.id, installment]));
+      const cardId = installments[0]?.creditCardId ?? null;
+      const card = cardId ? await creditCards.findCreditCard(userId, cardId) : null;
+      if (card) {
+        await assertInvoicesNotPaid(
+          userId,
+          card,
+          cancellations.map(({ date }) => invoiceCycleFor(card, date).referenceMonth),
+        );
+      }
+      return transactions.insertTransactions(
+        cancellations.map(({ installmentId, amount, date }) => {
+          const installment = byId.get(installmentId);
+          const suffix = ` (${installment?.installmentNumber}/${installment?.installmentCount})`;
+          return {
+            userId,
+            type: 'refund' as const,
+            description:
+              `Cancelamento: ${installment?.description ?? ''}`.slice(
+                0,
+                TRANSACTION_DESCRIPTION_MAX_LENGTH - suffix.length,
+              ) + suffix,
+            amount,
+            date,
+            accountId: null,
+            creditCardId: cardId,
+            status: 'completed' as const,
+            notes: null,
+            refundedTransactionId: installmentId,
+          };
+        }),
+      );
     },
   };
 }

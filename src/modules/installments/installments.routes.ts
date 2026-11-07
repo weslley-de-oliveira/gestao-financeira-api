@@ -7,7 +7,7 @@ import { createAccountsRepository } from '../accounts/accounts.repository.ts';
 import { createCategoriesRepository } from '../categories/categories.repository.ts';
 import { createCreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
 import { createTransactionsRepository } from '../transactions/transactions.repository.ts';
-import { toTransactionDto } from '../transactions/transactions.schemas.ts';
+import { toTransactionDto, transactionSchema } from '../transactions/transactions.schemas.ts';
 import {
   createTransactionsService,
   type InstallmentPurchaseDetails,
@@ -203,6 +203,38 @@ export const installmentsRoutes: FastifyPluginCallbackZod = (app, _options, done
           body: toInstallmentPurchaseDto(
             await service.anticipateInstallments(userId, request.params.id, request.body),
           ),
+        }),
+      );
+    },
+  );
+
+  app.post(
+    '/:id/cancellation',
+    {
+      schema: {
+        tags: [INSTALLMENTS_TAG],
+        summary: 'Cancela as parcelas restantes',
+        description:
+          'Estorna, por inteiro, o que falta estornar de cada parcela da fatura atual e das futuras (`cancellable`): cada estorno ("Cancelamento: …") fica na data da parcela, ou hoje se ela já passou, e zera a parcela na fatura dela. Parcelas de faturas fechadas já foram cobradas e não mudam. Não haver o que cancelar responde 409. Os estornos são comuns: para desfazer, exclua-os por `/v1/transactions/{id}`. Com `Idempotency-Key`, repetir o pedido devolve os mesmos estornos.',
+        headers: idempotencyHeadersSchema,
+        params: installmentPurchaseParamsSchema,
+        response: {
+          201: z.array(transactionSchema),
+          401: problemDetailsSchema,
+          404: problemDetailsSchema,
+          409: problemDetailsSchema,
+          422: problemDetailsSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = currentAuth(request).user.id;
+      return idempotent(
+        reply,
+        { db: app.db, userId, key: request.headers['idempotency-key'], request, now: new Date() },
+        async () => ({
+          statusCode: 201,
+          body: (await service.cancelInstallments(userId, request.params.id)).map(toTransactionDto),
         }),
       );
     },

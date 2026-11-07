@@ -90,6 +90,11 @@ const CASES: Case[] = [
     params: (ids) => ({ id: ids.installmentPurchase }),
     body: { count: 1 },
   },
+  {
+    method: 'POST',
+    path: '/v1/installment-purchases/{id}/cancellation',
+    params: (ids) => ({ id: ids.installmentPurchase }),
+  },
   { method: 'GET', path: '/v1/credit-cards/{id}', params: (ids) => ({ id: ids.card }) },
   {
     method: 'PATCH',
