@@ -71,7 +71,13 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Saldo atual em centavos: saldo inicial mais as transações realizadas (pendentes não contam)."
+            "description": "Saldo atual em centavos: saldo inicial mais as transações realizadas (pendentes não contam) e as movimentações de metas com a conta (o aporte sai dela, a retirada volta)."
+          },
+          "goalsTotal": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Guardado em metas a partir da conta, em centavos: aportes que saíram dela menos retiradas que voltaram para ela. Pode ser negativo se voltou mais do que saiu."
           },
           "color": {
             "type": "string",
@@ -120,6 +126,7 @@
           "institution",
           "initialBalance",
           "currentBalance",
+          "goalsTotal",
           "color",
           "icon",
           "isArchived",
@@ -1493,7 +1500,13 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Saldo atual em centavos: saldo inicial mais as transações realizadas (pendentes não contam)."
+            "description": "Saldo atual em centavos: saldo inicial mais as transações realizadas (pendentes não contam) e as movimentações de metas com a conta (o aporte sai dela, a retirada volta)."
+          },
+          "goalsTotal": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Guardado em metas a partir da conta, em centavos: aportes que saíram dela menos retiradas que voltaram para ela. Pode ser negativo se voltou mais do que saiu."
           },
           "color": {
             "type": "string",
@@ -1542,6 +1555,7 @@
           "institution",
           "initialBalance",
           "currentBalance",
+          "goalsTotal",
           "color",
           "icon",
           "isArchived",

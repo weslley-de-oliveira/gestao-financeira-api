@@ -1,4 +1,5 @@
 import { monthRange, type IsoDate } from '../../shared/utils/date.ts';
+import { goalMovements } from '../accounts/account-balance.ts';
 import type { AccountsRepository } from '../accounts/accounts.repository.ts';
 import type { BudgetsService } from '../budgets/budgets.service.ts';
 import type { GoalsService } from '../goals/goals.service.ts';
@@ -74,8 +75,9 @@ export function createDashboardService({
     async get(userId, query) {
       const { start, end } = monthRange(today().slice(0, 7));
       const range = { start: query.from ?? start, end: query.to ?? end };
-      const [period, active, budgetList, goalList] = await Promise.all([
+      const [period, periodContributions, active, budgetList, goalList] = await Promise.all([
         dashboard.periodTransactions(userId, { from: range.start, to: range.end }),
+        dashboard.periodGoalContributions(userId, { from: range.start, to: range.end }),
         activeAccounts(userId, range.start),
         budgetHighlights(userId),
         goalHighlights(userId),
@@ -90,10 +92,11 @@ export function createDashboardService({
           activeAccounts: active.length,
         },
         incomeVsExpense: incomeVsExpense(period, range),
-        // Parte do saldo de abertura e aplica só as transações do período.
+        // Parte do saldo de abertura e aplica só as transações e as movimentações de metas com
+        // conta do período.
         balanceEvolution: balanceEvolution(
           active.map((account) => ({ ...account, initialBalance: account.openingBalance })),
-          period,
+          [...period, ...goalMovements(periodContributions)],
           range,
         ),
         recentTransactions: recentTransactions(period, range, RECENT_LIMIT),
