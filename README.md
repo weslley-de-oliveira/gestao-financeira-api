@@ -83,6 +83,17 @@ test/                # Postgres de teste, helpers e testes que cruzam módulos (
   - A despesa com estornos só muda descrição, categoria e observações.
   - Ela não é excluída, nem a compra parcelada com parcela estornada, até os estornos saírem (409, `/problems/has-refunds`).
 
+## Metas ligadas às contas
+
+- **Conta opcional na movimentação:** `POST /v1/goals/{id}/contributions` aceita `accountId`. O aporte sai da conta e a retirada volta para ela. Sem conta, a movimentação só fica na meta.
+- **Como uma transferência entre a conta e a meta** (`goalMovement` em `modules/accounts/account-balance.ts`):
+  - Muda o saldo da conta, o saldo total e a evolução do saldo no dashboard.
+  - Não é receita nem despesa e não aparece na listagem de transações: fica no histórico da meta.
+- **Validação:** a conta precisa ser da pessoa (senão 422) e estar ativa (arquivada, 409 `/problems/archived-reference`). O saldo pode ficar negativo.
+- **Desfazer:** excluir a movimentação devolve o valor à conta. Arquivar a conta depois não desfaz nada.
+- **`goalsTotal` na conta:** quanto dela está guardado em metas (aportes que saíram − retiradas que voltaram). Explica por que o saldo caiu sem nenhuma transação.
+- **No banco:** `goal_contributions.account_id` tem chave estrangeira simples (`ON DELETE SET NULL`), porque a tabela não tem `user_id`. A posse da conta é conferida pela API.
+
 ## Segurança
 
 - Senhas com Argon2id (rehash automático quando os parâmetros mudam); mesma resposta e tempo para e-mail com e sem conta. A troca de senha (`POST /v1/me/password`) confere a senha atual e encerra as sessões dos outros aparelhos.
