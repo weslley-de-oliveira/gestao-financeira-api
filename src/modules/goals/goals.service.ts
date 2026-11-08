@@ -1,6 +1,8 @@
 import type { Goal, GoalContribution } from '../../db/schema/index.ts';
 import { DomainError, InvalidInputError } from '../../shared/errors/domain-error.ts';
 import type { IsoDate } from '../../shared/utils/date.ts';
+import type { AccountsRepository } from '../accounts/accounts.repository.ts';
+import { ArchivedReferenceError } from '../transactions/transactions.service.ts';
 import {
   calculateGoalProgress,
   compareGoals,
@@ -47,6 +49,8 @@ export type GoalWithContributions = Goal & { contributions: GoalContribution[] }
 
 export interface GoalsServiceDependencies {
   goals: GoalsRepository;
+  /** Conta de onde sai o aporte ou para onde volta a retirada: precisa ser da pessoa e ativa. */
+  accounts: Pick<AccountsRepository, 'findAccount'>;
   /** Data de hoje (`yyyy-MM-dd`): prazo e movimentações não podem ser em datas inválidas. */
   today: () => IsoDate;
 }
@@ -73,7 +77,10 @@ export interface GoalsService {
     changes: UpdateGoalInput,
     ifMatch?: IfMatch,
   ): Promise<GoalWithContributions>;
-  /** Registra aporte ou retirada até hoje; retirada maior que o acumulado → 409. */
+  /**
+   * Registra aporte ou retirada até hoje; retirada maior que o acumulado → 409. Com `accountId`, a
+   * conta precisa existir (senão 422) e estar ativa (senão `ArchivedReferenceError`, 409).
+   */
   addContribution(
     userId: string,
     goalId: string,
@@ -89,7 +96,11 @@ export interface GoalsService {
 
 const PAST_DEADLINE = 'A data-limite deve ser hoje ou uma data futura.';
 
-export function createGoalsService({ goals, today }: GoalsServiceDependencies): GoalsService {
+export function createGoalsService({
+  goals,
+  accounts,
+  today,
+}: GoalsServiceDependencies): GoalsService {
   /** Movimentações de cada meta e o progresso calculado para hoje. */
   async function withContributions(list: Goal[]): Promise<GoalWithContributions[]> {
     const contributions = await goals.listContributions(list.map((goal) => goal.id));
@@ -121,6 +132,22 @@ export function createGoalsService({ goals, today }: GoalsServiceDependencies): 
   function assertDeadline(deadline: IsoDate | null): void {
     if (deadline !== null && deadline < today()) {
       throw new InvalidInputError([{ field: 'deadline', message: PAST_DEADLINE }]);
+    }
+  }
+
+  /** A conta da movimentação, se houver, precisa ser da pessoa e estar ativa. */
+  async function assertAccount(userId: string, accountId: string | null): Promise<void> {
+    if (accountId === null) {
+      return;
+    }
+    const account = await accounts.findAccount(userId, accountId);
+    if (!account) {
+      throw new InvalidInputError([{ field: 'accountId', message: 'Conta não encontrada.' }]);
+    }
+    if (account.isArchived) {
+      throw new ArchivedReferenceError(
+        `A conta "${account.name}" está arquivada. Reative-a para movimentar a meta com ela.`,
+      );
     }
   }
 
@@ -190,6 +217,7 @@ export function createGoalsService({ goals, today }: GoalsServiceDependencies): 
       if (input.date > today()) {
         throw new InvalidInputError([{ field: 'date', message: 'A data não pode ser futura.' }]);
       }
+      await assertAccount(userId, input.accountId);
       const result = await goals.insertContribution(userId, goalId, input);
       if (result.status === 'goal-not-found') {
         throw new GoalNotFoundError();

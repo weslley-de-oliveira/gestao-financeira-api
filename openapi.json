@@ -482,182 +482,6 @@
           "nextInvoice"
         ]
       },
-      "GoalContributionInput": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["deposit", "withdrawal"],
-            "description": "`deposit` (aporte) ou `withdrawal` (retirada)."
-          },
-          "amount": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Centavos, sempre positivo: o tipo define se soma ou subtrai."
-          },
-          "date": {
-            "type": "string",
-            "format": "date",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-          },
-          "note": { "type": ["string", "null"] },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          }
-        },
-        "required": ["id", "type", "amount", "date", "note", "createdAt"]
-      },
-      "GoalInput": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-          },
-          "name": { "type": "string" },
-          "description": { "type": ["string", "null"] },
-          "targetAmount": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Valor-alvo em centavos."
-          },
-          "initialAmount": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Valor já guardado quando a meta foi criada, em centavos."
-          },
-          "deadline": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date",
-                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-              },
-              { "type": "null" }
-            ],
-            "description": "Data-limite, se houver."
-          },
-          "color": {
-            "type": "string",
-            "enum": [
-              "#1565c0",
-              "#2e7d32",
-              "#6a1b9a",
-              "#c62828",
-              "#ef6c00",
-              "#00838f",
-              "#ad1457",
-              "#546e7a"
-            ]
-          },
-          "icon": {
-            "type": "string",
-            "enum": [
-              "savings",
-              "flight",
-              "home",
-              "directions_car",
-              "school",
-              "health_and_safety",
-              "devices",
-              "celebration"
-            ],
-            "description": "Ícone do Material Symbols."
-          },
-          "isPaused": {
-            "type": "boolean",
-            "description": "Pausada: não fica atrasada enquanto pausada."
-          },
-          "isArchived": { "type": "boolean" },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-            "description": "Versão do registro: a ETag é derivada dela (use a ETag no `If-Match`)."
-          },
-          "contributions": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/GoalContributionInput" },
-            "description": "Aportes e retiradas, dos mais recentes para os mais antigos."
-          },
-          "currentAmount": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Acumulado: inicial + aportes − retiradas."
-          },
-          "remainingAmount": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Quanto falta para o alvo; zero se atingido."
-          },
-          "excessAmount": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Quanto passou do alvo; zero se não atingido."
-          },
-          "percent": { "type": "number", "description": "Percentual atingido, sem teto em 100." },
-          "status": {
-            "type": "string",
-            "enum": ["in-progress", "completed", "paused", "overdue"],
-            "description": "Pela regra concluída > pausada > atrasada > em andamento: `completed`, `paused`, `overdue` ou `in-progress`."
-          },
-          "monthsLeft": {
-            "anyOf": [
-              { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
-              { "type": "null" }
-            ],
-            "description": "Meses até o prazo, contando o atual; `null` sem prazo, concluída ou vencida."
-          },
-          "monthlyPace": {
-            "anyOf": [
-              { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
-              { "type": "null" }
-            ],
-            "description": "Aporte mensal para atingir o alvo no prazo, arredondado para cima; mesmo critério de `monthsLeft`."
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "description",
-          "targetAmount",
-          "initialAmount",
-          "deadline",
-          "color",
-          "icon",
-          "isPaused",
-          "isArchived",
-          "createdAt",
-          "updatedAt",
-          "contributions",
-          "currentAmount",
-          "remainingAmount",
-          "excessAmount",
-          "percent",
-          "status",
-          "monthsLeft",
-          "monthlyPace"
-        ]
-      },
       "TransactionInput": {
         "type": "object",
         "properties": {
@@ -978,6 +802,193 @@
         },
         "required": ["amount", "date"],
         "additionalProperties": false
+      },
+      "GoalContributionInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["deposit", "withdrawal"],
+            "description": "`deposit` (aporte) ou `withdrawal` (retirada)."
+          },
+          "accountId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              { "type": "null" }
+            ],
+            "description": "Conta de onde o aporte saiu ou para onde a retirada voltou; `null` quando só registra na meta."
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Centavos, sempre positivo: o tipo define se soma ou subtrai."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "note": { "type": ["string", "null"] },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": ["id", "type", "accountId", "amount", "date", "note", "createdAt"]
+      },
+      "GoalInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "targetAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Valor-alvo em centavos."
+          },
+          "initialAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Valor já guardado quando a meta foi criada, em centavos."
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              { "type": "null" }
+            ],
+            "description": "Data-limite, se houver."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "#1565c0",
+              "#2e7d32",
+              "#6a1b9a",
+              "#c62828",
+              "#ef6c00",
+              "#00838f",
+              "#ad1457",
+              "#546e7a"
+            ]
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "savings",
+              "flight",
+              "home",
+              "directions_car",
+              "school",
+              "health_and_safety",
+              "devices",
+              "celebration"
+            ],
+            "description": "Ícone do Material Symbols."
+          },
+          "isPaused": {
+            "type": "boolean",
+            "description": "Pausada: não fica atrasada enquanto pausada."
+          },
+          "isArchived": { "type": "boolean" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "Versão do registro: a ETag é derivada dela (use a ETag no `If-Match`)."
+          },
+          "contributions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/GoalContributionInput" },
+            "description": "Aportes e retiradas, dos mais recentes para os mais antigos."
+          },
+          "currentAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Acumulado: inicial + aportes − retiradas."
+          },
+          "remainingAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Quanto falta para o alvo; zero se atingido."
+          },
+          "excessAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Quanto passou do alvo; zero se não atingido."
+          },
+          "percent": { "type": "number", "description": "Percentual atingido, sem teto em 100." },
+          "status": {
+            "type": "string",
+            "enum": ["in-progress", "completed", "paused", "overdue"],
+            "description": "Pela regra concluída > pausada > atrasada > em andamento: `completed`, `paused`, `overdue` ou `in-progress`."
+          },
+          "monthsLeft": {
+            "anyOf": [
+              { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+              { "type": "null" }
+            ],
+            "description": "Meses até o prazo, contando o atual; `null` sem prazo, concluída ou vencida."
+          },
+          "monthlyPace": {
+            "anyOf": [
+              { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+              { "type": "null" }
+            ],
+            "description": "Aporte mensal para atingir o alvo no prazo, arredondado para cima; mesmo critério de `monthsLeft`."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "targetAmount",
+          "initialAmount",
+          "deadline",
+          "color",
+          "icon",
+          "isPaused",
+          "isArchived",
+          "createdAt",
+          "updatedAt",
+          "contributions",
+          "currentAmount",
+          "remainingAmount",
+          "excessAmount",
+          "percent",
+          "status",
+          "monthsLeft",
+          "monthlyPace"
+        ]
       },
       "DashboardInput": {
         "type": "object",
@@ -1901,184 +1912,6 @@
         ],
         "additionalProperties": false
       },
-      "GoalContribution": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["deposit", "withdrawal"],
-            "description": "`deposit` (aporte) ou `withdrawal` (retirada)."
-          },
-          "amount": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Centavos, sempre positivo: o tipo define se soma ou subtrai."
-          },
-          "date": {
-            "type": "string",
-            "format": "date",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-          },
-          "note": { "type": ["string", "null"] },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          }
-        },
-        "required": ["id", "type", "amount", "date", "note", "createdAt"],
-        "additionalProperties": false
-      },
-      "Goal": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-          },
-          "name": { "type": "string" },
-          "description": { "type": ["string", "null"] },
-          "targetAmount": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Valor-alvo em centavos."
-          },
-          "initialAmount": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Valor já guardado quando a meta foi criada, em centavos."
-          },
-          "deadline": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date",
-                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-              },
-              { "type": "null" }
-            ],
-            "description": "Data-limite, se houver."
-          },
-          "color": {
-            "type": "string",
-            "enum": [
-              "#1565c0",
-              "#2e7d32",
-              "#6a1b9a",
-              "#c62828",
-              "#ef6c00",
-              "#00838f",
-              "#ad1457",
-              "#546e7a"
-            ]
-          },
-          "icon": {
-            "type": "string",
-            "enum": [
-              "savings",
-              "flight",
-              "home",
-              "directions_car",
-              "school",
-              "health_and_safety",
-              "devices",
-              "celebration"
-            ],
-            "description": "Ícone do Material Symbols."
-          },
-          "isPaused": {
-            "type": "boolean",
-            "description": "Pausada: não fica atrasada enquanto pausada."
-          },
-          "isArchived": { "type": "boolean" },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-            "description": "Versão do registro: a ETag é derivada dela (use a ETag no `If-Match`)."
-          },
-          "contributions": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/GoalContribution" },
-            "description": "Aportes e retiradas, dos mais recentes para os mais antigos."
-          },
-          "currentAmount": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Acumulado: inicial + aportes − retiradas."
-          },
-          "remainingAmount": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Quanto falta para o alvo; zero se atingido."
-          },
-          "excessAmount": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "Quanto passou do alvo; zero se não atingido."
-          },
-          "percent": { "type": "number", "description": "Percentual atingido, sem teto em 100." },
-          "status": {
-            "type": "string",
-            "enum": ["in-progress", "completed", "paused", "overdue"],
-            "description": "Pela regra concluída > pausada > atrasada > em andamento: `completed`, `paused`, `overdue` ou `in-progress`."
-          },
-          "monthsLeft": {
-            "anyOf": [
-              { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
-              { "type": "null" }
-            ],
-            "description": "Meses até o prazo, contando o atual; `null` sem prazo, concluída ou vencida."
-          },
-          "monthlyPace": {
-            "anyOf": [
-              { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
-              { "type": "null" }
-            ],
-            "description": "Aporte mensal para atingir o alvo no prazo, arredondado para cima; mesmo critério de `monthsLeft`."
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "description",
-          "targetAmount",
-          "initialAmount",
-          "deadline",
-          "color",
-          "icon",
-          "isPaused",
-          "isArchived",
-          "createdAt",
-          "updatedAt",
-          "contributions",
-          "currentAmount",
-          "remainingAmount",
-          "excessAmount",
-          "percent",
-          "status",
-          "monthsLeft",
-          "monthlyPace"
-        ],
-        "additionalProperties": false
-      },
       "Transaction": {
         "type": "object",
         "properties": {
@@ -2407,6 +2240,195 @@
           "notes": {}
         },
         "required": ["amount", "date", "notes"],
+        "additionalProperties": false
+      },
+      "GoalContribution": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["deposit", "withdrawal"],
+            "description": "`deposit` (aporte) ou `withdrawal` (retirada)."
+          },
+          "accountId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              { "type": "null" }
+            ],
+            "description": "Conta de onde o aporte saiu ou para onde a retirada voltou; `null` quando só registra na meta."
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Centavos, sempre positivo: o tipo define se soma ou subtrai."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "note": { "type": ["string", "null"] },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": ["id", "type", "accountId", "amount", "date", "note", "createdAt"],
+        "additionalProperties": false
+      },
+      "Goal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "targetAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Valor-alvo em centavos."
+          },
+          "initialAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Valor já guardado quando a meta foi criada, em centavos."
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              { "type": "null" }
+            ],
+            "description": "Data-limite, se houver."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "#1565c0",
+              "#2e7d32",
+              "#6a1b9a",
+              "#c62828",
+              "#ef6c00",
+              "#00838f",
+              "#ad1457",
+              "#546e7a"
+            ]
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "savings",
+              "flight",
+              "home",
+              "directions_car",
+              "school",
+              "health_and_safety",
+              "devices",
+              "celebration"
+            ],
+            "description": "Ícone do Material Symbols."
+          },
+          "isPaused": {
+            "type": "boolean",
+            "description": "Pausada: não fica atrasada enquanto pausada."
+          },
+          "isArchived": { "type": "boolean" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "Versão do registro: a ETag é derivada dela (use a ETag no `If-Match`)."
+          },
+          "contributions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/GoalContribution" },
+            "description": "Aportes e retiradas, dos mais recentes para os mais antigos."
+          },
+          "currentAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Acumulado: inicial + aportes − retiradas."
+          },
+          "remainingAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Quanto falta para o alvo; zero se atingido."
+          },
+          "excessAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Quanto passou do alvo; zero se não atingido."
+          },
+          "percent": { "type": "number", "description": "Percentual atingido, sem teto em 100." },
+          "status": {
+            "type": "string",
+            "enum": ["in-progress", "completed", "paused", "overdue"],
+            "description": "Pela regra concluída > pausada > atrasada > em andamento: `completed`, `paused`, `overdue` ou `in-progress`."
+          },
+          "monthsLeft": {
+            "anyOf": [
+              { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+              { "type": "null" }
+            ],
+            "description": "Meses até o prazo, contando o atual; `null` sem prazo, concluída ou vencida."
+          },
+          "monthlyPace": {
+            "anyOf": [
+              { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+              { "type": "null" }
+            ],
+            "description": "Aporte mensal para atingir o alvo no prazo, arredondado para cima; mesmo critério de `monthsLeft`."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "targetAmount",
+          "initialAmount",
+          "deadline",
+          "color",
+          "icon",
+          "isPaused",
+          "isArchived",
+          "createdAt",
+          "updatedAt",
+          "contributions",
+          "currentAmount",
+          "remainingAmount",
+          "excessAmount",
+          "percent",
+          "status",
+          "monthsLeft",
+          "monthlyPace"
+        ],
         "additionalProperties": false
       },
       "Dashboard": {
@@ -5794,7 +5816,7 @@
       "post": {
         "summary": "Registra um aporte ou uma retirada",
         "tags": ["Metas"],
-        "description": "Movimentação manual da meta, com data de hoje ou anterior. Uma retirada maior que o valor acumulado responde 409. Devolve a meta atualizada.",
+        "description": "Movimentação da meta, com data de hoje ou anterior. Com `accountId`, o aporte sai da conta e a retirada volta para ela, como uma transferência (não conta como receita nem despesa). Conta inexistente responde 422; conta arquivada ou retirada maior que o valor acumulado, 409. Devolve a meta atualizada.",
         "requestBody": {
           "required": true,
           "content": {
@@ -5809,6 +5831,17 @@
                     "maximum": 100000000000,
                     "description": "Centavos inteiros, maior que zero (R$ 1.234,56 → 123456).",
                     "example": 123456
+                  },
+                  "accountId": {
+                    "description": "Conta ativa de onde o aporte sai ou para onde a retirada volta. O saldo dela muda, como numa transferência; sem conta, só registra na meta.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      { "type": "null" }
+                    ]
                   },
                   "date": {
                     "type": "string",
@@ -5872,7 +5905,7 @@
       "delete": {
         "summary": "Exclui um aporte ou uma retirada",
         "tags": ["Metas"],
-        "description": "O acumulado é recalculado. Excluir um aporte que deixaria o acumulado negativo responde 409. Devolve a meta atualizada.",
+        "description": "O acumulado é recalculado e, se a movimentação tinha conta, o saldo da conta também. Excluir um aporte que deixaria o acumulado negativo responde 409. Devolve a meta atualizada.",
         "parameters": [
           {
             "schema": {

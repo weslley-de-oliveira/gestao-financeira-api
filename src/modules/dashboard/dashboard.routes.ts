@@ -17,16 +17,17 @@ export const DASHBOARD_TAG = 'Dashboard';
 export const dashboardRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
   requireSession(app);
   const today = () => app.today();
+  const accounts = createAccountsRepository(app.db);
   const service = createDashboardService({
     dashboard: createDashboardRepository(app.db),
-    accounts: createAccountsRepository(app.db),
+    accounts,
     // Os mesmos serviços das rotas de orçamentos e metas: as regras não divergem.
     budgets: createBudgetsService({
       budgets: createBudgetsRepository(app.db),
       categories: createCategoriesRepository(app.db),
       today,
     }),
-    goals: createGoalsService({ goals: createGoalsRepository(app.db), today }),
+    goals: createGoalsService({ goals: createGoalsRepository(app.db), accounts, today }),
     today,
   });
 

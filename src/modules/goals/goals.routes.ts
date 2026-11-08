@@ -2,6 +2,7 @@ import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { currentAuth, requireSession } from '../../plugins/auth.ts';
 import { problemDetailsSchema } from '../../shared/http/problem.ts';
 import { ifMatchHeadersSchema, parseIfMatch, setEntityTag } from '../../shared/http/etag.ts';
+import { createAccountsRepository } from '../accounts/accounts.repository.ts';
 import { createGoalsRepository } from './goals.repository.ts';
 import {
   contributionParamsSchema,
@@ -23,6 +24,7 @@ export const goalsRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
   requireSession(app);
   const service = createGoalsService({
     goals: createGoalsRepository(app.db),
+    accounts: createAccountsRepository(app.db),
     today: () => app.today(),
   });
 
@@ -125,7 +127,7 @@ export const goalsRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
         tags: [GOALS_TAG],
         summary: 'Registra um aporte ou uma retirada',
         description:
-          'Movimentação manual da meta, com data de hoje ou anterior. Uma retirada maior que o valor acumulado responde 409. Devolve a meta atualizada.',
+          'Movimentação da meta, com data de hoje ou anterior. Com `accountId`, o aporte sai da conta e a retirada volta para ela, como uma transferência (não conta como receita nem despesa). Conta inexistente responde 422; conta arquivada ou retirada maior que o valor acumulado, 409. Devolve a meta atualizada.',
         params: goalParamsSchema,
         body: createContributionBodySchema,
         response: {
@@ -155,7 +157,7 @@ export const goalsRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
         tags: [GOALS_TAG],
         summary: 'Exclui um aporte ou uma retirada',
         description:
-          'O acumulado é recalculado. Excluir um aporte que deixaria o acumulado negativo responde 409. Devolve a meta atualizada.',
+          'O acumulado é recalculado e, se a movimentação tinha conta, o saldo da conta também. Excluir um aporte que deixaria o acumulado negativo responde 409. Devolve a meta atualizada.',
         params: contributionParamsSchema,
         response: {
           200: goalSchema,
