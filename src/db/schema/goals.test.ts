@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, describe, expect, inject, it } from 'vitest';
 import { createDatabase } from '../client.ts';
 import {
+  accounts,
   goalContributions,
   goals,
   users,
@@ -125,5 +126,63 @@ describe('tabela goal_contributions', () => {
     await expect(
       db.insert(goalContributions).values(contribution(goal.id, overrides)),
     ).rejects.toMatchObject(violation('23514', constraint));
+  });
+
+  describe('conta da movimentação', () => {
+    async function insertAccount(userId: string) {
+      const [account] = await db
+        .insert(accounts)
+        .values({ userId, name: 'Corrente', type: 'checking', color: '#1565c0', icon: 'home' })
+        .returning();
+      return account!;
+    }
+
+    it('é opcional e guarda a conta quando informada', async () => {
+      const goal = await insertGoal();
+      const account = await insertAccount(goal.userId);
+
+      const inserted = await db
+        .insert(goalContributions)
+        .values([contribution(goal.id), contribution(goal.id, { accountId: account.id })])
+        .returning();
+
+      expect(inserted.map((item) => item.accountId)).toEqual([null, account.id]);
+    });
+
+    it('rejeita conta inexistente', async () => {
+      const goal = await insertGoal();
+
+      await expect(
+        db.insert(goalContributions).values(contribution(goal.id, { accountId: randomUUID() })),
+      ).rejects.toMatchObject(violation('23503', 'goal_contributions_account_id_accounts_id_fk'));
+    });
+
+    // A API não apaga contas (só arquiva); fora dela, a meta mantém o histórico sem a conta.
+    it('apagar a conta só desliga a movimentação dela', async () => {
+      const goal = await insertGoal();
+      const account = await insertAccount(goal.userId);
+      const [created] = await db
+        .insert(goalContributions)
+        .values(contribution(goal.id, { accountId: account.id }))
+        .returning();
+
+      await db.delete(accounts).where(eq(accounts.id, account.id));
+
+      const [kept] = await db
+        .select()
+        .from(goalContributions)
+        .where(eq(goalContributions.id, created!.id));
+      expect(kept?.accountId).toBeNull();
+    });
+
+    it('não impede excluir a pessoa: contas e metas saem juntas', async () => {
+      const goal = await insertGoal();
+      const account = await insertAccount(goal.userId);
+      await db.insert(goalContributions).values(contribution(goal.id, { accountId: account.id }));
+
+      await db.delete(users).where(eq(users.id, goal.userId));
+
+      expect(await db.select().from(accounts).where(eq(accounts.id, account.id))).toEqual([]);
+    });
   });
 });
