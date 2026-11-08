@@ -23,6 +23,11 @@ const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
  * lista (origens de CORS, `appOrigin` e a própria API) recebem 403. Sem `Origin`, passam: navegadores
  * sempre o enviam nesses métodos, então a requisição não veio de uma página (curl, scripts) e não
  * pode carregar o cookie de outra pessoa.
+ *
+ * Cache: toda resposta sai com `Cache-Control: no-store`, salvo se a rota definir outro. São dados
+ * pessoais, e a ETag é a versão do registro, que não muda com os valores calculados (saldo, uso do
+ * limite): com cache, uma revalidação por `If-None-Match` (o proxy da Vercel responde 304) traria o
+ * saldo antigo.
  */
 export const securityPlugin = fp<SecurityOptions>(
   async (app, { corsOrigins, appOrigin }) => {
@@ -44,6 +49,12 @@ export const securityPlugin = fp<SecurityOptions>(
         maxAge: 600,
       });
     }
+
+    app.addHook('onSend', async (_request, reply) => {
+      if (!reply.hasHeader('cache-control')) {
+        void reply.header('cache-control', 'no-store');
+      }
+    });
 
     const trustedOrigins = new Set(
       [...corsOrigins, ...(appOrigin ? [appOrigin] : [])].map((url) => new URL(url).origin),

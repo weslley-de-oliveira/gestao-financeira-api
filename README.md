@@ -186,7 +186,7 @@ As decisões de arquitetura estão na seção 11 do plano. Além delas:
 
 - **Migrações na subida** (`MIGRATE_ON_START`), com trava no banco contra duas instâncias migrando ao mesmo tempo: o plano gratuito do Render não tem pré-deploy.
 - **`TRUST_PROXY` por número de saltos:** o Fastify 5 recusa esse modo, porque quem chama a API direto pode forjar o `X-Forwarded-For`. Aqui isso afeta só o rate limit de quem contorna a Vercel, e os provedores não publicam faixas de IP fixas para confiar por endereço.
-- **ETag pela versão do registro:** valores calculados (saldo, uso do limite, progresso, uso da categoria) não mudam a ETag; aportes e retiradas mudam a da meta. A versão tem resolução de milissegundos.
+- **ETag pela versão do registro:** valores calculados (saldo, uso do limite, progresso, uso da categoria) não mudam a ETag; aportes e retiradas mudam a da meta. A versão tem resolução de milissegundos. Por isso as respostas saem com `Cache-Control: no-store`: guardada e revalidada por `If-None-Match`, uma resposta mostraria o saldo antigo.
 - **Paginação por cursor também na ordenação por valor**, em vez de `page`/`offset`: o cliente navega para a página anterior e para a próxima, mas não salta direto para uma página qualquer. Em troca, a página não muda quando entra uma transação no meio da navegação.
 
 ## Padrão de commits

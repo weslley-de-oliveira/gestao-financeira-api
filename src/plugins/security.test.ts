@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestApp } from '../../test/helpers/app.ts';
+import { createAccount, signUp } from '../../test/helpers/users.ts';
 import { users } from '../db/schema/index.ts';
 
 describe('verificação de Origin (CSRF)', () => {
@@ -83,5 +84,37 @@ describe('verificação de Origin (CSRF)', () => {
     });
 
     expect(response.statusCode).toBe(200);
+  });
+});
+
+// O saldo e outros valores calculados mudam sem mudar a ETag (a versão do registro): uma resposta
+// guardada e revalidada mostraria o valor antigo.
+describe('cache das respostas', () => {
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('nenhuma resposta pode ser guardada, nem com ETag nem com erro', async () => {
+    const user = await signUp(app);
+    const account = await createAccount(user);
+
+    const responses = [
+      await user.api('GET', `/v1/accounts/${account.id}`),
+      await user.api('GET', '/v1/accounts'),
+      await user.api('GET', `/v1/accounts/${randomUUID()}`),
+      await app.inject({ method: 'GET', url: '/v1/accounts' }),
+    ];
+
+    expect(responses.map((response) => response.statusCode)).toEqual([200, 200, 404, 401]);
+    expect(responses[0]?.headers.etag).toBeDefined();
+    for (const response of responses) {
+      expect(response.headers['cache-control']).toBe('no-store');
+    }
   });
 });
