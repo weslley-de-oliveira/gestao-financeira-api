@@ -2,8 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateBalance,
   calculateTotalBalance,
+  goalMovement,
+  goalMovements,
+  goalsTotal,
   movementEffect,
   type BalanceMovement,
+  type GoalContributionMovement,
 } from './account-balance.ts';
 
 // Porte de `account-balance.spec.ts` do front: os mesmos casos, para a regra dar o mesmo resultado
@@ -107,5 +111,68 @@ describe('saldo da conta', () => {
 
   it('recusa saldo inicial inválido', () => {
     expect(() => calculateBalance({ id: 'x', initialBalance: Number.NaN }, [])).toThrow(RangeError);
+  });
+});
+
+describe('movimentações de metas no saldo', () => {
+  const checking = { id: 'checking', initialBalance: 100_000 };
+  const contribution = (
+    overrides: Partial<GoalContributionMovement>,
+  ): GoalContributionMovement => ({
+    type: 'deposit',
+    amount: 10_000,
+    accountId: 'checking',
+    date: '2026-11-01',
+    ...overrides,
+  });
+
+  it('o aporte sai da conta e a retirada volta para ela', () => {
+    const movements = goalMovements([
+      contribution({ amount: 30_000 }),
+      contribution({ type: 'withdrawal', amount: 5_000 }),
+    ]);
+
+    expect(calculateBalance(checking, movements)).toBe(75_000);
+  });
+
+  it('sem conta, a movimentação só fica na meta', () => {
+    expect(goalMovement(contribution({ accountId: null }))).toBeNull();
+    expect(calculateBalance(checking, goalMovements([contribution({ accountId: null })]))).toBe(
+      100_000,
+    );
+  });
+
+  it('não mexe nas outras contas', () => {
+    const movements = goalMovements([contribution({ accountId: 'savings' })]);
+
+    expect(calculateBalance(checking, movements)).toBe(100_000);
+  });
+
+  it('vira meia transferência, que não é receita nem despesa', () => {
+    expect(goalMovement(contribution({}))).toEqual({
+      type: 'transfer',
+      amount: 10_000,
+      accountId: 'checking',
+      destinationAccountId: null,
+      status: 'completed',
+      date: '2026-11-01',
+    });
+    expect(goalMovement(contribution({ type: 'withdrawal' }))).toMatchObject({
+      accountId: null,
+      destinationAccountId: 'checking',
+    });
+  });
+
+  it('soma o guardado em metas por conta', () => {
+    const contributions = [
+      contribution({ amount: 30_000 }),
+      contribution({ type: 'withdrawal', amount: 5_000 }),
+      contribution({ accountId: 'savings', amount: 99_999 }),
+      contribution({ accountId: null, amount: 1_000 }),
+    ];
+
+    expect(goalsTotal('checking', contributions)).toBe(25_000);
+    expect(goalsTotal('savings', contributions)).toBe(99_999);
+    expect(goalsTotal('other', contributions)).toBe(0);
   });
 });

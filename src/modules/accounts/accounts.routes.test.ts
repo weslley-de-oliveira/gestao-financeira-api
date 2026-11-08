@@ -132,6 +132,7 @@ describe('rotas /v1/accounts', () => {
         institution: 'Banco Exemplo',
         initialBalance: -150_075,
         currentBalance: -150_075,
+        goalsTotal: 0,
         color: '#2e7d32',
         icon: 'savings',
         isArchived: false,

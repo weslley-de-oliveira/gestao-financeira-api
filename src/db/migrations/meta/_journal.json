@@ -92,6 +92,13 @@
       "when": 1793996930293,
       "tag": "0012_adiciona-estornos",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794095058764,
+      "tag": "0013_liga-metas-a-contas",
+      "breakpoints": true
     }
   ]
 }

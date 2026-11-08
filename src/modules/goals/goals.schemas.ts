@@ -25,6 +25,10 @@ export const contributionSchema = z
     type: z
       .enum(CONTRIBUTION_TYPES)
       .meta({ description: '`deposit` (aporte) ou `withdrawal` (retirada).' }),
+    accountId: z.uuid().nullable().meta({
+      description:
+        'Conta de onde o aporte saiu ou para onde a retirada voltou; `null` quando só registra na meta.',
+    }),
     amount: z
       .int()
       .meta({ description: 'Centavos, sempre positivo: o tipo define se soma ou subtrai.' }),
@@ -157,6 +161,15 @@ export const contributionParamsSchema = goalParamsSchema.extend({
 export const createContributionBodySchema = z.strictObject({
   type: z.enum(CONTRIBUTION_TYPES, 'Selecione aporte ou retirada.'),
   amount: positiveCentsSchema,
+  accountId: z
+    .uuid('Selecione uma conta válida.')
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null)
+    .meta({
+      description:
+        'Conta ativa de onde o aporte sai ou para onde a retirada volta. O saldo dela muda, como numa transferência; sem conta, só registra na meta.',
+    }),
   date: z.iso
     .date('Informe uma data válida no formato aaaa-mm-dd.')
     .meta({ description: 'Data da movimentação: hoje ou antes.' }),
@@ -195,6 +208,7 @@ export function toGoalDto(
     contributions: goal.contributions.map((contribution) => ({
       id: contribution.id,
       type: contribution.type,
+      accountId: contribution.accountId,
       amount: contribution.amount,
       date: contribution.date,
       note: contribution.note,

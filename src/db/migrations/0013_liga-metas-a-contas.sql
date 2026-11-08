@@ -1,0 +1,3 @@
+ALTER TABLE "goal_contributions" ADD COLUMN "account_id" uuid;--> statement-breakpoint
+ALTER TABLE "goal_contributions" ADD CONSTRAINT "goal_contributions_account_id_accounts_id_fk" FOREIGN KEY ("account_id") REFERENCES "public"."accounts"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "goal_contributions_account_id_idx" ON "goal_contributions" USING btree ("account_id");

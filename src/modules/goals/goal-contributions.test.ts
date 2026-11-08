@@ -2,7 +2,7 @@ import { randomUUIDv7 } from 'node:crypto';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestApp } from '../../../test/helpers/app.ts';
-import { signUp, type TestUser } from '../../../test/helpers/users.ts';
+import { createAccount, signUp, type TestUser } from '../../../test/helpers/users.ts';
 import { goalBalance } from './goal-rules.ts';
 import type { GoalDto } from './goals.schemas.ts';
 
@@ -61,6 +61,7 @@ describe('aportes e retiradas das metas', () => {
       {
         id: expect.any(String) as unknown,
         type: 'deposit',
+        accountId: null,
         amount: 50_000,
         date: '2026-11-01',
         note: 'Bônus',
@@ -120,6 +121,48 @@ describe('aportes e retiradas das metas', () => {
 
     expect(response.statusCode).toBe(422);
     expect(response.json()).toMatchObject({ errors: [{ field, message }] });
+  });
+
+  describe('conta da movimentação', () => {
+    it('guarda a conta do aporte e da retirada', async () => {
+      const account = await createAccount(user);
+
+      await add({ accountId: account.id });
+      const response = await add({ type: 'withdrawal', amount: 5_000, accountId: account.id });
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json<GoalDto>().contributions.map((item) => item.accountId)).toEqual([
+        account.id,
+        account.id,
+      ]);
+    });
+
+    it('responde 422 para conta inexistente ou de outra pessoa', async () => {
+      const other = await signUp(app);
+      const othersAccount = await createAccount(other);
+
+      for (const accountId of [randomUUIDv7(), othersAccount.id]) {
+        const response = await add({ accountId });
+
+        expect(response.statusCode).toBe(422);
+        expect(response.json()).toMatchObject({
+          errors: [{ field: 'body.accountId', message: 'Conta não encontrada.' }],
+        });
+      }
+    });
+
+    it('responde 409 para conta arquivada', async () => {
+      const account = await createAccount(user, { name: 'Antiga' });
+      await user.api('PATCH', `/v1/accounts/${account.id}`, { isArchived: true });
+
+      const response = await add({ accountId: account.id });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toMatchObject({
+        type: '/problems/archived-reference',
+        detail: 'A conta "Antiga" está arquivada. Reative-a para movimentar a meta com ela.',
+      });
+    });
   });
 
   describe('excluir movimentação', () => {

@@ -84,7 +84,11 @@ export const accountSchema = z
     initialBalance: z.int().meta({ description: 'Saldo inicial em centavos; pode ser negativo.' }),
     currentBalance: z.int().meta({
       description:
-        'Saldo atual em centavos: saldo inicial mais as transações realizadas (pendentes não contam).',
+        'Saldo atual em centavos: saldo inicial mais as transações realizadas (pendentes não contam) e as movimentações de metas com a conta (o aporte sai dela, a retirada volta).',
+    }),
+    goalsTotal: z.int().meta({
+      description:
+        'Guardado em metas a partir da conta, em centavos: aportes que saíram dela menos retiradas que voltaram para ela. Pode ser negativo se voltou mais do que saiu.',
     }),
     color: accountColorSchema,
     icon: accountIconSchema,
@@ -112,7 +116,9 @@ export const listAccountsQuerySchema = z.object({
 
 export type ListAccountsQuery = z.infer<typeof listAccountsQuerySchema>;
 
-export function toAccountDto(account: Account & { currentBalance: number }): AccountDto {
+export function toAccountDto(
+  account: Account & { currentBalance: number; goalsTotal: number },
+): AccountDto {
   return {
     id: account.id,
     name: account.name,
@@ -120,6 +126,7 @@ export function toAccountDto(account: Account & { currentBalance: number }): Acc
     institution: account.institution,
     initialBalance: account.initialBalance,
     currentBalance: account.currentBalance,
+    goalsTotal: account.goalsTotal,
     // As constraints do banco garantem que cor e ícone estão nas listas.
     color: account.color as AccountDto['color'],
     icon: account.icon as AccountDto['icon'],

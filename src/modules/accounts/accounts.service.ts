@@ -18,8 +18,11 @@ export class AccountNotFoundError extends DomainError {
   }
 }
 
-/** Conta com o saldo atual, calculado a partir das transações (não é guardado). */
-export type AccountWithBalance = Account & { currentBalance: Cents };
+/**
+ * Conta com o saldo atual (transações e movimentações de metas) e o valor guardado em metas a
+ * partir dela, calculados (não são guardados).
+ */
+export type AccountWithBalance = Account & { currentBalance: Cents; goalsTotal: Cents };
 
 export interface AccountsService {
   list(userId: string, query: ListAccountsQuery): Promise<AccountWithBalance[]>;
@@ -40,15 +43,20 @@ export interface AccountsService {
 }
 
 export function createAccountsService(repository: AccountsRepository): AccountsService {
-  /** Saldo atual = saldo inicial + efeito das transações realizadas (regra `calculateBalance`). */
+  /**
+   * Saldo atual = saldo inicial + efeito das transações realizadas e das movimentações de metas
+   * com a conta (regras `calculateBalance` e `goalMovement`).
+   */
   async function withBalances(userId: string, accounts: Account[]): Promise<AccountWithBalance[]> {
-    const totals = await repository.movementTotals(
-      userId,
-      accounts.map((account) => account.id),
-    );
+    const ids = accounts.map((account) => account.id);
+    const [totals, inGoals] = await Promise.all([
+      repository.movementTotals(userId, ids),
+      repository.goalsTotals(userId, ids),
+    ]);
     return accounts.map((account) => ({
       ...account,
       currentBalance: account.initialBalance + (totals.get(account.id) ?? 0),
+      goalsTotal: inGoals.get(account.id) ?? 0,
     }));
   }
 

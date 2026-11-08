@@ -20,6 +20,7 @@ import {
 import { APPEARANCE_COLORS } from '../../shared/models/appearance.ts';
 import { MAX_MONEY_CENTS } from '../../shared/utils/money.ts';
 import { oneOf, primaryId, timestamps } from './columns.ts';
+import { accounts } from './accounts.ts';
 import { users } from './users.ts';
 
 const maxMoney = sql.raw(String(MAX_MONEY_CENTS));
@@ -74,7 +75,10 @@ export const goals = pgTable(
   ],
 );
 
-/** Aportes e retiradas manuais de uma meta (não ligados a contas nem transações). */
+/**
+ * Aportes e retiradas de uma meta. Com `account_id`, a movimentação também mexe no saldo da conta,
+ * como uma transferência entre a conta e a meta (não vira transação nem conta nos totais).
+ */
 export const goalContributions = pgTable(
   'goal_contributions',
   {
@@ -82,6 +86,11 @@ export const goalContributions = pgTable(
     goalId: uuid()
       .notNull()
       .references(() => goals.id, { onDelete: 'cascade' }),
+    /**
+     * Conta de onde o aporte sai ou para onde a retirada volta; `null` quando só registra na meta.
+     * A tabela não tem `user_id`: a API confere se a conta é do dono da meta.
+     */
+    accountId: uuid().references(() => accounts.id, { onDelete: 'set null' }),
     type: text({ enum: CONTRIBUTION_TYPES }).notNull(),
     /** Centavos, sempre positivo: o tipo define se soma ou subtrai. */
     amount: bigint({ mode: 'number' }).notNull(),
@@ -91,6 +100,7 @@ export const goalContributions = pgTable(
   },
   (table) => [
     index('goal_contributions_goal_id_idx').on(table.goalId),
+    index('goal_contributions_account_id_idx').on(table.accountId),
     check('goal_contributions_type_valid', oneOf(table.type, CONTRIBUTION_TYPES)),
     check(
       'goal_contributions_amount_range',

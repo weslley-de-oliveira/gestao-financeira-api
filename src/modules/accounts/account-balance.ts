@@ -1,4 +1,6 @@
+import type { ContributionType } from '../goals/goals.constants.ts';
 import type { TransactionStatus, TransactionType } from '../transactions/transactions.constants.ts';
+import type { IsoDate } from '../../shared/utils/date.ts';
 import { assertValidCents, type Cents } from '../../shared/utils/money.ts';
 
 /**
@@ -69,4 +71,55 @@ export function calculateTotalBalance(
   movements: readonly BalanceMovement[],
 ): Cents {
   return accounts.reduce((total, account) => total + calculateBalance(account, movements), 0);
+}
+
+/** Movimentação de uma meta, como a API e o front a guardam. */
+export interface GoalContributionMovement {
+  type: ContributionType;
+  amount: Cents;
+  /** Conta de onde o aporte saiu ou para onde a retirada voltou; `null` só registra na meta. */
+  accountId: string | null;
+  date: IsoDate;
+}
+
+/**
+ * A movimentação de uma meta com conta, no formato das que alteram o saldo: uma transferência
+ * entre a conta e a meta, da qual só o lado da conta existe. O aporte só debita a conta e a
+ * retirada só credita, sem contar como receita ou despesa. Sem conta, não há efeito (`null`).
+ */
+export function goalMovement(
+  contribution: GoalContributionMovement,
+): (BalanceMovement & { date: IsoDate }) | null {
+  if (contribution.accountId === null) {
+    return null;
+  }
+  const deposit = contribution.type === 'deposit';
+  return {
+    type: 'transfer',
+    amount: contribution.amount,
+    accountId: deposit ? contribution.accountId : null,
+    destinationAccountId: deposit ? null : contribution.accountId,
+    status: 'completed',
+    date: contribution.date,
+  };
+}
+
+/** Movimentações de metas que alteram o saldo das contas (as que têm conta). */
+export function goalMovements(
+  contributions: readonly GoalContributionMovement[],
+): (BalanceMovement & { date: IsoDate })[] {
+  return contributions
+    .map(goalMovement)
+    .filter((movement): movement is BalanceMovement & { date: IsoDate } => movement !== null);
+}
+
+/** Quanto da conta está guardado em metas: aportes que saíram dela − retiradas que voltaram. */
+export function goalsTotal(
+  accountId: string,
+  contributions: readonly GoalContributionMovement[],
+): Cents {
+  return goalMovements(contributions).reduce(
+    (total, movement) => total - movementEffect(movement, accountId),
+    0,
+  );
 }
