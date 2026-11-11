@@ -81,6 +81,17 @@ describe('compras de fatura paga ficam bloqueadas', () => {
     expectLocked(await purchase({ date: '2026-11-04' }));
   });
 
+  it('não cria compra numa fatura anterior à paga: o saldo dela passa para a paga', async () => {
+    const response = await purchase({ date: '2026-09-20' });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      type: '/problems/paid-invoice',
+      detail:
+        'A fatura de 11/2026 do cartão "Roxinho" já foi paga, e o saldo da fatura de 10/2026 passa para ela. Desfaça esse pagamento para alterar as compras.',
+    });
+  });
+
   it('cria normalmente na fatura aberta', async () => {
     expect((await purchase({ date: '2026-11-05' })).statusCode).toBe(201);
   });

@@ -321,20 +321,14 @@ describe('tabela transactions', () => {
     );
   });
 
-  it('rejeita um segundo pagamento da mesma fatura (cartão e mês)', async () => {
+  it('permite mais de um pagamento da mesma fatura (cartão e mês): cada um paga uma parte', async () => {
     const creditCardId = (await newCard({ userId: owner.user.id, checking: owner.checking })).id;
     await insert({ ...invoicePayment, creditCardId });
 
-    await expect(insert({ ...invoicePayment, creditCardId })).rejects.toMatchObject(
-      violation('23505', 'transactions_invoice_payment_unique'),
-    );
-    // Outro mês do mesmo cartão é outra fatura.
-    await expect(
-      insert({ ...invoicePayment, creditCardId, invoiceMonth: '2026-11' }),
-    ).resolves.toHaveLength(1);
+    await expect(insert({ ...invoicePayment, creditCardId })).resolves.toHaveLength(1);
   });
 
-  it('permite várias compras no mesmo cartão e mês (só o pagamento é único)', async () => {
+  it('permite várias compras no mesmo cartão e mês', async () => {
     await insert(cardPurchase);
     await expect(insert(cardPurchase)).resolves.toHaveLength(1);
   });

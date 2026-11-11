@@ -9,6 +9,7 @@ import {
   cardInvoicesParamsSchema,
   invoiceListSchema,
   invoiceParamsSchema,
+  invoicePaymentBodySchema,
   invoiceSchema,
   toInvoiceDto,
   toInvoiceSummaryDto,
@@ -83,11 +84,12 @@ export const invoicesRoutes: FastifyPluginCallbackZod = (app, _options, done) =>
     {
       schema: {
         tags: [INVOICES_TAG],
-        summary: 'Paga a fatura',
+        summary: 'Paga a fatura (inteira ou em parte)',
         description:
-          'Paga o valor total da fatura, com a data de hoje, debitando a conta de pagamento do cartão (cria a transação `invoice-payment`). Só fatura fechada ou vencida, com compras e ainda sem pagamento; senão, ou com a conta de pagamento arquivada, responde 409. Devolve a fatura paga. Com `Idempotency-Key`, repetir o pedido (ex.: depois de uma falha de rede) devolve o mesmo pagamento em vez de 409: a chave reaproveitada em outra requisição responde 422, e enquanto a primeira ainda roda, 409.',
+          'Paga `amount` (até o saldo da fatura; acima, 422) ou, sem corpo, o saldo inteiro, com a data de hoje, debitando a conta de pagamento do cartão (cria uma transação `invoice-payment`; a parcial leva " (parcial)" na descrição). Uma fatura aceita vários pagamentos: o que faltar passa para a fatura seguinte no fechamento dela. Só fatura fechada ou vencida com saldo a pagar; senão (aberta, quitada ou com o saldo já transferido), ou com a conta de pagamento arquivada, responde 409. Devolve a fatura. Com `Idempotency-Key`, repetir o pedido (ex.: depois de uma falha de rede) devolve o mesmo pagamento em vez de pagar de novo: a chave reaproveitada em outra requisição (ou com outro valor) responde 422, e enquanto a primeira ainda roda, 409.',
         params: invoiceParamsSchema,
         headers: idempotencyHeadersSchema,
+        body: invoicePaymentBodySchema,
         response: {
           201: invoiceSchema,
           401: problemDetailsSchema,
@@ -103,7 +105,10 @@ export const invoicesRoutes: FastifyPluginCallbackZod = (app, _options, done) =>
       return idempotent(
         reply,
         { db: app.db, userId, key: request.headers['idempotency-key'], request, now: new Date() },
-        async () => ({ statusCode: 201, body: toInvoiceDto(await service.pay(userId, id, month)) }),
+        async () => ({
+          statusCode: 201,
+          body: toInvoiceDto(await service.pay(userId, id, month, request.body?.amount)),
+        }),
       );
     },
   );
@@ -113,9 +118,9 @@ export const invoicesRoutes: FastifyPluginCallbackZod = (app, _options, done) =>
     {
       schema: {
         tags: [INVOICES_TAG],
-        summary: 'Desfaz o pagamento da fatura',
+        summary: 'Desfaz o último pagamento da fatura',
         description:
-          'Apaga a transação `invoice-payment`: o valor volta para a conta, as compras voltam a ocupar o limite e a fatura volta ao status pelas datas. Fatura sem pagamento responde 409. Devolve a fatura.',
+          'Apaga o pagamento mais recente da fatura (transação `invoice-payment`): o valor volta para a conta e para o limite, e a fatura volta ao status pelas datas e pelo saldo. Fatura sem pagamento responde 409; com pagamento numa fatura posterior do cartão, 409 `/problems/later-invoice-payment` (desfaça antes os das faturas seguintes). Devolve a fatura.',
         params: invoiceParamsSchema,
         response: {
           200: invoiceSchema,

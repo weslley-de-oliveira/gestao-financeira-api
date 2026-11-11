@@ -136,8 +136,8 @@ describe('pagamento de fatura', () => {
     );
   });
 
-  it('não paga fatura sem compras', async () => {
-    expectConflict(await pay('2026-09'), 'A fatura não tem compras para pagar.');
+  it('não paga fatura sem saldo a pagar', async () => {
+    expectConflict(await pay('2026-09'), 'A fatura não tem saldo a pagar.');
   });
 
   it('não paga com a conta de pagamento arquivada', async () => {
@@ -171,6 +171,129 @@ describe('pagamento de fatura', () => {
     expect((await user.api('DELETE', `/v1/transactions/${payment.id}`)).statusCode).toBe(409);
   });
 
+  describe('pagamento parcial', () => {
+    const payPart = (amount: unknown, month = '2026-11') =>
+      user.api('POST', `/v1/credit-cards/${card.id}/invoices/${month}/payment`, { amount });
+
+    it('paga parte do saldo: a fatura continua em aberto com o que falta', async () => {
+      const response = await payPart(20_000);
+
+      expect(response.statusCode).toBe(201);
+      const invoice = response.json<InvoiceDto>();
+      expect(invoice).toMatchObject({
+        status: 'overdue',
+        amountDue: 35_050,
+        paidAmount: 20_000,
+        balance: 15_050,
+      });
+      expect(invoice.payment).toMatchObject({
+        description: 'Fatura Roxinho 11/2026 (parcial)',
+        amount: 20_000,
+        date: '2026-11-15',
+      });
+      expect(invoice.payments).toHaveLength(1);
+    });
+
+    it('debita da conta e libera do limite só o que foi pago', async () => {
+      await payPart(20_000);
+
+      const balance = (await user.api('GET', `/v1/accounts/${account.id}`)).json<AccountDto>();
+      const usage = (await user.api('GET', `/v1/credit-cards/${card.id}`)).json<CreditCardDto>();
+      expect(balance.currentBalance).toBe(100_000 - 20_000);
+      expect(usage.usedLimit).toBe(45_040 - 20_000);
+    });
+
+    it('sem valor, o pagamento seguinte quita o que falta', async () => {
+      await payPart(20_000);
+
+      const response = await pay('2026-11');
+
+      expect(response.statusCode).toBe(201);
+      const invoice = response.json<InvoiceDto>();
+      expect(invoice).toMatchObject({ status: 'paid', paidAmount: 35_050, balance: 0 });
+      expect(invoice.payments.map((payment) => [payment.description, payment.amount])).toEqual([
+        ['Fatura Roxinho 11/2026', 15_050],
+        ['Fatura Roxinho 11/2026 (parcial)', 20_000],
+      ]);
+      expectConflict(await payPart(1), 'Esta fatura já foi paga.');
+    });
+
+    it('o valor igual ao saldo quita a fatura, sem "(parcial)"', async () => {
+      const response = await payPart(35_050);
+
+      expect(response.json<InvoiceDto>()).toMatchObject({
+        status: 'paid',
+        payment: { description: 'Fatura Roxinho 11/2026', amount: 35_050 },
+      });
+    });
+
+    it('recusa valor acima do saldo (422 no amount)', async () => {
+      await payPart(20_000);
+
+      const response = await payPart(15_051);
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json()).toMatchObject({
+        errors: [
+          {
+            field: 'body.amount',
+            message: 'O pagamento pode ser de no máximo R$ 150,50, o saldo da fatura.',
+          },
+        ],
+      });
+    });
+
+    it.each([[0], [-100], [10.5], ['100']])('recusa o valor %j', async (amount) => {
+      expect((await payPart(amount)).statusCode).toBe(422);
+    });
+
+    it('dois pagamentos parciais ao mesmo tempo não passam do saldo', async () => {
+      const responses = await Promise.all([payPart(20_000), payPart(20_000)]);
+
+      expect(responses.map((response) => response.statusCode).sort()).toEqual([201, 422]);
+      const invoice = (
+        await user.api('GET', `/v1/credit-cards/${card.id}/invoices/2026-11`)
+      ).json<InvoiceDto>();
+      expect(invoice).toMatchObject({ paidAmount: 20_000, balance: 15_050 });
+    });
+
+    it('o saldo que faltou passa para a fatura seguinte no fechamento dela', async () => {
+      await payPart(20_000);
+      const december = await createTestApp({ today: '2026-12-05' });
+      try {
+        const get = (month: string) =>
+          december.inject({
+            method: 'GET',
+            url: `/v1/credit-cards/${card.id}/invoices/${month}`,
+            cookies: user.cookies,
+          });
+
+        expect((await get('2026-11')).json()).toMatchObject({
+          status: 'carried-over',
+          balance: 15_050,
+        });
+        expect((await get('2026-12')).json()).toMatchObject({
+          status: 'closed',
+          total: 9_990,
+          previousBalance: 15_050,
+          amountDue: 25_040,
+          balance: 25_040,
+        });
+        const late = await december.inject({
+          method: 'POST',
+          url: `/v1/credit-cards/${card.id}/invoices/2026-11/payment`,
+          cookies: user.cookies,
+        });
+        expect(late.statusCode).toBe(409);
+        expect(late.json()).toMatchObject({
+          detail: 'O saldo desta fatura passou para a fatura de 12/2026: pague por ela.',
+        });
+      } finally {
+        await december.close();
+      }
+    });
+  });
+
   describe('desfazer o pagamento', () => {
     const undo = (month: string, api = user.api) =>
       api('DELETE', `/v1/credit-cards/${card.id}/invoices/${month}/payment`);
@@ -193,6 +316,50 @@ describe('pagamento de fatura', () => {
       await undo('2026-11');
 
       expect((await pay('2026-11')).statusCode).toBe(201);
+    });
+
+    it('desfaz só o pagamento mais recente', async () => {
+      await user.api('POST', `/v1/credit-cards/${card.id}/invoices/2026-11/payment`, {
+        amount: 20_000,
+      });
+      await pay('2026-11');
+
+      const response = await undo('2026-11');
+
+      expect(response.json<InvoiceDto>()).toMatchObject({
+        status: 'overdue',
+        paidAmount: 20_000,
+        balance: 15_050,
+        payment: { description: 'Fatura Roxinho 11/2026 (parcial)', amount: 20_000 },
+      });
+      expect(response.json<InvoiceDto>().payments).toHaveLength(1);
+    });
+
+    it('recusa (409) com pagamento numa fatura posterior, sem apagar nada', async () => {
+      await pay('2026-11');
+      const december = await createTestApp({ today: '2026-12-15' });
+      try {
+        const inDecember = (method: 'POST' | 'DELETE', month: string) =>
+          december.inject({
+            method,
+            url: `/v1/credit-cards/${card.id}/invoices/${month}/payment`,
+            cookies: user.cookies,
+          });
+        expect((await inDecember('POST', '2026-12')).statusCode).toBe(201);
+
+        const response = await inDecember('DELETE', '2026-11');
+
+        expect(response.statusCode).toBe(409);
+        expect(response.json()).toMatchObject({
+          type: '/problems/later-invoice-payment',
+          detail:
+            'A fatura de 12/2026 já tem pagamento. Desfaça antes os pagamentos das faturas seguintes.',
+        });
+        expect((await inDecember('DELETE', '2026-12')).statusCode).toBe(200);
+        expect((await inDecember('DELETE', '2026-11')).statusCode).toBe(200);
+      } finally {
+        await december.close();
+      }
     });
 
     it('responde 409 para fatura sem pagamento', async () => {

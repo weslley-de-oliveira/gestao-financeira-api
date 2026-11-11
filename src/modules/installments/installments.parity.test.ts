@@ -64,11 +64,21 @@ describe('compras parceladas: paridade com as regras de fatura, limite e orçame
         installmentCount: 10,
       })
     ).json<InstallmentPurchaseDto>();
-    // Faturas de outubro e novembro pagas; dezembro em diante, abertas.
-    for (const month of ['2026-10', '2026-11']) {
-      const paid = await user.api('POST', `/v1/credit-cards/${card.id}/invoices/${month}/payment`);
+    // Faturas de outubro (paga em dia: depois do fechamento de novembro, o saldo dela já teria
+    // passado para novembro) e novembro pagas; dezembro em diante, abertas.
+    const october = await createTestApp({ today: '2026-10-10' });
+    try {
+      const paid = await october.inject({
+        method: 'POST',
+        url: `/v1/credit-cards/${card.id}/invoices/2026-10/payment`,
+        cookies: user.cookies,
+      });
       expect(paid.statusCode).toBe(201);
+    } finally {
+      await october.close();
     }
+    const paid = await user.api('POST', `/v1/credit-cards/${card.id}/invoices/2026-11/payment`);
+    expect(paid.statusCode).toBe(201);
     await user.api('POST', '/v1/budgets', { categoryId: food.id, limitAmount: 60_000 });
   });
 
