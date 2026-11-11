@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "description": "API REST da Gestão Financeira (Fastify, Zod, Drizzle e PostgreSQL).",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=26"
