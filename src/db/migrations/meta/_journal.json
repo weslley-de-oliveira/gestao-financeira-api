@@ -99,6 +99,13 @@
       "when": 1794095058764,
       "tag": "0013_liga-metas-a-contas",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794337741895,
+      "tag": "0014_permite-pagamentos-parciais",
+      "breakpoints": true
     }
   ]
 }

@@ -56,12 +56,17 @@ export function createInvoicesService({
   accounts,
   today,
 }: InvoicesServiceDependencies): InvoicesService {
-  /** Cartão do usuário e as movimentações que formam as faturas dele. */
-  async function load(userId: string, creditCardId: string) {
+  async function findCard(userId: string, creditCardId: string) {
     const card = await creditCards.findCreditCard(userId, creditCardId);
     if (!card) {
       throw new CreditCardNotFoundError();
     }
+    return card;
+  }
+
+  /** Cartão do usuário e as movimentações que formam as faturas dele. */
+  async function load(userId: string, creditCardId: string) {
+    const card = await findCard(userId, creditCardId);
     return { card, movements: await invoices.listCardMovements(userId, creditCardId) };
   }
 
@@ -92,41 +97,44 @@ export function createInvoicesService({
     get,
 
     async pay(userId, creditCardId, referenceMonth) {
-      const { card, movements } = await load(userId, creditCardId);
+      const card = await findCard(userId, creditCardId);
       const date = today();
-      const invoice = buildInvoice(card, movements, referenceMonth, date);
-      if (!canPayInvoice(invoice)) {
-        throw notPayable(invoice);
-      }
       const account = await accounts.findAccount(userId, card.paymentAccountId);
-      if (!account || account.isArchived) {
-        throw new PaymentAccountUnavailableError(account?.name ?? '');
-      }
 
-      const payment = await invoices.insertPayment({
-        userId,
-        type: 'invoice-payment',
-        description: `Fatura ${card.name} ${monthLabel(referenceMonth)}`,
-        amount: invoice.total,
-        date,
-        accountId: account.id,
-        creditCardId: card.id,
-        invoiceMonth: referenceMonth,
-        status: 'completed',
+      await invoices.withLockedCard(userId, creditCardId, async ({ movements, insertPayment }) => {
+        // Com o cartão travado, um pagamento simultâneo da mesma fatura já aparece aqui.
+        const invoice = buildInvoice(card, movements, referenceMonth, date);
+        if (!canPayInvoice(invoice)) {
+          throw notPayable(invoice);
+        }
+        if (!account || account.isArchived) {
+          throw new PaymentAccountUnavailableError(account?.name ?? '');
+        }
+        await insertPayment({
+          userId,
+          type: 'invoice-payment',
+          description: `Fatura ${card.name} ${monthLabel(referenceMonth)}`,
+          amount: invoice.total,
+          date,
+          accountId: account.id,
+          creditCardId: card.id,
+          invoiceMonth: referenceMonth,
+          status: 'completed',
+        });
       });
-      if (!payment) {
-        // Outro pagamento da mesma fatura entrou entre a consulta e a gravação.
-        throw new InvoiceNotPayableError('Esta fatura já foi paga.');
-      }
       return get(userId, creditCardId, referenceMonth);
     },
 
     async undoPayment(userId, creditCardId, referenceMonth) {
       // Garante que o cartão é do usuário antes de apagar.
-      await load(userId, creditCardId);
-      if (!(await invoices.deletePayment(userId, creditCardId, referenceMonth))) {
-        throw new InvoiceNotPayableError('Esta fatura não tem pagamento para desfazer.');
-      }
+      const card = await findCard(userId, creditCardId);
+      await invoices.withLockedCard(userId, creditCardId, async ({ movements, deletePayment }) => {
+        const { payment } = buildInvoice(card, movements, referenceMonth, today());
+        if (!payment) {
+          throw new InvoiceNotPayableError('Esta fatura não tem pagamento para desfazer.');
+        }
+        await deletePayment(payment.id);
+      });
       return get(userId, creditCardId, referenceMonth);
     },
   };

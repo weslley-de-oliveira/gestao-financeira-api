@@ -102,8 +102,8 @@ export const transactions = pgTable(
     index('transactions_user_id_category_id_idx').on(table.userId, table.categoryId),
     // Ordenação por valor, com o id como desempate (paginação por cursor).
     index('transactions_user_id_amount_id_idx').on(table.userId, table.amount, table.id),
-    // Cada fatura (cartão + mês) é paga no máximo uma vez.
-    uniqueIndex('transactions_invoice_payment_unique')
+    // Pagamentos de uma fatura (cartão + mês): pode haver vários, cada um com parte do saldo.
+    index('transactions_invoice_payment_idx')
       .on(table.creditCardId, table.invoiceMonth)
       .where(sql`${table.type} = 'invoice-payment'`),
 

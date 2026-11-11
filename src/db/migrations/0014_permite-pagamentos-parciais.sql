@@ -1,0 +1,2 @@
+DROP INDEX "transactions_invoice_payment_unique";--> statement-breakpoint
+CREATE INDEX "transactions_invoice_payment_idx" ON "transactions" USING btree ("credit_card_id","invoice_month") WHERE "transactions"."type" = 'invoice-payment';
