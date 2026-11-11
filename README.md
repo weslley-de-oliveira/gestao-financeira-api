@@ -2,7 +2,7 @@
 
 API REST que serve o front [Gestão Financeira](https://github.com/weslley-de-oliveira/gestao-financeira): autenticação, contas, categorias, transações, cartões, faturas, orçamentos, metas e dashboard. Projeto de portfólio: use apenas dados fictícios.
 
-O plano completo (etapas, commits e decisões) está em `gestao-financeira-docs/docs/PLANO_API_NODE.md`.
+As decisões de arquitetura, com o contexto e as alternativas descartadas, estão em [`docs/adr/`](docs/adr/README.md).
 
 ## Stack
 
@@ -198,12 +198,18 @@ A API roda no **Render** (serviço web gratuito, a partir da imagem do GHCR) e o
 
 ## Decisões
 
-As decisões de arquitetura estão na seção 11 do plano. Além delas:
+Os registros de decisão ([`docs/adr/`](docs/adr/README.md)) explicam as escolhas que moldam a API:
 
-- **Migrações na subida** (`MIGRATE_ON_START`), com trava no banco contra duas instâncias migrando ao mesmo tempo: o plano gratuito do Render não tem pré-deploy.
-- **`TRUST_PROXY` por número de saltos:** o Fastify 5 recusa esse modo, porque quem chama a API direto pode forjar o `X-Forwarded-For`. Aqui isso afeta só o rate limit de quem contorna a Vercel, e os provedores não publicam faixas de IP fixas para confiar por endereço.
-- **ETag pela versão do registro:** valores calculados (saldo, uso do limite, progresso, uso da categoria) não mudam a ETag; aportes e retiradas mudam a da meta. A versão tem resolução de milissegundos. Por isso as respostas saem com `Cache-Control: no-store`: guardada e revalidada por `If-None-Match`, uma resposta mostraria o saldo antigo.
-- **Paginação por cursor também na ordenação por valor**, em vez de `page`/`offset`: o cliente navega para a página anterior e para a próxima, mas não salta direto para uma página qualquer. Em troca, a página não muda quando entra uma transação no meio da navegação.
+1. [Sessão em cookie `__Host-`, com Argon2id, em vez de JWT](docs/adr/0001-sessao-em-cookie.md)
+2. [Dinheiro em centavos inteiros](docs/adr/0002-dinheiro-em-centavos.md)
+3. [Faturas calculadas, não gravadas](docs/adr/0003-faturas-calculadas.md)
+4. [Paginação por cursor, inclusive na ordenação por valor](docs/adr/0004-paginacao-por-cursor.md)
+5. [ETag/If-Match, Idempotency-Key e trava da linha do cartão](docs/adr/0005-concorrencia-e-repeticoes.md)
+6. [Isolamento por usuário na aplicação, sem RLS](docs/adr/0006-isolamento-na-aplicacao.md)
+7. [Migrações na subida, com trava no banco](docs/adr/0007-migracoes-na-subida.md)
+8. [`Cache-Control: no-store` em todas as respostas](docs/adr/0008-respostas-sem-cache.md)
+
+Além delas, **`TRUST_PROXY` por número de saltos:** o Fastify 5 recusa esse modo, porque quem chama a API direto pode forjar o `X-Forwarded-For`. Aqui isso afeta só o rate limit de quem contorna a Vercel, e os provedores não publicam faixas de IP fixas para confiar por endereço.
 
 ## Padrão de commits
 
