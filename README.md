@@ -1,8 +1,30 @@
 # Gestão Financeira — API
 
+[![CI](https://github.com/weslley-de-oliveira/gestao-financeira-api/actions/workflows/ci.yml/badge.svg)](https://github.com/weslley-de-oliveira/gestao-financeira-api/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/weslley-de-oliveira/gestao-financeira-api/actions/workflows/codeql.yml/badge.svg)](https://github.com/weslley-de-oliveira/gestao-financeira-api/actions/workflows/codeql.yml)
+[![Licença: MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue.svg)](LICENSE)
+
 API REST que serve o front [Gestão Financeira](https://github.com/weslley-de-oliveira/gestao-financeira): autenticação, contas, categorias, transações, cartões, faturas, orçamentos, metas e dashboard. Projeto de portfólio: use apenas dados fictícios.
 
-O plano completo (etapas, commits e decisões) está em `gestao-financeira-docs/docs/PLANO_API_NODE.md`.
+**Demo:** <https://gestao-financeira-tau-five.vercel.app> (conta de demonstração: `demo@exemplo.com` / `demo1234`).
+
+```mermaid
+flowchart LR
+  browser["Navegador"] -->|"HTTPS, cookie __Host-session"| vercel["Vercel<br/>front estático + rewrite /api"]
+  vercel -->|"/api/*"| render["Render<br/>API Fastify (Docker)"]
+  render -->|"SQL, TLS"| neon[("Neon<br/>PostgreSQL 17")]
+  gha["GitHub Actions<br/>CI, CodeQL, monitor"] -->|"imagem"| ghcr["GHCR"]
+  ghcr -->|"deploy hook"| render
+```
+
+## Destaques
+
+- **Regras de domínio de verdade:** faturas calculadas com saldo anterior, pagamento parcial e travas em cadeia ([`invoice-rules.ts`](src/modules/invoices/invoice-rules.ts)); compras parceladas com antecipação e cancelamento ([`installment-plan.ts`](src/modules/installments/installment-plan.ts)); estornos.
+- **Concorrência e repetições:** `ETag`/`If-Match` com 412 ([`etag.ts`](src/shared/http/etag.ts)), `Idempotency-Key` com hash do corpo ([`idempotency.ts`](src/shared/http/idempotency.ts)) e trava da linha do cartão nos pagamentos.
+- **Segurança:** sessão em cookie `__Host-` com Argon2id, CSRF por `Origin`, rate limit, Problem Details (RFC 9457) e um [teste de isolamento](test/isolation-matrix.test.ts) que cobre toda rota com id (e falha se surgir uma rota nova fora dele).
+- **Testes contra um Postgres real** (Testcontainers): mais de 1.000 testes, cobertura de 96% das linhas, e testes de paridade com as regras do front.
+- **Operação:** imagem Docker publicada no GHCR, deploy automático no Render, migrações na subida com trava no banco, monitoramento e restauração diária da demo pelo GitHub Actions.
+- **Decisões registradas:** [`docs/adr/`](docs/adr/README.md), com o contexto e as alternativas descartadas de cada escolha.
 
 ## Stack
 
@@ -176,10 +198,11 @@ Copie `.env.example` para `.env` e ajuste os valores. Elas são validadas na ini
 ## Testes e CI
 
 - `npm test` sobe um Postgres descartável (Testcontainers), aplica as migrações e roda os testes de integração e unitários.
-- **CI** (`.github/workflows/ci.yml`, em PRs e na `main`): `npm audit` das dependências de produção, formatação, lint, typecheck, testes, build e a verificação do `openapi.json`.
+- `npm run test:coverage` faz o mesmo e mede a cobertura (V8), com o relatório em `coverage/index.html`. Na etapa 17: 96% das instruções e linhas, 88% dos ramos e 97% das funções. A execução falha se a cobertura cair abaixo dos limites do `vitest.config.ts` (5 pontos abaixo do medido na etapa 17).
+- **CI** (`.github/workflows/ci.yml`, em PRs e na `main`): `npm audit` das dependências de produção, formatação, lint, typecheck, testes com cobertura (o resumo aparece na página da execução), build e a verificação do `openapi.json`.
 - **Imagem** (`image.yml`): monta a imagem e confere o `/health` em todo PR; na `main`, publica no GitHub Container Registry (`sha-<commit>` e `latest`) e pede o deploy ao Render.
 - **Demonstração** (`demo-reset.yml`): todo dia, de madrugada em Brasília, roda o seed contra o banco de produção e devolve a conta de demonstração aos dados iniciais. Também pode ser rodado à mão.
-- **Monitoramento** (`monitor.yml`): a cada hora, confere pelo site da Vercel o `/api/ready` (tolerando a hibernação) e o login da conta de demonstração. Uma falha deixa a execução vermelha, e o GitHub avisa por e-mail. Workflows agendados param depois de 60 dias sem atividade no repositório: o GitHub avisa antes.
+- **Monitoramento** (`monitor.yml`): a cada 10 minutos em dias úteis, das 8h às 20h de Brasília (o que mantém a API acordada para quem abre a demo nesse horário), e de hora em hora no resto do tempo, confere pelo site da Vercel o `/api/ready` (tolerando a hibernação) e o login da conta de demonstração. Uma falha deixa a execução vermelha, e o GitHub avisa por e-mail. Workflows agendados param depois de 60 dias sem atividade no repositório: o GitHub avisa antes.
 - **CodeQL** (`codeql.yml`) em PRs, na `main` e semanalmente; **Dependabot** (`.github/dependabot.yml`) para npm, GitHub Actions e a imagem base.
 
 ## Deploy
@@ -197,12 +220,18 @@ A API roda no **Render** (serviço web gratuito, a partir da imagem do GHCR) e o
 
 ## Decisões
 
-As decisões de arquitetura estão na seção 11 do plano. Além delas:
+Os registros de decisão ([`docs/adr/`](docs/adr/README.md)) explicam as escolhas que moldam a API:
 
-- **Migrações na subida** (`MIGRATE_ON_START`), com trava no banco contra duas instâncias migrando ao mesmo tempo: o plano gratuito do Render não tem pré-deploy.
-- **`TRUST_PROXY` por número de saltos:** o Fastify 5 recusa esse modo, porque quem chama a API direto pode forjar o `X-Forwarded-For`. Aqui isso afeta só o rate limit de quem contorna a Vercel, e os provedores não publicam faixas de IP fixas para confiar por endereço.
-- **ETag pela versão do registro:** valores calculados (saldo, uso do limite, progresso, uso da categoria) não mudam a ETag; aportes e retiradas mudam a da meta. A versão tem resolução de milissegundos. Por isso as respostas saem com `Cache-Control: no-store`: guardada e revalidada por `If-None-Match`, uma resposta mostraria o saldo antigo.
-- **Paginação por cursor também na ordenação por valor**, em vez de `page`/`offset`: o cliente navega para a página anterior e para a próxima, mas não salta direto para uma página qualquer. Em troca, a página não muda quando entra uma transação no meio da navegação.
+1. [Sessão em cookie `__Host-`, com Argon2id, em vez de JWT](docs/adr/0001-sessao-em-cookie.md)
+2. [Dinheiro em centavos inteiros](docs/adr/0002-dinheiro-em-centavos.md)
+3. [Faturas calculadas, não gravadas](docs/adr/0003-faturas-calculadas.md)
+4. [Paginação por cursor, inclusive na ordenação por valor](docs/adr/0004-paginacao-por-cursor.md)
+5. [ETag/If-Match, Idempotency-Key e trava da linha do cartão](docs/adr/0005-concorrencia-e-repeticoes.md)
+6. [Isolamento por usuário na aplicação, sem RLS](docs/adr/0006-isolamento-na-aplicacao.md)
+7. [Migrações na subida, com trava no banco](docs/adr/0007-migracoes-na-subida.md)
+8. [`Cache-Control: no-store` em todas as respostas](docs/adr/0008-respostas-sem-cache.md)
+
+Além delas, **`TRUST_PROXY` por número de saltos:** o Fastify 5 recusa esse modo, porque quem chama a API direto pode forjar o `X-Forwarded-For`. Aqui isso afeta só o rate limit de quem contorna a Vercel, e os provedores não publicam faixas de IP fixas para confiar por endereço.
 
 ## Padrão de commits
 
@@ -210,21 +239,22 @@ Conventional Commits, validados pelo commitlint no hook `commit-msg`; o hook `pr
 
 ## Scripts
 
-| Script                 | Descrição                                                          |
-| ---------------------- | ------------------------------------------------------------------ |
-| `npm run dev`          | Executa a API com recarga automática (TypeScript nativo do Node)   |
-| `npm run build`        | Compila para `dist/` e copia as migrações                          |
-| `npm start`            | Executa a versão compilada                                         |
-| `npm run typecheck`    | Verifica os tipos sem gerar arquivos                               |
-| `npm test`             | Roda os testes (Vitest) contra um Postgres no Testcontainers       |
-| `npm run test:watch`   | Roda os testes em modo observação                                  |
-| `npm run openapi`      | Regenera o `openapi.json` a partir das rotas                       |
-| `npm run db:up`        | Sobe o Postgres local (Docker Compose) e espera ficar pronto       |
-| `npm run db:down`      | Para o Postgres local (os dados ficam no volume)                   |
-| `npm run db:generate`  | Gera uma migração SQL a partir das mudanças no schema              |
-| `npm run db:migrate`   | Aplica as migrações pendentes                                      |
-| `npm run db:studio`    | Abre o Drizzle Studio para inspecionar o banco                     |
-| `npm run db:seed`      | Cria a demo (`demo@exemplo.com` / `demo1234`) com 6 meses de dados |
-| `npm run lint`         | Executa o ESLint (com regras que usam os tipos)                    |
-| `npm run format`       | Formata o código com Prettier                                      |
-| `npm run format:check` | Verifica a formatação sem alterar arquivos                         |
+| Script                  | Descrição                                                          |
+| ----------------------- | ------------------------------------------------------------------ |
+| `npm run dev`           | Executa a API com recarga automática (TypeScript nativo do Node)   |
+| `npm run build`         | Compila para `dist/` e copia as migrações                          |
+| `npm start`             | Executa a versão compilada                                         |
+| `npm run typecheck`     | Verifica os tipos sem gerar arquivos                               |
+| `npm test`              | Roda os testes (Vitest) contra um Postgres no Testcontainers       |
+| `npm run test:watch`    | Roda os testes em modo observação                                  |
+| `npm run test:coverage` | Roda os testes e mede a cobertura (relatório em `coverage/`)       |
+| `npm run openapi`       | Regenera o `openapi.json` a partir das rotas                       |
+| `npm run db:up`         | Sobe o Postgres local (Docker Compose) e espera ficar pronto       |
+| `npm run db:down`       | Para o Postgres local (os dados ficam no volume)                   |
+| `npm run db:generate`   | Gera uma migração SQL a partir das mudanças no schema              |
+| `npm run db:migrate`    | Aplica as migrações pendentes                                      |
+| `npm run db:studio`     | Abre o Drizzle Studio para inspecionar o banco                     |
+| `npm run db:seed`       | Cria a demo (`demo@exemplo.com` / `demo1234`) com 6 meses de dados |
+| `npm run lint`          | Executa o ESLint (com regras que usam os tipos)                    |
+| `npm run format`        | Formata o código com Prettier                                      |
+| `npm run format:check`  | Verifica a formatação sem alterar arquivos                         |
