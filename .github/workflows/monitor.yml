@@ -1,10 +1,16 @@
 name: Monitora a produção
 
-# A cada hora, confere o caminho real de quem visita: o site na Vercel, o rewrite de /api para o
-# Render, a API e o banco (/ready) e o login da conta de demonstração. Uma falha deixa a execução
-# vermelha, e o GitHub avisa por e-mail.
+# Confere o caminho real de quem visita: o site na Vercel, o rewrite de /api para o Render, a API e
+# o banco (/ready) e o login da conta de demonstração. Uma falha deixa a execução vermelha, e o
+# GitHub avisa por e-mail.
+#
+# De segunda a sexta, das 8h às 20h de Brasília, roda a cada 10 minutos: o Render gratuito hiberna
+# depois de 15 minutos sem uso, e quem abre a demo nesse horário (como numa entrevista) não espera
+# a API acordar. No resto do tempo, de hora em hora. Somando tudo, a API fica acordada cerca de
+# 400 horas por mês, dentro das 750 gratuitas. O GitHub pode atrasar execuções agendadas.
 on:
   schedule:
+    - cron: '*/10 11-22 * * 1-5'
     - cron: '17 * * * *'
   workflow_dispatch:
 

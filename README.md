@@ -180,7 +180,7 @@ Copie `.env.example` para `.env` e ajuste os valores. Elas são validadas na ini
 - **CI** (`.github/workflows/ci.yml`, em PRs e na `main`): `npm audit` das dependências de produção, formatação, lint, typecheck, testes com cobertura (o resumo aparece na página da execução), build e a verificação do `openapi.json`.
 - **Imagem** (`image.yml`): monta a imagem e confere o `/health` em todo PR; na `main`, publica no GitHub Container Registry (`sha-<commit>` e `latest`) e pede o deploy ao Render.
 - **Demonstração** (`demo-reset.yml`): todo dia, de madrugada em Brasília, roda o seed contra o banco de produção e devolve a conta de demonstração aos dados iniciais. Também pode ser rodado à mão.
-- **Monitoramento** (`monitor.yml`): a cada hora, confere pelo site da Vercel o `/api/ready` (tolerando a hibernação) e o login da conta de demonstração. Uma falha deixa a execução vermelha, e o GitHub avisa por e-mail. Workflows agendados param depois de 60 dias sem atividade no repositório: o GitHub avisa antes.
+- **Monitoramento** (`monitor.yml`): a cada 10 minutos em dias úteis, das 8h às 20h de Brasília (o que mantém a API acordada para quem abre a demo nesse horário), e de hora em hora no resto do tempo, confere pelo site da Vercel o `/api/ready` (tolerando a hibernação) e o login da conta de demonstração. Uma falha deixa a execução vermelha, e o GitHub avisa por e-mail. Workflows agendados param depois de 60 dias sem atividade no repositório: o GitHub avisa antes.
 - **CodeQL** (`codeql.yml`) em PRs, na `main` e semanalmente; **Dependabot** (`.github/dependabot.yml`) para npm, GitHub Actions e a imagem base.
 
 ## Deploy
