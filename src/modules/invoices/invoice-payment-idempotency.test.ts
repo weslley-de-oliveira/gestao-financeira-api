@@ -102,6 +102,22 @@ describe('pagamento de fatura com Idempotency-Key', () => {
     });
   });
 
+  it('a mesma chave com outro valor responde 422, sem pagar de novo', async () => {
+    const payPart = (amount: number) =>
+      app.inject({
+        method: 'POST',
+        url: `/v1/credit-cards/${card.id}/invoices/2026-11/payment`,
+        cookies: user.cookies,
+        headers: { 'idempotency-key': 'chave-com-valor' },
+        payload: { amount },
+      });
+    expect((await payPart(10_000)).statusCode).toBe(201);
+
+    expect((await payPart(10_000)).headers['idempotent-replayed']).toBe('true');
+    expect((await payPart(5_000)).statusCode).toBe(422);
+    expect(await payments()).toHaveLength(1);
+  });
+
   it('uma falha não fica guardada: a mesma chave pode ser usada de novo', async () => {
     // A fatura de 12/2026 ainda está aberta: o pagamento é recusado e a reserva da chave, desfeita.
     expect((await pay('chave-apos-falha', '2026-12')).statusCode).toBe(409);
@@ -119,7 +135,7 @@ describe('pagamento de fatura com Idempotency-Key', () => {
       userId: user.userId,
       key: 'chave-em-andamento',
       requestHash: createHash('sha256')
-        .update(`POST /v1/credit-cards/${card.id}/invoices/2026-11/payment`)
+        .update(`POST /v1/credit-cards/${card.id}/invoices/2026-11/payment null`)
         .digest('hex'),
     });
 

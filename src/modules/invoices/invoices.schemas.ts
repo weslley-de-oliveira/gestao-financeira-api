@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { positiveCentsSchema } from '../../shared/validation/money.ts';
 import { invoiceCycleSchema } from '../credit-cards/credit-cards.schemas.ts';
 import { toTransactionDto, transactionSchema } from '../transactions/transactions.schemas.ts';
 import { INVOICE_STATUSES, type Invoice } from './invoice-rules.ts';
@@ -62,6 +63,18 @@ export const invoiceParamsSchema = cardInvoicesParamsSchema.extend({
       example: '2026-12',
     }),
 });
+
+/** Corpo opcional do pagamento: sem ele (ou sem `amount`), paga o saldo inteiro. */
+export const invoicePaymentBodySchema = z
+  .object({
+    amount: positiveCentsSchema.optional().meta({
+      description:
+        'Valor do pagamento, em centavos, até o saldo da fatura. Sem ele, paga o saldo inteiro.',
+      example: 50000,
+    }),
+  })
+  .meta({ id: 'PayInvoice' })
+  .nullish();
 
 function toInvoiceFields(invoice: Invoice) {
   return {

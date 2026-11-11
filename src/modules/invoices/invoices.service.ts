@@ -1,5 +1,6 @@
-import { DomainError } from '../../shared/errors/domain-error.ts';
+import { DomainError, InvalidInputError } from '../../shared/errors/domain-error.ts';
 import { formatIsoDate, monthLabel, type IsoDate, type IsoMonth } from '../../shared/utils/date.ts';
+import { formatCents, type Cents } from '../../shared/utils/money.ts';
 import type { AccountsRepository } from '../accounts/accounts.repository.ts';
 import type { CreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
 import { CreditCardNotFoundError } from '../credit-cards/credit-cards.service.ts';
@@ -28,6 +29,11 @@ export class PaymentAccountUnavailableError extends DomainError {
   }
 }
 
+/** "Fatura Roxinho 11/2026", com " (parcial)" quando o pagamento não quita o saldo. */
+export function paymentDescription(cardName: string, referenceMonth: IsoMonth, partial: boolean) {
+  return `Fatura ${cardName} ${monthLabel(referenceMonth)}${partial ? ' (parcial)' : ''}`;
+}
+
 export interface InvoicesServiceDependencies {
   invoices: InvoicesRepository;
   creditCards: CreditCardsRepository;
@@ -45,10 +51,17 @@ export interface InvoicesService {
   /** Fatura do mês de referência (`yyyy-MM`, mês do vencimento), com as compras. */
   get(userId: string, creditCardId: string, referenceMonth: IsoMonth): Promise<Invoice>;
   /**
-   * Paga o saldo da fatura, hoje, com a conta de pagamento do cartão. Só fatura fechada ou vencida
-   * com saldo a pagar (senão, `InvoiceNotPayableError`). Devolve a fatura paga.
+   * Paga a fatura, hoje, com a conta de pagamento do cartão: `amount` (até o saldo; acima →
+   * `InvalidInputError` no `amount`) ou, sem ele, o saldo inteiro. Só fatura fechada ou vencida
+   * com saldo a pagar (senão, `InvoiceNotPayableError`). O que faltar passa para a fatura seguinte
+   * no fechamento dela. Devolve a fatura.
    */
-  pay(userId: string, creditCardId: string, referenceMonth: IsoMonth): Promise<Invoice>;
+  pay(
+    userId: string,
+    creditCardId: string,
+    referenceMonth: IsoMonth,
+    amount?: Cents,
+  ): Promise<Invoice>;
   /**
    * Desfaz o pagamento: o valor volta para a conta, as compras voltam a ocupar o limite e a fatura
    * volta ao status pelas datas. Sem pagamento → `InvoiceNotPayableError`. Devolve a fatura.
@@ -106,7 +119,7 @@ export function createInvoicesService({
 
     get,
 
-    async pay(userId, creditCardId, referenceMonth) {
+    async pay(userId, creditCardId, referenceMonth, amount) {
       const card = await findCard(userId, creditCardId);
       const date = today();
       const account = await accounts.findAccount(userId, card.paymentAccountId);
@@ -120,11 +133,20 @@ export function createInvoicesService({
         if (!account || account.isArchived) {
           throw new PaymentAccountUnavailableError(account?.name ?? '');
         }
+        const paid = amount ?? invoice.balance;
+        if (paid > invoice.balance) {
+          throw new InvalidInputError([
+            {
+              field: 'amount',
+              message: `O pagamento pode ser de no máximo ${formatCents(invoice.balance)}, o saldo da fatura.`,
+            },
+          ]);
+        }
         await insertPayment({
           userId,
           type: 'invoice-payment',
-          description: `Fatura ${card.name} ${monthLabel(referenceMonth)}`,
-          amount: invoice.balance,
+          description: paymentDescription(card.name, referenceMonth, paid < invoice.balance),
+          amount: paid,
           date,
           accountId: account.id,
           creditCardId: card.id,

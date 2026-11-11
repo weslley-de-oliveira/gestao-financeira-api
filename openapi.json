@@ -1345,6 +1345,18 @@
           "payments"
         ]
       },
+      "PayInvoiceInput": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "description": "Valor do pagamento, em centavos, até o saldo da fatura. Sem ele, paga o saldo inteiro.",
+            "example": 50000,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000000
+          }
+        }
+      },
       "CreateInstallmentPurchaseInput": {
         "type": "object",
         "properties": {
@@ -2857,6 +2869,19 @@
           "refunds",
           "payments"
         ],
+        "additionalProperties": false
+      },
+      "PayInvoice": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "description": "Valor do pagamento, em centavos, até o saldo da fatura. Sem ele, paga o saldo inteiro.",
+            "example": 50000,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000000
+          }
+        },
         "additionalProperties": false
       },
       "CreateInstallmentPurchase": {
@@ -5202,9 +5227,15 @@
     },
     "/v1/credit-cards/{id}/invoices/{month}/payment": {
       "post": {
-        "summary": "Paga a fatura",
+        "summary": "Paga a fatura (inteira ou em parte)",
         "tags": ["Faturas"],
-        "description": "Paga o valor total da fatura, com a data de hoje, debitando a conta de pagamento do cartão (cria a transação `invoice-payment`). Só fatura fechada ou vencida, com compras e ainda sem pagamento; senão, ou com a conta de pagamento arquivada, responde 409. Devolve a fatura paga. Com `Idempotency-Key`, repetir o pedido (ex.: depois de uma falha de rede) devolve o mesmo pagamento em vez de 409: a chave reaproveitada em outra requisição responde 422, e enquanto a primeira ainda roda, 409.",
+        "description": "Paga `amount` (até o saldo da fatura; acima, 422) ou, sem corpo, o saldo inteiro, com a data de hoje, debitando a conta de pagamento do cartão (cria uma transação `invoice-payment`; a parcial leva \" (parcial)\" na descrição). Uma fatura aceita vários pagamentos: o que faltar passa para a fatura seguinte no fechamento dela. Só fatura fechada ou vencida com saldo a pagar; senão (aberta, quitada ou com o saldo já transferido), ou com a conta de pagamento arquivada, responde 409. Devolve a fatura. Com `Idempotency-Key`, repetir o pedido (ex.: depois de uma falha de rede) devolve o mesmo pagamento em vez de pagar de novo: a chave reaproveitada em outra requisição (ou com outro valor) responde 422, e enquanto a primeira ainda roda, 409.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/PayInvoiceInput" } }
+          }
+        },
         "parameters": [
           {
             "schema": {

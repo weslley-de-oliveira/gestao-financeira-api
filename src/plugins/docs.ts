@@ -1,4 +1,4 @@
-import swagger from '@fastify/swagger';
+import swagger, { type SwaggerTransformObject } from '@fastify/swagger';
 import scalar from '@scalar/fastify-api-reference';
 import type { FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
@@ -25,6 +25,35 @@ const DOCS_CSP = [
   "connect-src 'self'",
   "frame-ancestors 'none'",
 ].join('; ');
+
+interface JsonSchema {
+  type?: unknown;
+  anyOf?: JsonSchema[];
+}
+
+interface Operation {
+  requestBody?: { required?: boolean; content?: Record<string, { schema?: JsonSchema }> };
+}
+
+/**
+ * O @fastify/swagger marca todo corpo como obrigatório. Um corpo `.nullish()` (ex.: o pagamento de
+ * fatura, que sem corpo paga o saldo inteiro) passa a ser opcional e perde o ramo `null`, que no
+ * Fastify só representa a requisição sem corpo.
+ */
+const transformObject: SwaggerTransformObject = (input) => {
+  const document = jsonSchemaTransformObject(input);
+  const paths = (document as { paths?: Record<string, Record<string, Operation>> }).paths ?? {};
+  for (const { requestBody } of Object.values(paths).flatMap((path) => Object.values(path))) {
+    for (const media of Object.values(requestBody?.content ?? {})) {
+      const [schema, ...rest] = (media.schema?.anyOf ?? []).filter(({ type }) => type !== 'null');
+      if (requestBody && schema && rest.length === 0 && media.schema?.anyOf?.length === 2) {
+        media.schema = schema;
+        requestBody.required = false;
+      }
+    }
+  }
+  return document;
+};
 
 /**
  * Gera a especificação OpenAPI 3.1 a partir dos schemas Zod das rotas (`app.swagger()`) e, se
@@ -56,7 +85,7 @@ export const docsPlugin = fp<DocsOptions>(
         ],
       },
       transform: jsonSchemaTransform,
-      transformObject: jsonSchemaTransformObject,
+      transformObject,
     });
 
     if (enabled) {

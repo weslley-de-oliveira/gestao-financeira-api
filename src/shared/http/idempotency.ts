@@ -68,7 +68,10 @@ export async function idempotent(
     return reply.status(statusCode).send(body);
   }
 
-  const requestHash = createHash('sha256').update(`${request.method} ${request.url}`).digest('hex');
+  // O corpo também conta: a mesma chave com outro valor é outra requisição.
+  const requestHash = createHash('sha256')
+    .update(`${request.method} ${request.url} ${JSON.stringify(request.body ?? null)}`)
+    .digest('hex');
   const owned = and(eq(idempotencyKeys.userId, userId), eq(idempotencyKeys.key, key));
   // Chaves vencidas desta pessoa deixam de valer (e não acumulam).
   await db
