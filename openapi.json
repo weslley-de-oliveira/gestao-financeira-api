@@ -1179,16 +1179,40 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Soma das compras do ciclo, em centavos."
+            "description": "Compras − estornos do ciclo, em centavos (negativo: os estornos superam as compras)."
+          },
+          "previousBalance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Saldo da fatura anterior, trazido no fechamento desta (zero enquanto aberta): positivo é o que faltou pagar; negativo, crédito."
+          },
+          "amountDue": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Total a pagar: saldo anterior + total do ciclo."
+          },
+          "paidAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Soma dos pagamentos da fatura."
+          },
+          "balance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Total a pagar − pago: positivo é o que falta pagar; negativo, crédito. Passa para a fatura seguinte no fechamento dela."
           },
           "status": {
             "type": "string",
-            "enum": ["open", "closed", "paid", "overdue"],
-            "description": "`open` (aberta, até a véspera do fechamento), `closed` (fechada, até o vencimento), `overdue` (vencida, sem pagamento) ou `paid` (paga)."
+            "enum": ["open", "closed", "paid", "overdue", "carried-over"],
+            "description": "`open` (aberta, até a véspera do fechamento), `paid` (fechada sem saldo a pagar), `closed` (fechada com saldo, até o vencimento), `overdue` (vencida com saldo, até o fechamento da seguinte) ou `carried-over` (o saldo passou para a fatura seguinte)."
           },
           "payment": {
             "anyOf": [{ "$ref": "#/components/schemas/TransactionInput" }, { "type": "null" }],
-            "description": "A transação `invoice-payment` da fatura, se paga."
+            "description": "O pagamento (`invoice-payment`) mais recente da fatura, se houver."
           },
           "purchaseCount": {
             "type": "integer",
@@ -1204,6 +1228,10 @@
           "dueDate",
           "creditCardId",
           "total",
+          "previousBalance",
+          "amountDue",
+          "paidAmount",
+          "balance",
           "status",
           "payment",
           "purchaseCount"
@@ -1248,16 +1276,40 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Soma das compras do ciclo, em centavos."
+            "description": "Compras − estornos do ciclo, em centavos (negativo: os estornos superam as compras)."
+          },
+          "previousBalance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Saldo da fatura anterior, trazido no fechamento desta (zero enquanto aberta): positivo é o que faltou pagar; negativo, crédito."
+          },
+          "amountDue": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Total a pagar: saldo anterior + total do ciclo."
+          },
+          "paidAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Soma dos pagamentos da fatura."
+          },
+          "balance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Total a pagar − pago: positivo é o que falta pagar; negativo, crédito. Passa para a fatura seguinte no fechamento dela."
           },
           "status": {
             "type": "string",
-            "enum": ["open", "closed", "paid", "overdue"],
-            "description": "`open` (aberta, até a véspera do fechamento), `closed` (fechada, até o vencimento), `overdue` (vencida, sem pagamento) ou `paid` (paga)."
+            "enum": ["open", "closed", "paid", "overdue", "carried-over"],
+            "description": "`open` (aberta, até a véspera do fechamento), `paid` (fechada sem saldo a pagar), `closed` (fechada com saldo, até o vencimento), `overdue` (vencida com saldo, até o fechamento da seguinte) ou `carried-over` (o saldo passou para a fatura seguinte)."
           },
           "payment": {
             "anyOf": [{ "$ref": "#/components/schemas/TransactionInput" }, { "type": "null" }],
-            "description": "A transação `invoice-payment` da fatura, se paga."
+            "description": "O pagamento (`invoice-payment`) mais recente da fatura, se houver."
           },
           "purchases": {
             "type": "array",
@@ -1267,6 +1319,11 @@
             "type": "array",
             "items": { "$ref": "#/components/schemas/TransactionInput" },
             "description": "Estornos lançados no ciclo."
+          },
+          "payments": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TransactionInput" },
+            "description": "Pagamentos da fatura, do mais recente para o mais antigo."
           }
         },
         "required": [
@@ -1277,10 +1334,15 @@
           "dueDate",
           "creditCardId",
           "total",
+          "previousBalance",
+          "amountDue",
+          "paidAmount",
+          "balance",
           "status",
           "payment",
           "purchases",
-          "refunds"
+          "refunds",
+          "payments"
         ]
       },
       "CreateInstallmentPurchaseInput": {
@@ -2632,16 +2694,40 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Soma das compras do ciclo, em centavos."
+            "description": "Compras − estornos do ciclo, em centavos (negativo: os estornos superam as compras)."
+          },
+          "previousBalance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Saldo da fatura anterior, trazido no fechamento desta (zero enquanto aberta): positivo é o que faltou pagar; negativo, crédito."
+          },
+          "amountDue": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Total a pagar: saldo anterior + total do ciclo."
+          },
+          "paidAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Soma dos pagamentos da fatura."
+          },
+          "balance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Total a pagar − pago: positivo é o que falta pagar; negativo, crédito. Passa para a fatura seguinte no fechamento dela."
           },
           "status": {
             "type": "string",
-            "enum": ["open", "closed", "paid", "overdue"],
-            "description": "`open` (aberta, até a véspera do fechamento), `closed` (fechada, até o vencimento), `overdue` (vencida, sem pagamento) ou `paid` (paga)."
+            "enum": ["open", "closed", "paid", "overdue", "carried-over"],
+            "description": "`open` (aberta, até a véspera do fechamento), `paid` (fechada sem saldo a pagar), `closed` (fechada com saldo, até o vencimento), `overdue` (vencida com saldo, até o fechamento da seguinte) ou `carried-over` (o saldo passou para a fatura seguinte)."
           },
           "payment": {
             "anyOf": [{ "$ref": "#/components/schemas/Transaction" }, { "type": "null" }],
-            "description": "A transação `invoice-payment` da fatura, se paga."
+            "description": "O pagamento (`invoice-payment`) mais recente da fatura, se houver."
           },
           "purchaseCount": {
             "type": "integer",
@@ -2657,6 +2743,10 @@
           "dueDate",
           "creditCardId",
           "total",
+          "previousBalance",
+          "amountDue",
+          "paidAmount",
+          "balance",
           "status",
           "payment",
           "purchaseCount"
@@ -2702,22 +2792,51 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Soma das compras do ciclo, em centavos."
+            "description": "Compras − estornos do ciclo, em centavos (negativo: os estornos superam as compras)."
+          },
+          "previousBalance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Saldo da fatura anterior, trazido no fechamento desta (zero enquanto aberta): positivo é o que faltou pagar; negativo, crédito."
+          },
+          "amountDue": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Total a pagar: saldo anterior + total do ciclo."
+          },
+          "paidAmount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Soma dos pagamentos da fatura."
+          },
+          "balance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Total a pagar − pago: positivo é o que falta pagar; negativo, crédito. Passa para a fatura seguinte no fechamento dela."
           },
           "status": {
             "type": "string",
-            "enum": ["open", "closed", "paid", "overdue"],
-            "description": "`open` (aberta, até a véspera do fechamento), `closed` (fechada, até o vencimento), `overdue` (vencida, sem pagamento) ou `paid` (paga)."
+            "enum": ["open", "closed", "paid", "overdue", "carried-over"],
+            "description": "`open` (aberta, até a véspera do fechamento), `paid` (fechada sem saldo a pagar), `closed` (fechada com saldo, até o vencimento), `overdue` (vencida com saldo, até o fechamento da seguinte) ou `carried-over` (o saldo passou para a fatura seguinte)."
           },
           "payment": {
             "anyOf": [{ "$ref": "#/components/schemas/Transaction" }, { "type": "null" }],
-            "description": "A transação `invoice-payment` da fatura, se paga."
+            "description": "O pagamento (`invoice-payment`) mais recente da fatura, se houver."
           },
           "purchases": { "type": "array", "items": { "$ref": "#/components/schemas/Transaction" } },
           "refunds": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/Transaction" },
             "description": "Estornos lançados no ciclo."
+          },
+          "payments": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Transaction" },
+            "description": "Pagamentos da fatura, do mais recente para o mais antigo."
           }
         },
         "required": [
@@ -2728,10 +2847,15 @@
           "dueDate",
           "creditCardId",
           "total",
+          "previousBalance",
+          "amountDue",
+          "paidAmount",
+          "balance",
           "status",
           "payment",
           "purchases",
-          "refunds"
+          "refunds",
+          "payments"
         ],
         "additionalProperties": false
       },

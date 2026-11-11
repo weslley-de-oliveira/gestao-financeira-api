@@ -5,14 +5,27 @@ import { INVOICE_STATUSES, type Invoice } from './invoice-rules.ts';
 
 const invoiceFields = invoiceCycleSchema.extend({
   creditCardId: z.uuid(),
-  total: z.int().meta({ description: 'Soma das compras do ciclo, em centavos.' }),
+  total: z.int().meta({
+    description:
+      'Compras − estornos do ciclo, em centavos (negativo: os estornos superam as compras).',
+  }),
+  previousBalance: z.int().meta({
+    description:
+      'Saldo da fatura anterior, trazido no fechamento desta (zero enquanto aberta): positivo é o que faltou pagar; negativo, crédito.',
+  }),
+  amountDue: z.int().meta({ description: 'Total a pagar: saldo anterior + total do ciclo.' }),
+  paidAmount: z.int().meta({ description: 'Soma dos pagamentos da fatura.' }),
+  balance: z.int().meta({
+    description:
+      'Total a pagar − pago: positivo é o que falta pagar; negativo, crédito. Passa para a fatura seguinte no fechamento dela.',
+  }),
   status: z.enum(INVOICE_STATUSES).meta({
     description:
-      '`open` (aberta, até a véspera do fechamento), `closed` (fechada, até o vencimento), `overdue` (vencida, sem pagamento) ou `paid` (paga).',
+      '`open` (aberta, até a véspera do fechamento), `paid` (fechada sem saldo a pagar), `closed` (fechada com saldo, até o vencimento), `overdue` (vencida com saldo, até o fechamento da seguinte) ou `carried-over` (o saldo passou para a fatura seguinte).',
   }),
   payment: transactionSchema
     .nullable()
-    .meta({ description: 'A transação `invoice-payment` da fatura, se paga.' }),
+    .meta({ description: 'O pagamento (`invoice-payment`) mais recente da fatura, se houver.' }),
 });
 
 /** Fatura na listagem: sem as compras, só a quantidade. */
@@ -25,6 +38,9 @@ export const invoiceSchema = invoiceFields
   .extend({
     purchases: z.array(transactionSchema),
     refunds: z.array(transactionSchema).meta({ description: 'Estornos lançados no ciclo.' }),
+    payments: z
+      .array(transactionSchema)
+      .meta({ description: 'Pagamentos da fatura, do mais recente para o mais antigo.' }),
   })
   .meta({ id: 'Invoice' });
 
@@ -56,6 +72,10 @@ function toInvoiceFields(invoice: Invoice) {
     dueDate: invoice.dueDate,
     creditCardId: invoice.creditCardId,
     total: invoice.total,
+    previousBalance: invoice.previousBalance,
+    amountDue: invoice.amountDue,
+    paidAmount: invoice.paidAmount,
+    balance: invoice.balance,
     status: invoice.status,
     payment: invoice.payment ? toTransactionDto(invoice.payment) : null,
   };
@@ -70,5 +90,6 @@ export function toInvoiceDto(invoice: Invoice): InvoiceDto {
     ...toInvoiceFields(invoice),
     purchases: invoice.purchases.map(toTransactionDto),
     refunds: invoice.refunds.map(toTransactionDto),
+    payments: invoice.payments.map(toTransactionDto),
   };
 }

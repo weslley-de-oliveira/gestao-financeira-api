@@ -3,10 +3,16 @@ import { formatIsoDate, monthLabel, type IsoDate, type IsoMonth } from '../../sh
 import type { AccountsRepository } from '../accounts/accounts.repository.ts';
 import type { CreditCardsRepository } from '../credit-cards/credit-cards.repository.ts';
 import { CreditCardNotFoundError } from '../credit-cards/credit-cards.service.ts';
-import { buildInvoice, canPayInvoice, listInvoices, type Invoice } from './invoice-rules.ts';
+import {
+  buildInvoice,
+  canPayInvoice,
+  listInvoices,
+  nextMonth,
+  type Invoice,
+} from './invoice-rules.ts';
 import type { InvoicesRepository } from './invoices.repository.ts';
 
-/** A fatura não pode ser paga agora: aberta, sem compras ou já paga. */
+/** A fatura não pode ser paga agora: aberta, sem saldo a pagar ou com o saldo já transferido. */
 export class InvoiceNotPayableError extends DomainError {
   readonly kind = 'conflict';
 }
@@ -39,8 +45,8 @@ export interface InvoicesService {
   /** Fatura do mês de referência (`yyyy-MM`, mês do vencimento), com as compras. */
   get(userId: string, creditCardId: string, referenceMonth: IsoMonth): Promise<Invoice>;
   /**
-   * Paga a fatura pelo valor total, hoje, com a conta de pagamento do cartão. Só fatura fechada ou
-   * vencida, com compras e sem pagamento (senão, `InvoiceNotPayableError`). Devolve a fatura paga.
+   * Paga o saldo da fatura, hoje, com a conta de pagamento do cartão. Só fatura fechada ou vencida
+   * com saldo a pagar (senão, `InvoiceNotPayableError`). Devolve a fatura paga.
    */
   pay(userId: string, creditCardId: string, referenceMonth: IsoMonth): Promise<Invoice>;
   /**
@@ -77,15 +83,19 @@ export function createInvoicesService({
 
   /** Por que a fatura não pode ser paga, com a mesma regra de `canPayInvoice`. */
   function notPayable(invoice: Invoice): InvoiceNotPayableError {
-    if (invoice.status === 'paid') {
-      return new InvoiceNotPayableError('Esta fatura já foi paga.');
-    }
     if (invoice.status === 'open') {
       return new InvoiceNotPayableError(
         `A fatura ainda está aberta: ela pode ser paga a partir do fechamento, em ${formatIsoDate(invoice.closingDate)}.`,
       );
     }
-    return new InvoiceNotPayableError('A fatura não tem compras para pagar.');
+    if (invoice.status === 'carried-over') {
+      return new InvoiceNotPayableError(
+        `O saldo desta fatura passou para a fatura de ${monthLabel(nextMonth(invoice.referenceMonth))}: pague por ela.`,
+      );
+    }
+    return new InvoiceNotPayableError(
+      invoice.paidAmount > 0 ? 'Esta fatura já foi paga.' : 'A fatura não tem saldo a pagar.',
+    );
   }
 
   return {
@@ -114,7 +124,7 @@ export function createInvoicesService({
           userId,
           type: 'invoice-payment',
           description: `Fatura ${card.name} ${monthLabel(referenceMonth)}`,
-          amount: invoice.total,
+          amount: invoice.balance,
           date,
           accountId: account.id,
           creditCardId: card.id,

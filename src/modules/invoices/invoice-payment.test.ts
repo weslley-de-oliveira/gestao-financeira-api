@@ -136,8 +136,8 @@ describe('pagamento de fatura', () => {
     );
   });
 
-  it('não paga fatura sem compras', async () => {
-    expectConflict(await pay('2026-09'), 'A fatura não tem compras para pagar.');
+  it('não paga fatura sem saldo a pagar', async () => {
+    expectConflict(await pay('2026-09'), 'A fatura não tem saldo a pagar.');
   });
 
   it('não paga com a conta de pagamento arquivada', async () => {
