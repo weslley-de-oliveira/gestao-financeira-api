@@ -1,4 +1,5 @@
 import { DomainError, InvalidInputError } from '../../shared/errors/domain-error.ts';
+import { LATER_INVOICE_PAYMENT_PROBLEM_TYPE } from '../../shared/http/problem.ts';
 import { formatIsoDate, monthLabel, type IsoDate, type IsoMonth } from '../../shared/utils/date.ts';
 import { formatCents, type Cents } from '../../shared/utils/money.ts';
 import type { AccountsRepository } from '../accounts/accounts.repository.ts';
@@ -16,6 +17,21 @@ import type { InvoicesRepository } from './invoices.repository.ts';
 /** A fatura não pode ser paga agora: aberta, sem saldo a pagar ou com o saldo já transferido. */
 export class InvoiceNotPayableError extends DomainError {
   readonly kind = 'conflict';
+}
+
+/**
+ * Desfazer o pagamento de uma fatura com uma fatura posterior paga: o saldo desta entra na
+ * seguinte, então o pagamento da posterior deixaria de conferir. Desfaça os posteriores antes.
+ */
+export class LaterInvoicePaymentError extends DomainError {
+  readonly kind = 'conflict';
+  override readonly problemType = LATER_INVOICE_PAYMENT_PROBLEM_TYPE;
+
+  constructor(laterMonth: IsoMonth) {
+    super(
+      `A fatura de ${monthLabel(laterMonth)} já tem pagamento. Desfaça antes os pagamentos das faturas seguintes.`,
+    );
+  }
 }
 
 /** A conta de pagamento do cartão está arquivada: reative-a ou troque a conta do cartão. */
@@ -63,8 +79,9 @@ export interface InvoicesService {
     amount?: Cents,
   ): Promise<Invoice>;
   /**
-   * Desfaz o pagamento: o valor volta para a conta, as compras voltam a ocupar o limite e a fatura
-   * volta ao status pelas datas. Sem pagamento → `InvoiceNotPayableError`. Devolve a fatura.
+   * Desfaz o pagamento mais recente: o valor volta para a conta e para o limite, e a fatura volta
+   * ao status pelas datas e pelo saldo. Sem pagamento → `InvoiceNotPayableError`; com pagamento
+   * numa fatura posterior → `LaterInvoicePaymentError`. Devolve a fatura.
    */
   undoPayment(userId: string, creditCardId: string, referenceMonth: IsoMonth): Promise<Invoice>;
 }
@@ -164,6 +181,15 @@ export function createInvoicesService({
         const { payment } = buildInvoice(card, movements, referenceMonth, today());
         if (!payment) {
           throw new InvoiceNotPayableError('Esta fatura não tem pagamento para desfazer.');
+        }
+        const [later] = movements
+          .filter(({ type }) => type === 'invoice-payment')
+          .flatMap(({ invoiceMonth }) =>
+            invoiceMonth && invoiceMonth > referenceMonth ? [invoiceMonth] : [],
+          )
+          .toSorted();
+        if (later) {
+          throw new LaterInvoicePaymentError(later);
         }
         await deletePayment(payment.id);
       });

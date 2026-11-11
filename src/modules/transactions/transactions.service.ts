@@ -63,16 +63,20 @@ export class InvoicePaymentNotEditableError extends DomainError {
 }
 
 /**
- * Compra numa fatura já paga: não pode ser criada, alterada nem excluída, senão o total pago
- * deixaria de conferir com os itens. É preciso desfazer o pagamento antes.
+ * Compra numa fatura já paga, ou anterior a uma paga (o saldo de cada fatura entra na seguinte):
+ * não pode ser criada, alterada nem excluída, senão o valor pago deixaria de conferir com os itens.
+ * É preciso desfazer o pagamento antes.
  */
 export class PaidInvoiceError extends DomainError {
   readonly kind = 'conflict';
   override readonly problemType = PAID_INVOICE_PROBLEM_TYPE;
 
-  constructor(cardName: string, referenceMonth: string) {
+  /** `paidMonth`: a fatura paga; `invoiceMonth`: a da compra, quando é anterior a ela. */
+  constructor(cardName: string, paidMonth: string, invoiceMonth = paidMonth) {
     super(
-      `A fatura de ${monthLabel(referenceMonth)} do cartão "${cardName}" já foi paga. Desfaça o pagamento para alterar as compras dela.`,
+      paidMonth === invoiceMonth
+        ? `A fatura de ${monthLabel(paidMonth)} do cartão "${cardName}" já foi paga. Desfaça o pagamento para alterar as compras dela.`
+        : `A fatura de ${monthLabel(paidMonth)} do cartão "${cardName}" já foi paga, e o saldo da fatura de ${monthLabel(invoiceMonth)} passa para ela. Desfaça esse pagamento para alterar as compras.`,
     );
   }
 }
@@ -392,19 +396,25 @@ export function createTransactionsService({
     };
   }
 
-  /** Nenhuma destas faturas do cartão pode estar paga; a primeira paga → `PaidInvoiceError`. */
+  /**
+   * Nenhuma destas faturas do cartão, nem as posteriores a elas, pode ter pagamento: o saldo de cada
+   * fatura entra na seguinte. A primeira paga → `PaidInvoiceError`.
+   */
   async function assertInvoicesNotPaid(
     userId: string,
     card: { id: string; name: string },
     invoiceMonths: readonly string[],
   ): Promise<void> {
-    const paid = await transactions.firstPaidInvoiceMonth(userId, card.id, invoiceMonths);
-    if (paid) {
-      throw new PaidInvoiceError(card.name, paid);
+    const [first] = invoiceMonths.toSorted();
+    const paid = first
+      ? await transactions.firstPaidInvoiceMonthFrom(userId, card.id, first)
+      : null;
+    if (paid && first) {
+      throw new PaidInvoiceError(card.name, paid, first);
     }
   }
 
-  /** A fatura em que cai uma compra do cartão nesta data não pode estar paga. */
+  /** A fatura em que cai uma compra do cartão nesta data (e as posteriores) não pode estar paga. */
   async function assertInvoiceNotPaid(
     userId: string,
     creditCardId: string,
@@ -414,10 +424,7 @@ export function createTransactionsService({
     if (!card) {
       return;
     }
-    const { referenceMonth } = invoiceCycleFor(card, date);
-    if (await transactions.hasInvoicePayment(userId, creditCardId, referenceMonth)) {
-      throw new PaidInvoiceError(card.name, referenceMonth);
-    }
+    await assertInvoicesNotPaid(userId, card, [invoiceCycleFor(card, date).referenceMonth]);
   }
 
   /**

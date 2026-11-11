@@ -237,6 +237,28 @@ describe('rotas /v1/installment-purchases', () => {
     });
   });
 
+  it('responde 409 se as parcelas cairiam em faturas anteriores a uma já paga', async () => {
+    await user.api('POST', '/v1/transactions', {
+      type: 'expense',
+      description: 'Compra paga',
+      amount: 1_000,
+      date: '2026-10-20',
+      creditCardId: cardId,
+      categoryId: food.id,
+    });
+    await user.api('POST', `/v1/credit-cards/${cardId}/invoices/2026-11/payment`);
+
+    // Parcelas nas faturas de 09/2026 e 10/2026: o saldo delas chega à de 11/2026, já paga.
+    const response = await create(purchase({ date: '2026-08-20', installmentCount: 2 }));
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      type: '/problems/paid-invoice',
+      detail:
+        'A fatura de 11/2026 do cartão "Cartão principal" já foi paga, e o saldo da fatura de 09/2026 passa para ela. Desfaça esse pagamento para alterar as compras.',
+    });
+  });
+
   describe('PATCH /:id', () => {
     it('altera descrição, categoria e observações de todas as parcelas', async () => {
       const created = (await create(purchase())).json<InstallmentPurchaseDto>();

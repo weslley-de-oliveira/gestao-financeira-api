@@ -55,18 +55,19 @@ export interface TransactionsRepository {
   deleteInstallments(userId: string, groupId: string): Promise<number>;
   /** Muda a data destas transações do usuário, numa só gravação. */
   moveTransactions(userId: string, transactionIds: readonly string[], date: string): Promise<void>;
-  /** O primeiro destes meses de referência do cartão cuja fatura já tem pagamento, ou `null`. */
-  firstPaidInvoiceMonth(
+  /**
+   * O primeiro mês de referência, a partir de `fromMonth` (inclusive), cuja fatura do cartão já tem
+   * pagamento, ou `null`.
+   */
+  firstPaidInvoiceMonthFrom(
     userId: string,
     creditCardId: string,
-    invoiceMonths: readonly string[],
+    fromMonth: string,
   ): Promise<string | null>;
   /** Estornos de uma despesa do usuário, dos mais antigos aos mais recentes. */
   listRefunds(userId: string, transactionId: string): Promise<Transaction[]>;
   /** Soma dos estornos de cada despesa, pelo id dela; as sem estornos ficam de fora. */
   refundedTotals(userId: string, transactionIds: readonly string[]): Promise<Map<string, number>>;
-  /** Se a fatura (cartão e mês de referência) do usuário já tem pagamento. */
-  hasInvoicePayment(userId: string, creditCardId: string, invoiceMonth: string): Promise<boolean>;
 }
 
 export function createTransactionsRepository(db: Database): TransactionsRepository {
@@ -199,10 +200,7 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
         .where(and(eq(transactions.userId, userId), inArray(transactions.id, [...transactionIds])));
     },
 
-    async firstPaidInvoiceMonth(userId, creditCardId, invoiceMonths) {
-      if (invoiceMonths.length === 0) {
-        return null;
-      }
+    async firstPaidInvoiceMonthFrom(userId, creditCardId, fromMonth) {
       const [payment] = await db
         .select({ invoiceMonth: transactions.invoiceMonth })
         .from(transactions)
@@ -211,7 +209,7 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
             eq(transactions.userId, userId),
             eq(transactions.creditCardId, creditCardId),
             eq(transactions.type, 'invoice-payment'),
-            inArray(transactions.invoiceMonth, [...invoiceMonths]),
+            gte(transactions.invoiceMonth, fromMonth),
           ),
         )
         .orderBy(asc(transactions.invoiceMonth))
@@ -250,22 +248,6 @@ export function createTransactionsRepository(db: Database): TransactionsReposito
         )
         .groupBy(transactions.refundedTransactionId);
       return new Map(rows.map((row) => [row.id ?? '', row.total]));
-    },
-
-    async hasInvoicePayment(userId, creditCardId, invoiceMonth) {
-      const [payment] = await db
-        .select({ id: transactions.id })
-        .from(transactions)
-        .where(
-          and(
-            eq(transactions.userId, userId),
-            eq(transactions.creditCardId, creditCardId),
-            eq(transactions.type, 'invoice-payment'),
-            eq(transactions.invoiceMonth, invoiceMonth),
-          ),
-        )
-        .limit(1);
-      return payment !== undefined;
     },
   };
 }

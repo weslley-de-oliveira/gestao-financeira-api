@@ -12,7 +12,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "description": "Tipo do problema: `/problems/validation-error` (422 com `errors`), `/problems/paid-invoice` (409: compra de fatura já paga), `/problems/archived-reference` (409: conta, cartão ou categoria arquivada), `/problems/installment` (409: parcela alterada sozinha; use a compra parcelada), `/problems/has-refunds` (409: despesa com estornos); `about:blank` quando o status já basta.",
+            "description": "Tipo do problema: `/problems/validation-error` (422 com `errors`), `/problems/paid-invoice` (409: compra de fatura já paga, ou de uma anterior a ela), `/problems/later-invoice-payment` (409: desfazer pagamento com uma fatura posterior paga), `/problems/archived-reference` (409: conta, cartão ou categoria arquivada), `/problems/installment` (409: parcela alterada sozinha; use a compra parcelada), `/problems/has-refunds` (409: despesa com estornos); `about:blank` quando o status já basta.",
             "example": "about:blank"
           },
           "title": { "type": "string", "example": "Recurso não encontrado" },
@@ -1513,7 +1513,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "description": "Tipo do problema: `/problems/validation-error` (422 com `errors`), `/problems/paid-invoice` (409: compra de fatura já paga), `/problems/archived-reference` (409: conta, cartão ou categoria arquivada), `/problems/installment` (409: parcela alterada sozinha; use a compra parcelada), `/problems/has-refunds` (409: despesa com estornos); `about:blank` quando o status já basta.",
+            "description": "Tipo do problema: `/problems/validation-error` (422 com `errors`), `/problems/paid-invoice` (409: compra de fatura já paga, ou de uma anterior a ela), `/problems/later-invoice-payment` (409: desfazer pagamento com uma fatura posterior paga), `/problems/archived-reference` (409: conta, cartão ou categoria arquivada), `/problems/installment` (409: parcela alterada sozinha; use a compra parcelada), `/problems/has-refunds` (409: despesa com estornos); `about:blank` quando o status já basta.",
             "example": "about:blank"
           },
           "title": { "type": "string", "example": "Recurso não encontrado" },
@@ -5305,9 +5305,9 @@
         }
       },
       "delete": {
-        "summary": "Desfaz o pagamento da fatura",
+        "summary": "Desfaz o último pagamento da fatura",
         "tags": ["Faturas"],
-        "description": "Apaga a transação `invoice-payment`: o valor volta para a conta, as compras voltam a ocupar o limite e a fatura volta ao status pelas datas. Fatura sem pagamento responde 409. Devolve a fatura.",
+        "description": "Apaga o pagamento mais recente da fatura (transação `invoice-payment`): o valor volta para a conta e para o limite, e a fatura volta ao status pelas datas e pelo saldo. Fatura sem pagamento responde 409; com pagamento numa fatura posterior do cartão, 409 `/problems/later-invoice-payment` (desfaça antes os das faturas seguintes). Devolve a fatura.",
         "parameters": [
           {
             "schema": {

@@ -118,9 +118,9 @@ export const invoicesRoutes: FastifyPluginCallbackZod = (app, _options, done) =>
     {
       schema: {
         tags: [INVOICES_TAG],
-        summary: 'Desfaz o pagamento da fatura',
+        summary: 'Desfaz o último pagamento da fatura',
         description:
-          'Apaga a transação `invoice-payment`: o valor volta para a conta, as compras voltam a ocupar o limite e a fatura volta ao status pelas datas. Fatura sem pagamento responde 409. Devolve a fatura.',
+          'Apaga o pagamento mais recente da fatura (transação `invoice-payment`): o valor volta para a conta e para o limite, e a fatura volta ao status pelas datas e pelo saldo. Fatura sem pagamento responde 409; com pagamento numa fatura posterior do cartão, 409 `/problems/later-invoice-payment` (desfaça antes os das faturas seguintes). Devolve a fatura.',
         params: invoiceParamsSchema,
         response: {
           200: invoiceSchema,

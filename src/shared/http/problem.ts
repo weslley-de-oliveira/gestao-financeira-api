@@ -13,7 +13,7 @@ export const problemDetailsSchema = z
   .object({
     type: z.string().meta({
       description:
-        'Tipo do problema: `/problems/validation-error` (422 com `errors`), `/problems/paid-invoice` (409: compra de fatura já paga), `/problems/archived-reference` (409: conta, cartão ou categoria arquivada), `/problems/installment` (409: parcela alterada sozinha; use a compra parcelada), `/problems/has-refunds` (409: despesa com estornos); `about:blank` quando o status já basta.',
+        'Tipo do problema: `/problems/validation-error` (422 com `errors`), `/problems/paid-invoice` (409: compra de fatura já paga, ou de uma anterior a ela), `/problems/later-invoice-payment` (409: desfazer pagamento com uma fatura posterior paga), `/problems/archived-reference` (409: conta, cartão ou categoria arquivada), `/problems/installment` (409: parcela alterada sozinha; use a compra parcelada), `/problems/has-refunds` (409: despesa com estornos); `about:blank` quando o status já basta.',
       example: 'about:blank',
     }),
     title: z.string().meta({ example: 'Recurso não encontrado' }),
@@ -36,6 +36,7 @@ export type FieldError = z.infer<typeof fieldErrorSchema>;
  * demais erros usam `about:blank`, porque o status já basta.
  */
 export const PAID_INVOICE_PROBLEM_TYPE = '/problems/paid-invoice';
+export const LATER_INVOICE_PAYMENT_PROBLEM_TYPE = '/problems/later-invoice-payment';
 export const ARCHIVED_REFERENCE_PROBLEM_TYPE = '/problems/archived-reference';
 export const INSTALLMENT_PROBLEM_TYPE = '/problems/installment';
 export const HAS_REFUNDS_PROBLEM_TYPE = '/problems/has-refunds';
