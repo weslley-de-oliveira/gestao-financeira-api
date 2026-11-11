@@ -176,7 +176,8 @@ Copie `.env.example` para `.env` e ajuste os valores. Elas são validadas na ini
 ## Testes e CI
 
 - `npm test` sobe um Postgres descartável (Testcontainers), aplica as migrações e roda os testes de integração e unitários.
-- **CI** (`.github/workflows/ci.yml`, em PRs e na `main`): `npm audit` das dependências de produção, formatação, lint, typecheck, testes, build e a verificação do `openapi.json`.
+- `npm run test:coverage` faz o mesmo e mede a cobertura (V8), com o relatório em `coverage/index.html`. A execução falha se a cobertura cair abaixo dos limites do `vitest.config.ts` (5 pontos abaixo do medido na etapa 17).
+- **CI** (`.github/workflows/ci.yml`, em PRs e na `main`): `npm audit` das dependências de produção, formatação, lint, typecheck, testes com cobertura (o resumo aparece na página da execução), build e a verificação do `openapi.json`.
 - **Imagem** (`image.yml`): monta a imagem e confere o `/health` em todo PR; na `main`, publica no GitHub Container Registry (`sha-<commit>` e `latest`) e pede o deploy ao Render.
 - **Demonstração** (`demo-reset.yml`): todo dia, de madrugada em Brasília, roda o seed contra o banco de produção e devolve a conta de demonstração aos dados iniciais. Também pode ser rodado à mão.
 - **Monitoramento** (`monitor.yml`): a cada hora, confere pelo site da Vercel o `/api/ready` (tolerando a hibernação) e o login da conta de demonstração. Uma falha deixa a execução vermelha, e o GitHub avisa por e-mail. Workflows agendados param depois de 60 dias sem atividade no repositório: o GitHub avisa antes.
@@ -210,21 +211,22 @@ Conventional Commits, validados pelo commitlint no hook `commit-msg`; o hook `pr
 
 ## Scripts
 
-| Script                 | Descrição                                                          |
-| ---------------------- | ------------------------------------------------------------------ |
-| `npm run dev`          | Executa a API com recarga automática (TypeScript nativo do Node)   |
-| `npm run build`        | Compila para `dist/` e copia as migrações                          |
-| `npm start`            | Executa a versão compilada                                         |
-| `npm run typecheck`    | Verifica os tipos sem gerar arquivos                               |
-| `npm test`             | Roda os testes (Vitest) contra um Postgres no Testcontainers       |
-| `npm run test:watch`   | Roda os testes em modo observação                                  |
-| `npm run openapi`      | Regenera o `openapi.json` a partir das rotas                       |
-| `npm run db:up`        | Sobe o Postgres local (Docker Compose) e espera ficar pronto       |
-| `npm run db:down`      | Para o Postgres local (os dados ficam no volume)                   |
-| `npm run db:generate`  | Gera uma migração SQL a partir das mudanças no schema              |
-| `npm run db:migrate`   | Aplica as migrações pendentes                                      |
-| `npm run db:studio`    | Abre o Drizzle Studio para inspecionar o banco                     |
-| `npm run db:seed`      | Cria a demo (`demo@exemplo.com` / `demo1234`) com 6 meses de dados |
-| `npm run lint`         | Executa o ESLint (com regras que usam os tipos)                    |
-| `npm run format`       | Formata o código com Prettier                                      |
-| `npm run format:check` | Verifica a formatação sem alterar arquivos                         |
+| Script                  | Descrição                                                          |
+| ----------------------- | ------------------------------------------------------------------ |
+| `npm run dev`           | Executa a API com recarga automática (TypeScript nativo do Node)   |
+| `npm run build`         | Compila para `dist/` e copia as migrações                          |
+| `npm start`             | Executa a versão compilada                                         |
+| `npm run typecheck`     | Verifica os tipos sem gerar arquivos                               |
+| `npm test`              | Roda os testes (Vitest) contra um Postgres no Testcontainers       |
+| `npm run test:watch`    | Roda os testes em modo observação                                  |
+| `npm run test:coverage` | Roda os testes e mede a cobertura (relatório em `coverage/`)       |
+| `npm run openapi`       | Regenera o `openapi.json` a partir das rotas                       |
+| `npm run db:up`         | Sobe o Postgres local (Docker Compose) e espera ficar pronto       |
+| `npm run db:down`       | Para o Postgres local (os dados ficam no volume)                   |
+| `npm run db:generate`   | Gera uma migração SQL a partir das mudanças no schema              |
+| `npm run db:migrate`    | Aplica as migrações pendentes                                      |
+| `npm run db:studio`     | Abre o Drizzle Studio para inspecionar o banco                     |
+| `npm run db:seed`       | Cria a demo (`demo@exemplo.com` / `demo1234`) com 6 meses de dados |
+| `npm run lint`          | Executa o ESLint (com regras que usam os tipos)                    |
+| `npm run format`        | Formata o código com Prettier                                      |
+| `npm run format:check`  | Verifica a formatação sem alterar arquivos                         |

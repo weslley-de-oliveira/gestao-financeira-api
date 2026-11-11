@@ -48,9 +48,22 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      # O Docker do runner sobe o Postgres de teste (Testcontainers).
-      - name: Tests
-        run: npm test
+      # O Docker do runner sobe o Postgres de teste (Testcontainers). Falha também se a cobertura
+      # cair abaixo dos limites do vitest.config.ts.
+      - name: Tests with coverage
+        run: npm run test:coverage
+
+      - name: Coverage summary
+        if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
+        run: |
+          node -e "
+            const total = require('./coverage/coverage-summary.json').total;
+            const names = { statements: 'Instruções', branches: 'Ramos', functions: 'Funções', lines: 'Linhas' };
+            const rows = Object.entries(names).map(
+              ([key, name]) => '| ' + name + ' | ' + total[key].pct + '% | ' + total[key].covered + '/' + total[key].total + ' |',
+            );
+            console.log(['### Cobertura dos testes', '', '| Métrica | % | Cobertos |', '| --- | ---: | ---: |', ...rows].join('\n'));
+          " >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build
         run: npm run build

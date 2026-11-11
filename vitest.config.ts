@@ -9,5 +9,14 @@ export default defineConfig({
     hookTimeout: 120_000,
     testTimeout: 10_000,
     restoreMocks: true,
+    // Só em `npm run test:coverage` (CI). Os limites ficam 5 pontos abaixo do medido na etapa 17:
+    // avisam quando a cobertura cai, sem travar um PR por detalhe.
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts'],
+      reporter: ['text-summary', 'json-summary', 'html'],
+      thresholds: { statements: 91, branches: 83, functions: 91, lines: 91 },
+    },
   },
 });
