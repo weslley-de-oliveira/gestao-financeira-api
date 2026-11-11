@@ -1,8 +1,30 @@
 # Gestão Financeira — API
 
+[![CI](https://github.com/weslley-de-oliveira/gestao-financeira-api/actions/workflows/ci.yml/badge.svg)](https://github.com/weslley-de-oliveira/gestao-financeira-api/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/weslley-de-oliveira/gestao-financeira-api/actions/workflows/codeql.yml/badge.svg)](https://github.com/weslley-de-oliveira/gestao-financeira-api/actions/workflows/codeql.yml)
+[![Licença: MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue.svg)](LICENSE)
+
 API REST que serve o front [Gestão Financeira](https://github.com/weslley-de-oliveira/gestao-financeira): autenticação, contas, categorias, transações, cartões, faturas, orçamentos, metas e dashboard. Projeto de portfólio: use apenas dados fictícios.
 
-As decisões de arquitetura, com o contexto e as alternativas descartadas, estão em [`docs/adr/`](docs/adr/README.md).
+**Demo:** <https://gestao-financeira-tau-five.vercel.app> (conta de demonstração: `demo@exemplo.com` / `demo1234`).
+
+```mermaid
+flowchart LR
+  browser["Navegador"] -->|"HTTPS, cookie __Host-session"| vercel["Vercel<br/>front estático + rewrite /api"]
+  vercel -->|"/api/*"| render["Render<br/>API Fastify (Docker)"]
+  render -->|"SQL, TLS"| neon[("Neon<br/>PostgreSQL 17")]
+  gha["GitHub Actions<br/>CI, CodeQL, monitor"] -->|"imagem"| ghcr["GHCR"]
+  ghcr -->|"deploy hook"| render
+```
+
+## Destaques
+
+- **Regras de domínio de verdade:** faturas calculadas com saldo anterior, pagamento parcial e travas em cadeia ([`invoice-rules.ts`](src/modules/invoices/invoice-rules.ts)); compras parceladas com antecipação e cancelamento ([`installment-plan.ts`](src/modules/installments/installment-plan.ts)); estornos.
+- **Concorrência e repetições:** `ETag`/`If-Match` com 412 ([`etag.ts`](src/shared/http/etag.ts)), `Idempotency-Key` com hash do corpo ([`idempotency.ts`](src/shared/http/idempotency.ts)) e trava da linha do cartão nos pagamentos.
+- **Segurança:** sessão em cookie `__Host-` com Argon2id, CSRF por `Origin`, rate limit, Problem Details (RFC 9457) e um [teste de isolamento](test/isolation-matrix.test.ts) que cobre toda rota com id (e falha se surgir uma rota nova fora dele).
+- **Testes contra um Postgres real** (Testcontainers): mais de 1.000 testes, cobertura de 96% das linhas, e testes de paridade com as regras do front.
+- **Operação:** imagem Docker publicada no GHCR, deploy automático no Render, migrações na subida com trava no banco, monitoramento e restauração diária da demo pelo GitHub Actions.
+- **Decisões registradas:** [`docs/adr/`](docs/adr/README.md), com o contexto e as alternativas descartadas de cada escolha.
 
 ## Stack
 
@@ -176,7 +198,7 @@ Copie `.env.example` para `.env` e ajuste os valores. Elas são validadas na ini
 ## Testes e CI
 
 - `npm test` sobe um Postgres descartável (Testcontainers), aplica as migrações e roda os testes de integração e unitários.
-- `npm run test:coverage` faz o mesmo e mede a cobertura (V8), com o relatório em `coverage/index.html`. A execução falha se a cobertura cair abaixo dos limites do `vitest.config.ts` (5 pontos abaixo do medido na etapa 17).
+- `npm run test:coverage` faz o mesmo e mede a cobertura (V8), com o relatório em `coverage/index.html`. Na etapa 17: 96% das instruções e linhas, 88% dos ramos e 97% das funções. A execução falha se a cobertura cair abaixo dos limites do `vitest.config.ts` (5 pontos abaixo do medido na etapa 17).
 - **CI** (`.github/workflows/ci.yml`, em PRs e na `main`): `npm audit` das dependências de produção, formatação, lint, typecheck, testes com cobertura (o resumo aparece na página da execução), build e a verificação do `openapi.json`.
 - **Imagem** (`image.yml`): monta a imagem e confere o `/health` em todo PR; na `main`, publica no GitHub Container Registry (`sha-<commit>` e `latest`) e pede o deploy ao Render.
 - **Demonstração** (`demo-reset.yml`): todo dia, de madrugada em Brasília, roda o seed contra o banco de produção e devolve a conta de demonstração aos dados iniciais. Também pode ser rodado à mão.
