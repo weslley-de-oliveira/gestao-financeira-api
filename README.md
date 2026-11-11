@@ -41,7 +41,7 @@ test/                # Postgres de teste, helpers e testes que cruzam módulos (
 
 - **Isolamento entre usuários:** toda consulta filtra pelo usuário da sessão; o recurso de outra pessoa responde 404, como um id que não existe (`test/isolation-matrix.test.ts` cobre cada rota com id).
 - **Regras iguais às do front:** saldos, faturas, orçamentos e metas seguem as mesmas regras do front, com testes de paridade (`*.parity.test.ts`); somas grandes são feitas em SQL.
-- **Erros:** sempre Problem Details (RFC 9457), com `errors[]` por campo nos 422 e o `x-request-id` para encontrar o log. Os conflitos que o cliente trata de forma diferente têm `type` próprio: `/problems/paid-invoice` (compra de fatura já paga), `/problems/archived-reference` (conta, cartão ou categoria arquivada), `/problems/installment` (parcela alterada sozinha) e `/problems/has-refunds` (despesa com estornos).
+- **Erros:** sempre Problem Details (RFC 9457), com `errors[]` por campo nos 422 e o `x-request-id` para encontrar o log. Os conflitos que o cliente trata de forma diferente têm `type` próprio: `/problems/paid-invoice` (compra de fatura já paga, ou anterior a uma paga), `/problems/later-invoice-payment` (desfazer pagamento com uma fatura posterior paga), `/problems/archived-reference` (conta, cartão ou categoria arquivada), `/problems/installment` (parcela alterada sozinha) e `/problems/has-refunds` (despesa com estornos).
 
 ## Listagem de transações
 
@@ -58,7 +58,7 @@ test/                # Postgres de teste, helpers e testes que cruzam módulos (
 - **Consequências:** orçamento e totais contam cada parcela no mês dela, como no extrato do cartão. O limite reserva o total na hora, porque soma todas as compras ainda não pagas.
 - **Rotas próprias:**
   - `POST /v1/installment-purchases`, com `Idempotency-Key`: repetir o pedido não duplica as parcelas.
-  - `GET`, `PATCH` e `DELETE /v1/installment-purchases/{id}`. O `PATCH` muda só descrição, categoria e observações, em todas as parcelas, inclusive as de faturas pagas, porque esses campos não mudam valores. O `DELETE` recusa (409) se alguma parcela estiver numa fatura paga.
+  - `GET`, `PATCH` e `DELETE /v1/installment-purchases/{id}`. O `PATCH` muda só descrição, categoria e observações, em todas as parcelas, inclusive as de faturas pagas, porque esses campos não mudam valores. O `DELETE` recusa (409) se alguma parcela estiver numa fatura paga ou anterior a uma paga.
   - Alterar ou excluir uma parcela sozinha em `/v1/transactions/{id}` responde 409 (`/problems/installment`). Para mudar valor, número de parcelas, cartão ou data, exclua a compra e registre de novo.
 - **Antecipar e cancelar** (`modules/installments/installment-actions.ts`), a partir da fatura atual, a que contém hoje:
   - `POST /v1/installment-purchases/{id}/anticipation` (`{ count }`) leva as últimas parcelas para a fatura atual: a data delas passa a ser hoje, sem mudar número nem valor. Só entram as de faturas seguintes e sem estornos. O desconto do banco é registrado como estorno da parcela antecipada.
@@ -75,13 +75,28 @@ test/                # Postgres de teste, helpers e testes que cruzam módulos (
   - O estorno é uma transação: edita-se (descrição, valor, data) e exclui-se por `/v1/transactions/{id}`.
 - **Efeitos, no mês da data do estorno:**
   - A conta recebe o valor.
-  - No cartão, o estorno abate a fatura em que cai e libera o limite. A fatura pode ficar com crédito, que não passa para a seguinte.
+  - No cartão, o estorno abate a fatura em que cai e libera o limite. A fatura pode ficar com crédito, que passa para a seguinte no fechamento dela.
   - O orçamento desconta o gasto da categoria, sem ficar negativo.
   - Totais e dashboard tratam o estorno como despesa negativa.
 - **Travas:**
-  - Estorno em fatura paga responde 409 (`/problems/paid-invoice`).
+  - Estorno em fatura paga, ou anterior a uma paga, responde 409 (`/problems/paid-invoice`).
   - A despesa com estornos só muda descrição, categoria e observações.
   - Ela não é excluída, nem a compra parcelada com parcela estornada, até os estornos saírem (409, `/problems/has-refunds`).
+
+## Pagamento de faturas
+
+- **A fatura é calculada** das transações do cartão (`modules/invoices/invoice-rules.ts`). Cada pagamento é uma transação `invoice-payment` com o mês da fatura, pela conta de pagamento do cartão e com a data de hoje.
+- **Pagamento parcial:** `POST /v1/credit-cards/{id}/invoices/{month}/payment` aceita `{ amount }`, de R$ 0,01 até o saldo (acima, 422). Sem corpo, paga o saldo inteiro. Uma fatura aceita vários pagamentos; o que não quita o saldo leva " (parcial)" na descrição. O limite libera só o que foi pago.
+- **Valores da fatura:**
+  - `total`: compras − estornos do ciclo.
+  - `previousBalance`: o saldo da fatura anterior (positivo é o que faltou pagar; negativo, crédito).
+  - `amountDue` = saldo anterior + total; `paidAmount` = soma dos pagamentos; `balance` = total a pagar − pago.
+  - `payments`, do mais recente para o mais antigo. `payment` é o mais recente.
+- **O saldo passa para a seguinte no fechamento dela**, como o rotativo dos bancos. Até lá, a fatura anterior ainda pode ser paga, mesmo vencida. Depois, ela fica `carried-over` e não aceita mais pagamento. Assim cada real devido aparece numa fatura só.
+- **Status**, pela data e pelo saldo: `open` (antes do fechamento), `closed` (fechada, com saldo, até o vencimento), `overdue` (vencida, com saldo), `paid` (fechada com saldo ≤ 0, inclusive sem pagamento, quando os estornos zeram a fatura) e `carried-over` (saldo transferido).
+- **Sem juros automáticos:** juros, IOF e multa do rotativo variam por banco. Lance-os como uma compra no cartão.
+- **Travas em cadeia:** como o saldo de uma fatura entra na seguinte, compras, estornos e parcelas são recusados (409 `/problems/paid-invoice`) quando a fatura deles **ou uma posterior** tem pagamento. `DELETE …/payment` desfaz só o pagamento mais recente da fatura e responde 409 `/problems/later-invoice-payment` se uma fatura posterior tiver pagamento.
+- **Concorrência:** pagar e desfazer travam a linha do cartão (`select … for update`): dois pagamentos ao mesmo tempo não passam do saldo.
 
 ## Metas ligadas às contas
 
@@ -106,7 +121,7 @@ test/                # Postgres de teste, helpers e testes que cruzam módulos (
 ## Edições concorrentes e repetições
 
 - **ETag e If-Match:** `GET`, `POST` e `PATCH` de contas, categorias, transações, cartões, orçamentos e metas devolvem `ETag` (a versão do registro) e o campo `updatedAt`, do qual a ETag é derivada (`"<milissegundos do updatedAt>"`): o cliente que leu o registro numa listagem também consegue montar o `If-Match`. Um `PATCH` com `If-Match` só grava se o registro ainda estiver nessa versão; senão, responde **412** e nada muda. Sem `If-Match`, vale a última gravação.
-- **Idempotency-Key:** o pagamento de fatura aceita `Idempotency-Key`. Repetir o pedido com a mesma chave em até 24 horas devolve a mesma resposta (`Idempotent-Replayed: true`) sem pagar de novo. A chave reaproveitada em outra requisição responde 422; enquanto a primeira ainda roda, 409. Falhas não ficam guardadas.
+- **Idempotency-Key:** o pagamento de fatura aceita `Idempotency-Key`. Repetir o pedido com a mesma chave em até 24 horas devolve a mesma resposta (`Idempotent-Replayed: true`) sem pagar de novo. A chave reaproveitada em outra requisição (outra rota ou outro corpo, como outro valor) responde 422; enquanto a primeira ainda roda, 409. Falhas não ficam guardadas.
 
 ## Requisitos
 
