@@ -354,6 +354,35 @@
           "updatedAt"
         ]
       },
+      "ClientErrorInput": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["error", "network"],
+            "description": "`error`: erro de JavaScript não tratado; `network`: requisição sem resposta da API (rede, proxy, API hibernando)."
+          },
+          "message": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "name": {
+            "description": "Tipo do erro (`TypeError`).",
+            "type": "string",
+            "maxLength": 100
+          },
+          "stack": { "type": "string", "maxLength": 4000 },
+          "path": {
+            "type": "string",
+            "maxLength": 300,
+            "pattern": "^\\/",
+            "description": "Página em que o erro ocorreu; a query string é descartada."
+          },
+          "requestId": {
+            "description": "O `x-request-id` da requisição que falhou, se houver.",
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._-]{8,64}$"
+          }
+        },
+        "required": ["kind", "message", "path"]
+      },
       "NextInvoiceInput": {
         "type": "object",
         "properties": {
@@ -1861,6 +1890,36 @@
           "createdAt",
           "updatedAt"
         ],
+        "additionalProperties": false
+      },
+      "ClientError": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["error", "network"],
+            "description": "`error`: erro de JavaScript não tratado; `network`: requisição sem resposta da API (rede, proxy, API hibernando)."
+          },
+          "message": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "name": {
+            "description": "Tipo do erro (`TypeError`).",
+            "type": "string",
+            "maxLength": 100
+          },
+          "stack": { "type": "string", "maxLength": 4000 },
+          "path": {
+            "type": "string",
+            "maxLength": 300,
+            "pattern": "^\\/",
+            "description": "Página em que o erro ocorreu; a query string é descartada."
+          },
+          "requestId": {
+            "description": "O `x-request-id` da requisição que falhou, se houver.",
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._-]{8,64}$"
+          }
+        },
+        "required": ["kind", "message", "path"],
         "additionalProperties": false
       },
       "NextInvoice": {
@@ -6320,6 +6379,34 @@
               "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
             }
           },
+          "422": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } }
+            }
+          }
+        }
+      }
+    },
+    "/v1/client-errors": {
+      "post": {
+        "summary": "Registra um erro do front",
+        "tags": ["Operação"],
+        "description": "Grava o erro nos logs da API, com o `User-Agent` e, se houver sessão, o id do usuário. Não exige sessão; limitado a 10 relatos por minuto por IP.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/ClientErrorInput" } }
+          }
+        },
+        "responses": {
+          "204": { "description": "Default Response" },
           "422": {
             "description": "Default Response",
             "content": {

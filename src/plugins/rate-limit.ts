@@ -63,6 +63,16 @@ export const AUTH_RATE_LIMITS = {
   },
 } as const satisfies Record<string, RateLimitOptions>;
 
+/**
+ * Relatos de erro do front: rota pública, então o limite é baixo (10 por minuto por IP). Um front
+ * com defeito em laço não enche os logs, e o próprio front já para em 5 relatos por página.
+ */
+export const CLIENT_ERRORS_RATE_LIMIT = {
+  max: 10,
+  timeWindow: '1 minute',
+  keyGenerator: (request: FastifyRequest) => `client-errors:${request.ip}`,
+} as const satisfies RateLimitOptions;
+
 function emailFromBody(body: unknown): string {
   return typeof body === 'object' && body !== null && 'email' in body ? String(body.email) : '';
 }

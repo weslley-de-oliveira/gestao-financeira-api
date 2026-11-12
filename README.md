@@ -131,6 +131,13 @@ test/                # Postgres de teste, helpers e testes que cruzam módulos (
 - **`goalsTotal` na conta:** quanto dela está guardado em metas (aportes que saíram − retiradas que voltaram). Explica por que o saldo caiu sem nenhuma transação.
 - **No banco:** `goal_contributions.account_id` tem chave estrangeira simples (`ON DELETE SET NULL`), porque a tabela não tem `user_id`. A posse da conta é conferida pela API.
 
+## Observabilidade
+
+- **Logs em JSON** (pino), com o id da requisição em todas as linhas. Fora de desenvolvimento, vão para a saída padrão, e o Render os mostra no painel do serviço. Cookies, senhas e tokens são ocultados.
+- **Id da requisição:** a API aceita o `x-request-id` recebido (8 a 64 caracteres seguros), ou gera um UUID, e o devolve no cabeçalho e no `requestId` dos Problem Details. O front gera um id por requisição e mostra os 8 primeiros caracteres nas mensagens de falha inesperada ("código: 3f9a1c2e"): buscar esse código no painel de logs encontra a requisição.
+- **Erros do front** (`POST /v1/client-errors`): erros de JavaScript e falhas de rede relatados pelo front viram um log `warn` com `source: "front"`, o `User-Agent`, a página (sem a query string), o id da requisição que falhou e, se houver sessão, o id do usuário. A rota é pública e limitada a 10 relatos por minuto por IP. Sem serviço externo: ver [ADR 0009](docs/adr/0009-rastreamento-de-erros-nos-logs.md).
+- **Saúde:** `/health` (processo de pé) e `/ready` (banco respondendo), conferidos pelo `monitor.yml`.
+
 ## Segurança
 
 - Senhas com Argon2id (rehash automático quando os parâmetros mudam); mesma resposta e tempo para e-mail com e sem conta. A troca de senha (`POST /v1/me/password`) confere a senha atual e encerra as sessões dos outros aparelhos.
@@ -230,6 +237,7 @@ Os registros de decisão ([`docs/adr/`](docs/adr/README.md)) explicam as escolha
 6. [Isolamento por usuário na aplicação, sem RLS](docs/adr/0006-isolamento-na-aplicacao.md)
 7. [Migrações na subida, com trava no banco](docs/adr/0007-migracoes-na-subida.md)
 8. [`Cache-Control: no-store` em todas as respostas](docs/adr/0008-respostas-sem-cache.md)
+9. [Rastreamento de erros nos logs da API, sem serviço externo](docs/adr/0009-rastreamento-de-erros-nos-logs.md)
 
 Além delas, **`TRUST_PROXY` por número de saltos:** o Fastify 5 recusa esse modo, porque quem chama a API direto pode forjar o `X-Forwarded-For`. Aqui isso afeta só o rate limit de quem contorna a Vercel, e os provedores não publicam faixas de IP fixas para confiar por endereço.
 

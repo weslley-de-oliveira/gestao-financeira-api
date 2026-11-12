@@ -13,6 +13,7 @@ import { accountsRoutes } from './modules/accounts/accounts.routes.ts';
 import { authRoutes } from './modules/auth/auth.routes.ts';
 import { budgetsRoutes } from './modules/budgets/budgets.routes.ts';
 import { categoriesRoutes } from './modules/categories/categories.routes.ts';
+import { clientErrorsRoutes } from './modules/client-errors/client-errors.routes.ts';
 import { creditCardsRoutes } from './modules/credit-cards/credit-cards.routes.ts';
 import { dashboardRoutes } from './modules/dashboard/dashboard.routes.ts';
 import { goalsRoutes } from './modules/goals/goals.routes.ts';
@@ -120,6 +121,7 @@ export async function buildApp(env: Env, { now }: BuildAppOptions = {}): Promise
   await app.register(goalsRoutes, { prefix: '/v1/goals' });
   await app.register(dashboardRoutes, { prefix: '/v1/dashboard' });
   await app.register(usersRoutes, { prefix: '/v1/me' });
+  await app.register(clientErrorsRoutes, { prefix: '/v1/client-errors' });
 
   return app;
 }

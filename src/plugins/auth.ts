@@ -21,6 +21,11 @@ declare module 'fastify' {
   interface FastifyInstance {
     /** Hook que exige sessão válida. Os módulos o aplicam com `requireSession(scope)`. */
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    /**
+     * Usuário da sessão do cookie, ou `null`, sem exigir sessão: para rotas públicas que só
+     * registram quem as chamou. Não estende a validade da sessão nem mexe no cookie.
+     */
+    identify: (request: FastifyRequest) => Promise<User | null>;
   }
 
   interface FastifyRequest {
@@ -70,6 +75,16 @@ export const authPlugin = fp(
         setSessionCookie(reply, token, expiresAt);
       }
       request.auth = { user, sessionId: session.id };
+    });
+
+    app.decorate('identify', async (request: FastifyRequest) => {
+      const token = request.cookies[SESSION_COOKIE];
+      if (!token) {
+        return null;
+      }
+      const now = new Date();
+      const found = await repository.findActiveSession(hashSessionToken(token), now);
+      return found && !exceedsMaxLifetime(found.session.createdAt, now) ? found.user : null;
     });
 
     done();
